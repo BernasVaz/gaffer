@@ -1,0 +1,11 @@
+node_modules
+dist
+coverage
+.turbo
+pnpm-lock.yaml
+playwright-report
+test-results
+
+# Preserve the master plan exactly as written — it is a contract document,
+# not source we own the formatting of.
+docs/MASTER_PLAN.md

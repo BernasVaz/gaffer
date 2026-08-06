@@ -1,0 +1,31 @@
+{
+  "name": "@gaffer/engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The pure, deterministic rules engine. Framework-free: no DOM, no Node built-ins, no I/O, no clock, no unseeded randomness.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@gaffer/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  }
+}

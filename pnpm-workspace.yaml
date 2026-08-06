@@ -1,0 +1,11 @@
+# Declares which folders pnpm treats as workspace packages.
+# Anything matching these globs can depend on its siblings via "workspace:*".
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm blocks dependency install-scripts by default (a supply-chain safeguard).
+# These are the ones we have reviewed and explicitly allow to run.
+onlyBuiltDependencies:
+  - esbuild
+  - turbo

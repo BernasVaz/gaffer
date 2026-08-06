@@ -1,0 +1,30 @@
+{
+  "name": "gaffer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Gaffer — a turn-based, web-first football game built on a pure deterministic TypeScript engine.",
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "check": "turbo run build lint test typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.13.3",
+    "eslint": "10.8.0",
+    "eslint-config-prettier": "10.1.8",
+    "prettier": "3.9.6",
+    "turbo": "2.10.8",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.66.0"
+  }
+}

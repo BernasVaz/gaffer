@@ -1,0 +1,40 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# turborepo cache
+.turbo/
+
+# test + coverage output
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# generated API docs
+docs/api/
+
+# environment / secrets — never commit these
+.env
+.env.*
+!.env.example
+
+# editor + OS noise
+.DS_Store
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# machine-local Claude Code state
+.claude/settings.local.json
+
+# Word copy of the master plan — binary, not diffable.
+# The canonical version is docs/MASTER_PLAN.md.
+*.docx
