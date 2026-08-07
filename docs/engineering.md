@@ -69,7 +69,13 @@ Four layers, per Master Plan §7: unit (Vitest), property-based (fast-check),
 component (Testing Library), end-to-end (Playwright).
 
 - Engine work is **test-first** — write the test from the GDD, then the code.
-- Engine coverage floor is **90%+ lines**. UI is lighter.
+- Engine coverage floor is **90%+ lines**, enforced by `@vitest/coverage-v8` — see
+  `packages/engine/vitest.config.ts`. Dropping below it fails `pnpm test`, and so CI.
+  UI stays lighter.
+- **Property tests** (`fast-check`) drive random command sequences through
+  `applyAction` and assert the invariants that hold for every board, whatever route
+  it took. They are the layer that finds what example tests do not: they caught
+  `legalActions` offering moves on a match that had already been decided.
 - The **determinism replay test is mandatory** and must never be weakened: a saved
   seed plus move log always replays to an identical final state. That single test
   protects the entire engine.

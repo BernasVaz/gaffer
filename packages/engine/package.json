@@ -19,12 +19,14 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run --coverage"
   },
   "dependencies": {
     "@gaffer/shared": "workspace:*"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "4.1.10",
+    "fast-check": "4.9.0",
     "typescript": "6.0.3",
     "vitest": "4.1.10"
   }

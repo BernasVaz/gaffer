@@ -65,14 +65,19 @@ Four layers, per the Master Plan §7:
 
 1. **Unit (Vitest)** — the bulk. Every engine rule: given this state and action,
    assert the next state.
-2. **Property-based (fast-check)** — engine invariants across random inputs
-   ("never two pieces on one cell", "score never decreases").
+2. **Property-based (fast-check)** — engine invariants across random command
+   sequences through `applyAction`: one piece per cell, the ball on its carrier,
+   score never decreasing, `turn` never past the cap, a decided match always
+   naming a winner, and everything `legalActions` offers being accepted. See
+   `packages/engine/tests/properties.test.ts`.
 3. **Component (Testing Library)** — React UI, from M3.
 4. **E2E (Playwright)** — real browser against the deployed app, from M3.
 
 Rules:
 
-- Engine coverage floor is **90%+ lines**; UI is lighter.
+- Engine coverage floor is **90%+ lines**, enforced by `@vitest/coverage-v8` in
+  `packages/engine/vitest.config.ts`. `pnpm test` fails below it, so CI does too.
+  UI stays lighter.
 - The **determinism replay test is mandatory**: a saved seed + move log must always
   replay to a byte-identical final state. Never skip or weaken it.
 - Engine work is **test-first** — write the test from the GDD, then the code.
@@ -141,6 +146,6 @@ Use **pnpm** — never `npm` or `yarn`. Node comes from fnm; the version is pinn
 - Ask one focused question rather than guessing when genuinely unsure — but make
   routine calls independently.
 - Prefer small, reviewable changes over large sweeping ones.
-- Current status: **Phases 2–4 complete** — monorepo scaffold, documentation system,
-  and quality gates (CI, hooks, Changesets). Next up is **M1 — write `docs/GDD.md`**,
-  before any game code is written.
+- Current status: **M2 complete, Phase 5 closed.** The engine plays a full match end
+  to end, with a 90% coverage floor and fast-check property tests. Watch a match with
+  `pnpm play`. Next up is **M3**, the shareable web prototype.

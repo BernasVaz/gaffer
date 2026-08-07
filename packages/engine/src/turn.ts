@@ -10,7 +10,7 @@ import {
 } from "@gaffer/shared";
 
 import { legalActions } from "./legal-actions.js";
-import { concludeIfOver } from "./outcome.js";
+import { matchResultAfterTurn } from "./outcome.js";
 import { resolveAction } from "./resolve.js";
 import type { Rng } from "./rng.js";
 
@@ -95,8 +95,18 @@ function withStats(
   return { ...resolved, stats: { shotsAttempted, duelsWon } };
 }
 
-/** Hand the turn to the other side with a fresh pool of actions. */
-function passTurn(state: MatchState): MatchState {
+/**
+ * End the turn that `state` is on: either the match is decided here, or the turn
+ * passes.
+ *
+ * The result is settled **before** the counter moves, so a decided match stops on
+ * the turn that decided it and `turn` never runs past the cap. `result` being
+ * non-null is what marks a match over — the counter is not doing double duty.
+ */
+function endOfTurn(state: MatchState, rng: Rng): MatchState {
+  const result = matchResultAfterTurn(state, rng);
+  if (result !== null) return { ...state, result };
+
   return {
     ...state,
     turn: state.turn + 1,
@@ -149,7 +159,7 @@ export function applyAction(state: MatchState, command: MatchCommand, rng: Rng):
     if (command.team !== state.activeTeam) return { ok: false, reason: "not-your-turn" };
     return {
       ok: true,
-      state: concludeIfOver(passTurn(state), rng),
+      state: endOfTurn(state, rng),
       duel: null,
       turnEnded: true,
     };
@@ -179,12 +189,12 @@ export function applyAction(state: MatchState, command: MatchCommand, rng: Rng):
   const scored =
     resolved.score.home !== state.score.home || resolved.score.away !== state.score.away;
   if (scored) {
-    return { ok: true, state: concludeIfOver(passTurn(tallied), rng), duel, turnEnded: true };
+    return { ok: true, state: endOfTurn(tallied, rng), duel, turnEnded: true };
   }
 
   const spent: MatchState = { ...tallied, actionsRemaining: tallied.actionsRemaining - 1 };
   if (spent.actionsRemaining <= 0) {
-    return { ok: true, state: concludeIfOver(passTurn(spent), rng), duel, turnEnded: true };
+    return { ok: true, state: endOfTurn(spent, rng), duel, turnEnded: true };
   }
 
   return { ok: true, state: spent, duel, turnEnded: false };
