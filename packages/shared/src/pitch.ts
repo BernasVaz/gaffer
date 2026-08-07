@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { Team } from "./team.js";
+
 /**
  * Columns on the v1 pitch, running from the home goal (x = 0) to the away goal.
  *
@@ -78,4 +80,78 @@ export function mirrorPosition(position: Position, board: Board): Position {
     x: board.width - 1 - position.x,
     y: board.height - 1 - position.y,
   };
+}
+
+/** A unit step on the grid: one of the 8 compass directions. */
+export interface Direction {
+  /** Column delta, -1, 0 or 1. */
+  dx: number;
+  /** Row delta, -1, 0 or 1. */
+  dy: number;
+}
+
+/**
+ * The 8 directions movement and passing travel in (GDD §5).
+ *
+ * Both actions run in straight lines along one of these, which is why distance
+ * is counted in steps rather than in cells crossed — see
+ * {@link chebyshevDistance}.
+ */
+export const DIRECTIONS: readonly Direction[] = [
+  { dx: 0, dy: -1 },
+  { dx: 1, dy: -1 },
+  { dx: 1, dy: 0 },
+  { dx: 1, dy: 1 },
+  { dx: 0, dy: 1 },
+  { dx: -1, dy: 1 },
+  { dx: -1, dy: 0 },
+  { dx: -1, dy: -1 },
+];
+
+/**
+ * Distance in steps, where a diagonal step costs the same as an orthogonal one.
+ *
+ * This is the metric the game runs on: because a player may travel in any of the
+ * 8 directions, "three cells away" has to mean three steps in some direction,
+ * not three cells of Euclidean separation.
+ */
+export function chebyshevDistance(a: Position, b: Position): number {
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+}
+
+/** Whether two cells touch — the 8 surrounding cells, not the cell itself. */
+export function areAdjacent(a: Position, b: Position): boolean {
+  return chebyshevDistance(a, b) === 1;
+}
+
+/** How many cells wide each goal mouth is (GDD §5). */
+export const GOAL_MOUTH_HEIGHT = 3;
+
+/**
+ * How far from the goal mouth a carrier may shoot, in steps (GDD §13).
+ *
+ * A tunable: raising it makes long-range efforts viable and shifts the game away
+ * from working the ball into the box. Set to 2 rather than 3 precisely so that a
+ * shot from the kickoff spot is not legal — the centre spot sits exactly 3 steps
+ * from the goal mouth, so 3 would let a match open with a strike at goal.
+ */
+export const SHOT_RANGE = 2;
+
+/**
+ * The cells making up the goal that `team` is attacking.
+ *
+ * Home attacks the far column, away the near one. The mouth is the middle
+ * {@link GOAL_MOUTH_HEIGHT} rows of that column rather than the whole goal-line,
+ * so scoring from the touchline is not a thing — and on the v1 pitch it is
+ * exactly the span a keeper starting on the goal-line centre can cover with its
+ * move range of 1.
+ */
+export function attackingGoalMouth(team: Team, board: Board): Position[] {
+  const x = team === "home" ? board.width - 1 : 0;
+  const firstRow = Math.floor((board.height - GOAL_MOUTH_HEIGHT) / 2);
+
+  return Array.from({ length: GOAL_MOUTH_HEIGHT }, (_unused, offset) => ({
+    x,
+    y: firstRow + offset,
+  }));
 }

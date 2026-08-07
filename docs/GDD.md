@@ -1,4 +1,4 @@
-# Gaffer — Game Design Document (v1.0 — LOCKED, v1 baseline)
+# Gaffer — Game Design Document (v1.2 — LOCKED, v1 baseline)
 
 _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementable baseline**: the design is complete enough to build with no open questions. Values marked *(tunable)* are locked starting numbers we will refine in playtest — changing them is a data edit, not a redesign. This is the contract the engine (M2) is built and tested against._
 
@@ -7,6 +7,8 @@ _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementabl
 > - **v0.1 → v0.2:** resolution moved to bounded, transparent dice in duels only.
 > - **v0.2 → v0.3:** dropped the tactic-card system for free direct movement + a fixed action economy + role-based movement range; collection hook moved to squad-building.
 > - **v0.3 → v1.0:** closed all nine open decisions (§13); fixed drifted section cross-references. Design is now implementable.
+> - **v1.0 → v1.1:** pinned down what building legal-action generation exposed as under-specified — movement and passing geometry, the goal's shape, `SHOT_RANGE`, the Move/Dribble boundary, and Tackle as an atomic action that no longer bundles movement (§5, §7, §13). No change to stats, duels, information or the win condition.
+> - **v1.1 → v1.2:** `SHOT_RANGE` cut from 3 to 2. At 3 the kickoff spot sat exactly in range, so a match could open with a strike at goal; 2 forces the ball into the attacking third first.
 
 ---
 
@@ -51,7 +53,9 @@ Synthesis: **the direct honesty of chess, the drama of a sporting duel, the pull
 
 - A discrete **grid**; one piece per cell; perfect information.
 - **v1 flagship: 5-a-side on a 7 columns × 5 rows pitch** _(tunable)_ — readable at a glance, room for real positioning.
-- A **goal** at each end; one side attacks left→right, the other right→left.
+- One side attacks left→right, the other right→left.
+- **The goal is a 3-cell mouth** at each end: the middle three cells of that end column (rows 1–3 on the 5-row pitch). Not the whole goal-line — scoring from the touchline should not be a thing. The mouth is exactly what a keeper on the goal-line centre can cover with its move range of 1, which is how the two numbers stay in step.
+- **Directions and distance:** movement and passing both travel in straight lines along any of the **8 compass directions**, and distance is counted in **steps**, so a diagonal step costs the same as an orthogonal one (Chebyshev distance).
 - **Data-driven dimensions:** pitch and squad size are config, so 7-a-side and 11-a-side become **game modes** later. Only 5-a-side is balanced and shipped for v1.
 
 ## 6. The squad, roles & stats (LOCKED, values tunable)
@@ -72,11 +76,12 @@ No per-player hidden variation — a Striker is a Striker. Collection identity c
 
 - One **ball**; one carrier; possession is central.
 - The action menu (each costs one of your 2 actions per turn):
-  - **Move** — relocate a player to an empty cell along a clear path, up to its range. **Automatic** (no duel). Cannot move onto or through an occupied cell.
-  - **Pass** — send the ball along a clear lane to a teammate, up to **PAS** range. **Automatic** if the lane is clear; a **duel** (passer **PAS** vs interceptor **DEF**) if an opponent sits adjacent to the lane.
-  - **Dribble** — the carrier moves while an opponent is adjacent. Always a **duel** (**ATK** vs **DEF**).
-  - **Tackle / Press** — move a defender adjacent to the carrier and challenge. A **duel** (defender **DEF** vs carrier **ATK**).
-  - **Shoot** — if the carrier is within range of goal, a single **duel** (shooter **ATK** vs keeper **DEF**). See §9.
+  - **Move** — relocate a player in a straight line along one of the 8 directions, up to its role's Move range, onto an empty cell. **Automatic** (no duel). The first occupied cell in a direction blocks it: you may not move onto or through an occupied cell.
+  - **Pass** — send the ball the same way: a straight lane in one of the 8 directions, up to the passer's **PAS** range, to the first player in that direction — legal only if that player is a teammate. **Automatic** if no opponent is beside the lane; a **duel** (passer **PAS** vs interceptor **DEF**) if one is. Either way the pass is offered, and the odds are shown before you commit.
+  - **Dribble** — the contested version of a carrier's move: identical geometry, but a **duel** (**ATK** vs **DEF**). A carrier's move is a Dribble when the carrier is **adjacent to an opponent at its origin or at its destination**; otherwise it is a plain Move. Escaping a press and advancing into contact are therefore both contested, while a clean run through open space is free even if it passes near an opponent. Move and Dribble are mutually exclusive for a given destination — the carrier never gets to choose the free version of a contested move.
+  - **Tackle / Press** — a defender **already adjacent to the carrier** challenges it. A **duel** (defender **DEF** vs carrier **ATK**). This is a single atomic action and does **not** bundle movement: getting a defender next to the carrier costs a separate Move first. A defender already in position may therefore press on consecutive turns.
+  - **Shoot** — if the carrier is within **SHOT_RANGE** of the opponent's goal mouth (§5), a single **duel** (shooter **ATK** vs keeper **DEF**). See §9. Shots are not aimed at a particular cell in v1, and defenders between shooter and goal do not block the shot — they raise the keeper's total as covering defenders (§9).
+- **Adjacency** throughout means the 8 surrounding cells.
 - On a turnover, possession flips — a key swing moment.
 - **After a goal, positions reset for a kickoff.**
 
@@ -129,20 +134,27 @@ Every contested action is a duel:
 
 The numeric knobs, in one place — all live as Zod data in `@gaffer/shared`, so tuning is a data change, not code:
 
-| Parameter                   | v1 value                        |
-| --------------------------- | ------------------------------- |
-| Actions per turn            | 2                               |
-| Pitch (5-a-side)            | 7 × 5 cells                     |
-| Squad                       | 1 GK + 4 outfield               |
-| Stats / roles / move ranges | §6 table                        |
-| Mobility stat               | PAS (no separate PACE)          |
-| Duel die                    | opposed **d3**                  |
-| Covering-defender modifier  | +2 DEF each                     |
-| Turn cap                    | ≈ 20 turns (10 per side)        |
-| Tie-breaker                 | golden-goal sudden death        |
-| Per-turn timer              | ≈ 25s _(client-side)_           |
-| Shot resolution             | single duel (ATK vs keeper DEF) |
-| Degrees of success          | none in v1                      |
+| Parameter                   | v1 value                                                         |
+| --------------------------- | ---------------------------------------------------------------- |
+| Actions per turn            | 2                                                                |
+| Pitch (5-a-side)            | 7 × 5 cells                                                      |
+| Squad                       | 1 GK + 4 outfield                                                |
+| Stats / roles / move ranges | §6 table                                                         |
+| Mobility stat               | PAS (no separate PACE)                                           |
+| Movement & pass geometry    | straight lines, 8 directions, blocked by the first occupied cell |
+| Distance metric             | steps (Chebyshev — a diagonal costs 1)                           |
+| Adjacency                   | the 8 surrounding cells                                          |
+| Goal mouth                  | 3 cells, rows 1–3 of each end column                             |
+| **SHOT_RANGE**              | **2** cells from the goal mouth                                  |
+| Dribble trigger             | carrier adjacent to an opponent at origin **or** destination     |
+| Tackle                      | atomic; the defender must already be adjacent                    |
+| Duel die                    | opposed **d3**                                                   |
+| Covering-defender modifier  | +2 DEF each                                                      |
+| Turn cap                    | ≈ 20 turns (10 per side)                                         |
+| Tie-breaker                 | golden-goal sudden death                                         |
+| Per-turn timer              | ≈ 25s _(client-side)_                                            |
+| Shot resolution             | single duel (ATK vs keeper DEF)                                  |
+| Degrees of success          | none in v1                                                       |
 
 ## 14. Explicitly OUT of v1 scope
 
