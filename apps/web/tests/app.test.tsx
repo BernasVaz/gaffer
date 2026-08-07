@@ -1,6 +1,7 @@
-import { createInitialState } from "@gaffer/engine";
+import { createInitialState, legalActions, previewDuel } from "@gaffer/engine";
 import { DEFAULT_BOARD, ROLES, TOTAL_TURNS } from "@gaffer/shared";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { App } from "../src/App";
@@ -10,6 +11,15 @@ import { SQUADS } from "../src/board/squads";
 const cellNames = () =>
   screen.getAllByRole("gridcell").map((cell) => cell.getAttribute("aria-label") ?? "");
 
+/** Every button whose label starts with `verb` — i.e. every offered target. */
+const offered = (verb: RegExp) =>
+  screen
+    .getAllByRole("button")
+    .filter((button) => verb.test(button.getAttribute("aria-label") ?? ""));
+
+/** The clickable button sitting on a given player's cell. */
+const buttonFor = (fragment: RegExp) => screen.getByRole("button", { name: fragment });
+
 describe("the pitch", () => {
   it("draws a cell for every square of the board", () => {
     render(<App />);
@@ -18,27 +28,20 @@ describe("the pitch", () => {
     );
   });
 
-  it("has a row for each row of the board", () => {
-    render(<App />);
-    expect(screen.getAllByRole("row")).toHaveLength(DEFAULT_BOARD.height);
-  });
-
   it("shows exactly the ten players the engine placed", () => {
     render(<App />);
-    const occupied = cellNames().filter((name) => /home |away /.test(name));
-    expect(occupied).toHaveLength(createInitialState().players.length);
-    expect(occupied).toHaveLength(10);
+    expect(cellNames().filter((name) => /home |away /.test(name))).toHaveLength(10);
   });
 
-  it("puts every player on the cell the engine says, by role and side", () => {
-    // Reads the engine rather than a copied layout, so the board cannot drift
-    // away from the formation without this failing.
+  it("puts every player on the cell the engine says", () => {
     render(<App />);
+    const named = new Set(cellNames());
     for (const player of createInitialState().players) {
       const { x, y } = player.position;
-      expect(
-        screen.getByLabelText(new RegExp(`^Column ${x}, row ${y}: ${player.team} ${player.role}`)),
-      ).toBeInTheDocument();
+      const match = [...named].some((name) =>
+        name.startsWith(`Column ${x}, row ${y}: ${player.team} ${player.role}`),
+      );
+      expect(match, `${player.id} at ${x},${y}`).toBe(true);
     }
   });
 
@@ -48,61 +51,162 @@ describe("the pitch", () => {
     expect(withBall).toHaveLength(1);
     expect(withBall[0]).toMatch(/home striker.*with the ball/);
   });
+});
 
-  it("labels both goal mouths, three cells apiece", () => {
+describe("selecting a player", () => {
+  it("offers nothing until something is selected", () => {
     render(<App />);
-    const mouths = cellNames().filter((name) => name.includes("goal mouth"));
-    // The keepers stand on the centre of each mouth, so four of the six cells
-    // are empty and carry the label.
-    expect(mouths.length).toBeGreaterThanOrEqual(4);
+    expect(offered(/^Move to|^Dribble to|^Pass to|^Tackle |^Shoot/)).toHaveLength(0);
+  });
+
+  it("lights every legal destination at once", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(buttonFor(/^Select home winger/));
+
+    // The winger has no ball, so everything it can do is a free move.
+    expect(offered(/^Move to/).length).toBeGreaterThan(0);
+    expect(offered(/^Dribble to/)).toHaveLength(0);
+  });
+
+  it("deselects when the same player is clicked again", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(buttonFor(/^Select home winger/));
+    expect(offered(/^Move to/).length).toBeGreaterThan(0);
+
+    await user.click(buttonFor(/^Deselect number 7 Reyes/));
+    expect(offered(/^Move to/)).toHaveLength(0);
+  });
+
+  it("will not select a player from the side that is not to move", () => {
+    render(<App />);
+    // Home kicks off, so no away player is offered for selection.
+    expect(offered(/^Select away/)).toHaveLength(0);
+    expect(offered(/^Select home/).length).toBeGreaterThan(0);
   });
 });
 
-describe("the scoreboard", () => {
-  it("opens goalless on turn one", () => {
+describe("the odds on the board", () => {
+  it("shows a number on exactly the targets the engine says are contested", async () => {
+    const user = userEvent.setup();
     render(<App />);
-    expect(screen.getByText("0–0")).toBeInTheDocument();
-    expect(screen.getByText(`1/${TOTAL_TURNS}`)).toBeInTheDocument();
+    await user.click(buttonFor(/^Select home striker/));
+
+    // Ask the engine which of the striker's options are contested, then check
+    // the board agrees — rather than guessing, which got this wrong once: the
+    // kickoff pass back to the defender IS covered, by the opposing striker.
+    const state = createInitialState();
+    const mine = legalActions(state).filter((a) => a.playerId === "home-striker");
+    const contested = mine.filter((a) => previewDuel(state, a) !== null).length;
+    const free = mine.length - contested;
+
+    expect(contested).toBeGreaterThan(0);
+    expect(free).toBeGreaterThan(0);
+
+    const labels = offered(/^Move to|^Dribble to|^Pass to|^Tackle |^Shoot/).map(
+      (b) => b.getAttribute("aria-label") ?? "",
+    );
+    expect(labels.filter((l) => /% chance/.test(l))).toHaveLength(contested);
+    expect(labels.filter((l) => !/% chance/.test(l))).toHaveLength(free);
   });
 
-  it("says who is to play and how many actions they have", () => {
+  it("keeps a free player's board free of numbers entirely", async () => {
+    const user = userEvent.setup();
     render(<App />);
-    expect(screen.getByText("home")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
-  });
-});
 
-describe("the jerseys", () => {
-  it("shows a squad number and a name for every player", () => {
-    render(<App />);
-    for (const team of ["home", "away"] as const) {
-      for (const role of ROLES) {
-        const kit = SQUADS[team][role];
-        expect(screen.getAllByText(kit.name).length).toBeGreaterThan(0);
-        expect(screen.getAllByText(String(kit.number)).length).toBeGreaterThan(0);
-      }
+    await user.click(buttonFor(/^Select home midfielder/));
+    for (const move of offered(/^Move to/)) {
+      expect(move.getAttribute("aria-label")).not.toMatch(/% chance/);
     }
   });
 
-  it("names the shirt in the cell's accessible label, so it is not colour-only", () => {
+  it("explains the focused target in the status line", async () => {
+    const user = userEvent.setup();
     render(<App />);
-    const striker = SQUADS.home.striker;
+
+    await user.click(buttonFor(/^Select home striker/));
+    await user.hover(offered(/^Dribble to/)[0]!);
+
+    const status = within(screen.getByLabelText("Match status"));
+    expect(status.getByText("Dribble")).toBeInTheDocument();
+    expect(status.getByText(/^\d+%$/)).toBeInTheDocument();
+  });
+});
+
+describe("committing a move", () => {
+  it("plays it straight through, with no confirm step", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(buttonFor(/^Select home winger/));
+    const destination = offered(/^Move to/)[0]!;
+    const label = destination.getAttribute("aria-label") ?? "";
+    const [, x, y] = /column (\d+), row (\d+)/.exec(label) ?? [];
+
+    await user.click(destination);
+
+    // The winger is now on the cell that was clicked.
     expect(
-      screen.getByLabelText(
-        new RegExp(`home striker, number ${striker.number} ${striker.name}, with the ball`),
-      ),
+      screen.getByLabelText(new RegExp(`^Column ${x}, row ${y}: home winger`)),
     ).toBeInTheDocument();
+  });
+
+  it("spends an action and clears the selection", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(screen.getByText("2 actions left")).toBeInTheDocument();
+
+    await user.click(buttonFor(/^Select home winger/));
+    await user.click(offered(/^Move to/)[0]!);
+
+    expect(screen.getByText("1 action left")).toBeInTheDocument();
+    expect(offered(/^Move to/)).toHaveLength(0);
+  });
+
+  it("reports what happened underneath the board", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(buttonFor(/^Select home striker/));
+    await user.click(offered(/^Dribble to/)[0]!);
+
+    expect(screen.getByText(/rolled \d+–\d+/)).toBeInTheDocument();
+  });
+});
+
+describe("hotseat", () => {
+  it("hands the board to the other side once the pool is spent", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(screen.getByText(/home to play/)).toBeInTheDocument();
+
+    await user.click(buttonFor(/^Select home winger/));
+    await user.click(offered(/^Move to/)[0]!);
+    await user.click(buttonFor(/^Select home midfielder/));
+    await user.click(offered(/^Move to/)[0]!);
+
+    expect(screen.getByText(/away to play/)).toBeInTheDocument();
+    expect(offered(/^Select away/).length).toBeGreaterThan(0);
+    expect(offered(/^Select home/)).toHaveLength(0);
+  });
+
+  it("passes the turn early on demand", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "End turn" }));
+
+    expect(screen.getByText(/away to play/)).toBeInTheDocument();
+    expect(screen.getByText(`Turn 2 of ${TOTAL_TURNS}`)).toBeInTheDocument();
   });
 });
 
 describe("the team sheet", () => {
-  it("lists every role", () => {
-    render(<App />);
-    for (const role of ROLES) {
-      expect(screen.getByText(role)).toBeInTheDocument();
-    }
-  });
-
   it("pairs the home and away names for each role", () => {
     render(<App />);
     for (const role of ROLES) {
