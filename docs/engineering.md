@@ -129,6 +129,31 @@ never hand-written.
 - Never commit secrets. `.env` is gitignored; the Supabase service-role key is
   server-side only.
 
+## Quality gates
+
+Each layer catches what the previous one is too early or too slow to see.
+
+**On commit** (Husky, `.husky/`) — `pre-commit` runs lint-staged across your staged
+files: Prettier formats, ESLint fixes what it can, and anything unfixable aborts the
+commit with the working tree restored untouched. `commit-msg` runs commitlint.
+
+Staged-files-only is a deliberate choice: it keeps commits fast as the repo grows, and
+means a pre-existing problem elsewhere never blocks unrelated work. Whole-repo
+checking is CI's job.
+
+**On push and PR** (`.github/workflows/ci.yml`) — typecheck → lint → test → build →
+doc coverage, each as a named step so a failure identifies itself in the GitHub UI
+rather than hiding in one long log. `pnpm install --frozen-lockfile` guarantees CI
+installs exactly what the lockfile pins.
+
+**On release** (Changesets, `.changeset/`) — `pnpm changeset` records an intent to
+version; `pnpm changeset:version` consumes those records into version bumps and
+`CHANGELOG.md`. Because our packages are `private`, `privatePackages.version` is
+enabled in `.changeset/config.json` — without it Changesets would skip them entirely.
+
+`git commit --no-verify` bypasses the hooks. It is for emergencies, not for a hook you
+find inconvenient; CI runs regardless.
+
 ## Commands
 
 All run from the repo root:

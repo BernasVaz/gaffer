@@ -1,0 +1,58 @@
+name: CI
+
+# Every push and every pull request. Master Plan §6: `main` always works, and
+# a branch cannot merge unless this is green.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+# A newer push to the same ref makes the older run irrelevant — cancel it rather
+# than burn minutes finishing work nobody will read.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: typecheck → lint → test → build → docs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      # Must precede setup-node: the pnpm cache below needs a working pnpm,
+      # and corepack is what provides it (version pinned by `packageManager`).
+      - name: Enable corepack (provides pnpm)
+        run: corepack enable
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      # --frozen-lockfile fails if pnpm-lock.yaml disagrees with package.json,
+      # so CI can never silently install different versions than we develop on.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The gates, in order. Each is a separate step so a failure names itself
+      # in the GitHub UI instead of hiding inside one long log.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      # Fails on an exported symbol with no TSDoc comment, or a broken {@link}.
+      - name: Doc coverage
+        run: pnpm run docs

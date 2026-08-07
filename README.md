@@ -1,12 +1,15 @@
 # Gaffer
 
+[![CI](https://github.com/BernasVaz/gaffer/actions/workflows/ci.yml/badge.svg)](https://github.com/BernasVaz/gaffer/actions/workflows/ci.yml)
+
 A turn-based, web-first football game built on a pure, deterministic TypeScript engine.
 
 > `gaffer` is a codename — a stable handle for the repo and packages until the real
 > name is chosen. Renaming later is a short job, so it is not blocking anything.
 
-**Status:** Phase 2 complete — the monorepo scaffold builds, lints, tests, and
-typechecks. No game code yet. Next up is [M1: the Game Design Document](docs/GDD.md).
+**Status:** Phases 2–4 complete — the monorepo scaffold builds, lints, tests, and
+typechecks, with CI and commit-time quality gates enforcing it. No game code yet.
+Next up is [M1: the Game Design Document](docs/GDD.md).
 
 ## What's here
 
@@ -42,9 +45,25 @@ pnpm check      # build + lint + test + typecheck
 | `pnpm check`     | All of the above — what CI runs          |
 | `pnpm run docs`  | Generate the API site into `docs/api`    |
 | `pnpm format`    | Format with Prettier                     |
+| `pnpm changeset` | Describe a change for the changelog      |
 
 > `docs` needs the explicit `run` — pnpm reserves the bare `pnpm docs` for its own
 > built-in command. Every other script works with or without it.
+
+## Quality gates
+
+Three layers, so mistakes are caught as early as possible:
+
+1. **On commit** — Husky runs [lint-staged](https://github.com/lint-staged/lint-staged),
+   which formats and lints only the files you staged. Unfixable lint errors abort the
+   commit. commitlint then checks the message against Conventional Commits.
+2. **On push and PR** — GitHub Actions runs typecheck → lint → test → build → doc
+   coverage. `main` is only ever green.
+3. **On release** — [Changesets](https://github.com/changesets/changesets) turns the
+   changes you describe into version bumps and `CHANGELOG.md`.
+
+To bypass the hooks in a genuine emergency: `git commit --no-verify`. CI still runs,
+so this defers the check rather than skipping it.
 
 ## Documentation
 

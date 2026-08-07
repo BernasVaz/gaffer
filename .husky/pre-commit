@@ -1,0 +1,6 @@
+# Runs before a commit is created.
+#
+# lint-staged formats and lints ONLY the files you staged, so this stays fast
+# even as the repo grows. If ESLint finds something it cannot fix automatically,
+# the commit is aborted.
+pnpm exec lint-staged

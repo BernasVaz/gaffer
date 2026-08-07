@@ -1,0 +1,6 @@
+# Runs after you write a commit message, before the commit is recorded.
+#
+# commitlint checks the message against Conventional Commits. This is not
+# style policing: Changesets reads these prefixes to build the changelog, so a
+# malformed message loses real information.
+pnpm exec commitlint --edit "$1"

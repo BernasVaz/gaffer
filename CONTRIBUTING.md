@@ -16,10 +16,40 @@ produce a competing lockfile.
 1. Branch off `main`.
 2. Make a small change.
 3. `pnpm check` locally.
-4. Commit with a [Conventional Commit](#commit-messages) message.
-5. Open a PR. CI must be green to merge.
+4. If the change affects a package's behaviour, run `pnpm changeset` to describe it.
+5. Commit with a [Conventional Commit](#commit-messages) message.
+6. Open a PR. CI must be green to merge.
 
 Small and reversible beats large and clever. `main` always works.
+
+## What runs automatically
+
+**When you commit,** two hooks fire (installed by Husky, so they work as soon as you
+`pnpm install`):
+
+- `pre-commit` runs lint-staged over your **staged files only** — Prettier formats
+  them and ESLint fixes what it can. Anything ESLint cannot fix aborts the commit,
+  and your working tree is restored exactly as it was.
+- `commit-msg` runs commitlint against your message.
+
+**When you push or open a PR,** GitHub Actions runs typecheck → lint → test → build →
+doc coverage.
+
+In a genuine emergency, `git commit --no-verify` skips the hooks — but CI will still
+catch it, so this buys time rather than an exemption.
+
+## Changesets
+
+Versions and `CHANGELOG.md` are generated, never hand-edited.
+
+When you change how a package behaves, run `pnpm changeset`, pick the package, choose
+patch/minor/major, and write one sentence a _user_ of the package would care about.
+That produces a small Markdown file in `.changeset/` which you commit alongside your
+code. Later, `pnpm changeset:version` consumes those files, bumps versions and writes
+the changelog.
+
+Tooling-only changes — CI config, editor settings, dependency bumps that change no
+behaviour — do not need a changeset.
 
 ## Commit messages
 

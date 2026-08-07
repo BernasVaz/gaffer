@@ -97,11 +97,16 @@ Rules:
 
 ## Git workflow
 
-- **Conventional Commits**, enforced by commitlint:
-  `feat:` `fix:` `test:` `chore:` `docs:` `refactor:`
-- Work on a branch; `main` stays green. CI (typecheck → lint → test → build) must pass
-  before merge.
-- Husky + lint-staged format and lint staged files on commit.
+- **Conventional Commits**, enforced by commitlint on the `commit-msg` hook:
+  `feat:` `fix:` `test:` `chore:` `docs:` `refactor:` (also `ci:` `build:` `perf:`
+  `style:` `revert:`). A malformed message is rejected, not warned about.
+- Work on a branch; `main` stays green. CI runs typecheck → lint → test → build →
+  doc coverage on every push and PR, and must pass before merge.
+- Husky + lint-staged format and lint **staged files only** on the `pre-commit` hook.
+- **Do not use `--no-verify`** to get around a failing hook. Fix the cause. The one
+  exception is a genuine emergency, and CI will catch it anyway.
+- Behaviour changes need a changeset (`pnpm changeset`). Tooling-only changes do not.
+  Never hand-edit `CHANGELOG.md` or a package `version` — Changesets owns both.
 - Do not commit secrets. `.env` files are gitignored; the Supabase service-role key is
   server-only and never reaches the client bundle.
 
@@ -132,5 +137,6 @@ Use **pnpm** — never `npm` or `yarn`. Node comes from fnm; the version is pinn
 - Ask one focused question rather than guessing when genuinely unsure — but make
   routine calls independently.
 - Prefer small, reviewable changes over large sweeping ones.
-- Current status: **Phase 2 complete** (monorepo scaffold). Next up is **M1 — write
-  `docs/GDD.md`**, before any game code is written.
+- Current status: **Phases 2–4 complete** — monorepo scaffold, documentation system,
+  and quality gates (CI, hooks, Changesets). Next up is **M1 — write `docs/GDD.md`**,
+  before any game code is written.
