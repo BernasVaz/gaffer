@@ -269,7 +269,7 @@ function main(): void {
 
   say();
   console.log(`FINAL  ${state.score.home}-${state.score.away}  ·  ${result.winner} win`);
-  console.log(`decided by ${result.decidedBy} after ${state.turn - 1} turns`);
+  console.log(`decided by ${result.decidedBy} after ${state.turn} turns`);
 
   if (result.shootout) {
     const { home, away, kicks } = result.shootout;

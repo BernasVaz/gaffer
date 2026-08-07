@@ -4,6 +4,7 @@ import {
   opponentOf,
   SHOOTOUT_KICKS,
   SHOOTOUT_SUDDEN_DEATH_ROUNDS,
+  TOTAL_TURNS,
   TURN_CAP,
   type MatchResult,
   type MatchState,
@@ -140,41 +141,44 @@ function decideLevelMatch(state: MatchState, rng: Rng): MatchResult {
 }
 
 /**
- * Close the match out if it is over, otherwise hand back the state unchanged.
+ * How the match ended, given that `state.turn` has just been played out — or null
+ * if there is another turn to play.
  *
- * Called after every turn passes, which is also immediately after a goal — a goal
- * ends the scoring side's turn, so golden goal takes effect at once rather than
- * waiting for anyone else to act.
+ * Deliberately asked **before** the turn counter advances, so a decided match
+ * stops on the turn that decided it. `turn` therefore never exceeds
+ * {@link TOTAL_TURNS}, and `result` being non-null is the only thing that marks
+ * a match as over. Reading the phase from the completed turn is also more honest
+ * than inferring it from an already-incremented counter.
  *
  * The three moments that matter:
- * - **the cap passes with a lead** — decided in regulation;
- * - **a side leads during extra time** — golden goal;
+ * - **regulation ends with a lead** — decided in regulation;
+ * - **a side leads during extra time** — golden goal, which takes effect at once
+ *   because a goal ends the scoring side's turn;
  * - **extra time runs out level** — the tiebreaker cascade.
  *
- * @param state - The board after a turn passed. Not modified.
+ * @param state - The board, with `turn` naming the turn just completed. Not modified.
  * @param rng - The match's seeded generator, used only if a shootout is needed.
  */
-export function concludeIfOver(state: MatchState, rng: Rng): MatchState {
-  if (state.result !== null) return state;
-  if (state.turn <= TURN_CAP) return state; // regulation still running
+export function matchResultAfterTurn(state: MatchState, rng: Rng): MatchResult | null {
+  if (state.result !== null) return state.result;
 
+  const completed = state.turn;
   const ahead = leader(state);
 
   if (ahead !== null) {
-    return {
-      ...state,
-      result: {
-        winner: ahead,
-        // Crossing the cap exactly is the end of regulation; anything later is a
-        // goal scored during extra time.
-        decidedBy: state.turn === TURN_CAP + 1 ? "regulation" : "goldenGoal",
-        shootout: null,
-      },
-    };
+    // A lead entering extra time is impossible — extra time only happens when
+    // the sides are level — so any lead after the cap was scored during it.
+    if (completed === TURN_CAP) {
+      return { winner: ahead, decidedBy: "regulation", shootout: null };
+    }
+    if (isExtraTime(completed)) {
+      return { winner: ahead, decidedBy: "goldenGoal", shootout: null };
+    }
+    return null; // still in regulation, a lead settles nothing yet
   }
 
-  if (isExtraTime(state.turn)) return state; // still level, extra time to play
+  // Level, and extra time has run out: the cascade has to produce a winner.
+  if (completed >= TOTAL_TURNS) return decideLevelMatch(state, rng);
 
-  // Past TOTAL_TURNS and level: the cascade has to produce a winner.
-  return { ...state, result: decideLevelMatch(state, rng) };
+  return null;
 }

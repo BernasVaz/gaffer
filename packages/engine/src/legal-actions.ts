@@ -115,6 +115,10 @@ function canShoot(carrier: Player, state: MatchState): boolean {
  * ```
  */
 export function legalActions(state: MatchState): Action[] {
+  // A decided match has no legal anything. Without this, a client reading this
+  // list would offer playable moves on a finished match and `applyAction` would
+  // refuse every one of them — the two would disagree about the same board.
+  if (state.result !== null) return [];
   if (state.actionsRemaining <= 0) return [];
 
   const occupied = new Map<string, Player>(

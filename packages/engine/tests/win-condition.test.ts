@@ -50,10 +50,12 @@ describe("regulation", () => {
     expect(state.turn).toBe(6);
   });
 
-  it("ends with the higher score once the cap is passed", () => {
+  it("ends with the higher score once the cap is reached", () => {
     const state = endTurns(atTurn(TURN_CAP, { home: 2, away: 1 }), 1);
 
-    expect(state.turn).toBe(TURN_CAP + 1);
+    // The counter stops on the turn that decided it — result, not turn, is what
+    // marks a match over.
+    expect(state.turn).toBe(TURN_CAP);
     expect(state.result).toEqual({ winner: "home", decidedBy: "regulation", shootout: null });
   });
 
