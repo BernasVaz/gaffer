@@ -71,9 +71,9 @@ function passTurn(state: MatchState): MatchState {
  *
  * This is where GDD §15's "the server runs the same engine as referee" lands. A
  * client sends what it would like to do; this decides whether the rules allow
- * it. {@link resolveAction} underneath assumes its input is already legal and
- * stays a pure transition — the split keeps the fast path fast and gives replay
- * a function with no branching on trust.
+ * it. It is the **only** way to advance a match: the assumes-legal transition it
+ * calls internally is not exported, so a client, a server and a replay all take
+ * the same path and meet the same referee.
  *
  * It **never throws** for a badly chosen command. An out-of-date or dishonest
  * client is an ordinary condition for a server, so refusals come back as a typed

@@ -7,7 +7,10 @@ import {
 } from "@gaffer/shared";
 import { describe, expect, it } from "vitest";
 
-import { previewDuel, resolveAction } from "../src/index.js";
+import { previewDuel } from "../src/index.js";
+// resolveAction is deliberately not part of the public API — applyAction is the
+// only door in. It is imported directly here because these are its unit tests.
+import { resolveAction } from "../src/resolve.js";
 import { makeState, scriptedRng } from "./helpers.js";
 
 /** Rolls that make the attacker win outright: highest attack die, lowest defence die. */
