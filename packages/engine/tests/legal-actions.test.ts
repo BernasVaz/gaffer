@@ -380,8 +380,8 @@ describe("legalActions", () => {
 
   describe("shooting", () => {
     it("offers a shot from inside SHOT_RANGE of the goal mouth", () => {
-      // Home attacks x = 6; mouth is (6,1)–(6,3). From (3,2) that is 3 cells.
-      const state = makeState([{ team: "home", role: "striker", at: [3, 2], ball: true }]);
+      // Home attacks x = 6; mouth is (6,1)–(6,3). From (4,2) that is 2 cells.
+      const state = makeState([{ team: "home", role: "striker", at: [4, 2], ball: true }]);
       const shots = only(legalActions(state), "shoot");
       expect(shots).toHaveLength(1);
       expect(shots[0]!.playerId).toBe("home-striker-0");
@@ -389,18 +389,19 @@ describe("legalActions", () => {
     });
 
     it("offers no shot from beyond SHOT_RANGE", () => {
-      const state = makeState([{ team: "home", role: "striker", at: [2, 2], ball: true }]);
+      // (3,2) is 3 cells out — one step too far now that SHOT_RANGE is 2.
+      const state = makeState([{ team: "home", role: "striker", at: [3, 2], ball: true }]);
       expect(only(legalActions(state), "shoot")).toHaveLength(0);
     });
 
     it("measures range to the nearest mouth cell, so wide positions still count", () => {
-      // (3,0) is 3 from (6,1), the top of the mouth.
-      const state = makeState([{ team: "home", role: "striker", at: [3, 0], ball: true }]);
+      // (4,0) is 2 from (6,1), the top of the mouth, though 3 from its centre.
+      const state = makeState([{ team: "home", role: "striker", at: [4, 0], ball: true }]);
       expect(only(legalActions(state), "shoot")).toHaveLength(1);
     });
 
     it("aims the away side at the opposite goal", () => {
-      const state = makeState([{ team: "away", role: "striker", at: [3, 2], ball: true }], {
+      const state = makeState([{ team: "away", role: "striker", at: [2, 2], ball: true }], {
         activeTeam: "away",
       });
       expect(only(legalActions(state), "shoot")).toHaveLength(1);
@@ -408,8 +409,8 @@ describe("legalActions", () => {
 
     it("is not blocked by bodies in the way — they are duel modifiers, not walls", () => {
       const state = makeState([
-        { team: "home", role: "striker", at: [3, 2], ball: true },
-        { team: "away", role: "defender", at: [4, 2] },
+        { team: "home", role: "striker", at: [4, 2], ball: true },
+        { team: "away", role: "defender", at: [5, 2] },
         { team: "away", role: "goalkeeper", at: [6, 2] },
       ]);
       expect(only(legalActions(state), "shoot")).toHaveLength(1);
@@ -417,12 +418,12 @@ describe("legalActions", () => {
 
     it("never offers a shot to a player without the ball", () => {
       const state = makeState([
-        { team: "home", role: "striker", at: [3, 2], ball: true },
+        { team: "home", role: "striker", at: [4, 2], ball: true },
         { team: "home", role: "winger", at: [4, 0] },
       ]);
-      for (const shot of only(legalActions(state), "shoot")) {
-        expect(shot.playerId).toBe("home-striker-0");
-      }
+      const shots = only(legalActions(state), "shoot");
+      expect(shots).toHaveLength(1);
+      expect(shots[0]!.playerId).toBe("home-striker-0");
     });
   });
 
@@ -451,11 +452,14 @@ describe("legalActions", () => {
       expect(passes[0]!.target).toBe("home-midfielder");
     });
 
-    it("allows a shot straight from the kickoff", () => {
-      // The centre spot is exactly SHOT_RANGE from the goal mouth, so the very
-      // first action of a match can be a shot. Flagged for review — this may
-      // want either a smaller SHOT_RANGE or a wider pitch.
-      expect(only(legalActions(createInitialState()), "shoot")).toHaveLength(1);
+    it("allows no shot straight from the kickoff", () => {
+      // The centre spot is 3 steps from the goal mouth and SHOT_RANGE is 2, so
+      // a match cannot open with a strike at goal. This is exactly why the
+      // constant is 2 rather than 3 — see ADR-free note in pitch.ts.
+      expect(only(legalActions(createInitialState()), "shoot")).toHaveLength(0);
+      expect(only(legalActions(createInitialState({ kickingOff: "away" })), "shoot")).toHaveLength(
+        0,
+      );
     });
 
     it("lets the away side act when it kicks off", () => {

@@ -130,10 +130,12 @@ export const GOAL_MOUTH_HEIGHT = 3;
 /**
  * How far from the goal mouth a carrier may shoot, in steps (GDD §13).
  *
- * A tunable: raising it makes long-range efforts viable and shifts the game
- * away from working the ball into the box.
+ * A tunable: raising it makes long-range efforts viable and shifts the game away
+ * from working the ball into the box. Set to 2 rather than 3 precisely so that a
+ * shot from the kickoff spot is not legal — the centre spot sits exactly 3 steps
+ * from the goal mouth, so 3 would let a match open with a strike at goal.
  */
-export const SHOT_RANGE = 3;
+export const SHOT_RANGE = 2;
 
 /**
  * The cells making up the goal that `team` is attacking.

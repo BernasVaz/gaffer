@@ -1,4 +1,4 @@
-# Gaffer — Game Design Document (v1.1 — LOCKED, v1 baseline)
+# Gaffer — Game Design Document (v1.2 — LOCKED, v1 baseline)
 
 _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementable baseline**: the design is complete enough to build with no open questions. Values marked *(tunable)* are locked starting numbers we will refine in playtest — changing them is a data edit, not a redesign. This is the contract the engine (M2) is built and tested against._
 
@@ -8,6 +8,7 @@ _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementabl
 > - **v0.2 → v0.3:** dropped the tactic-card system for free direct movement + a fixed action economy + role-based movement range; collection hook moved to squad-building.
 > - **v0.3 → v1.0:** closed all nine open decisions (§13); fixed drifted section cross-references. Design is now implementable.
 > - **v1.0 → v1.1:** pinned down what building legal-action generation exposed as under-specified — movement and passing geometry, the goal's shape, `SHOT_RANGE`, the Move/Dribble boundary, and Tackle as an atomic action that no longer bundles movement (§5, §7, §13). No change to stats, duels, information or the win condition.
+> - **v1.1 → v1.2:** `SHOT_RANGE` cut from 3 to 2. At 3 the kickoff spot sat exactly in range, so a match could open with a strike at goal; 2 forces the ball into the attacking third first.
 
 ---
 
@@ -144,7 +145,7 @@ The numeric knobs, in one place — all live as Zod data in `@gaffer/shared`, so
 | Distance metric             | steps (Chebyshev — a diagonal costs 1)                           |
 | Adjacency                   | the 8 surrounding cells                                          |
 | Goal mouth                  | 3 cells, rows 1–3 of each end column                             |
-| **SHOT_RANGE**              | **3** cells from the goal mouth                                  |
+| **SHOT_RANGE**              | **2** cells from the goal mouth                                  |
 | Dribble trigger             | carrier adjacent to an opponent at origin **or** destination     |
 | Tackle                      | atomic; the defender must already be adjacent                    |
 | Duel die                    | opposed **d3**                                                   |

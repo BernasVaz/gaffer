@@ -59,8 +59,20 @@ describe("areAdjacent", () => {
 });
 
 describe("SHOT_RANGE", () => {
-  it("is 3 cells, per GDD §13", () => {
-    expect(SHOT_RANGE).toBe(3);
+  it("is 2 cells, per GDD §13", () => {
+    expect(SHOT_RANGE).toBe(2);
+  });
+
+  it("is short enough that the centre spot is out of range", () => {
+    // The kickoff spot sits 3 steps from the goal mouth. Keeping SHOT_RANGE
+    // below that is the whole reason it is 2 — a match must not be able to open
+    // with a shot at goal.
+    const nearest = Math.min(
+      ...attackingGoalMouth("home", DEFAULT_BOARD).map((cell) =>
+        chebyshevDistance({ x: 3, y: 2 }, cell),
+      ),
+    );
+    expect(nearest).toBeGreaterThan(SHOT_RANGE);
   });
 });
 
