@@ -192,6 +192,18 @@ export function Pitch({
   const byCell = new Map(state.players.map((player) => [cellKey(player.position), player]));
   const selected = state.players.find((player) => player.id === selectedId);
 
+  /*
+   * Both goals are always drawn. They are part of the pitch, not a highlight —
+   * an earlier version only tinted them when a shot happened to be available,
+   * which left the board with no visible goal to aim at most of the time.
+   */
+  const goalCells = new Set(
+    [...attackingGoalMouth("home", state.board), ...attackingGoalMouth("away", state.board)].map(
+      cellKey,
+    ),
+  );
+
+  /** The mouth being shot at right now, lit as a target on top of the goal. */
   const mouthCells = new Set(
     targets.shot && selected ? attackingGoalMouth(selected.team, state.board).map(cellKey) : [],
   );
@@ -285,9 +297,11 @@ export function Pitch({
                   "relative aspect-square",
                   isMouth
                     ? "bg-sky-500/30"
-                    : x % 2 === 0
-                      ? "bg-(--color-turf)"
-                      : "bg-(--color-turf-alt)",
+                    : goalCells.has(key)
+                      ? "bg-(--color-mouth)"
+                      : x % 2 === 0
+                        ? "bg-(--color-turf)"
+                        : "bg-(--color-turf-alt)",
                 )}
               >
                 <ActiveOrPlain
