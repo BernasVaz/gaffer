@@ -23,3 +23,9 @@ export { createInitialState, type CreateInitialStateOptions } from "./state.js";
 export { legalActions } from "./legal-actions.js";
 export { previewDuel } from "./duel.js";
 export { resolveAction, type ResolvedAction } from "./resolve.js";
+export {
+  applyAction,
+  type CommandAccepted,
+  type CommandRejected,
+  type CommandResult,
+} from "./turn.js";
