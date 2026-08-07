@@ -1,0 +1,42 @@
+# Runs before a push is sent to the remote.
+#
+# Stands in for GitHub branch protection, which needs GitHub Pro on a private
+# repo (see docs/engineering.md). It runs the same gates CI runs, so a red push
+# to main is stopped here rather than discovered on GitHub a minute later.
+#
+# Only pushes to main are gated. Feature branches push freely — that is the
+# point of a branch, and CI still checks them.
+
+targets_main=0
+while read -r _local_ref local_sha remote_ref _remote_sha; do
+  # A branch deletion pushes the all-zero sha; nothing to verify.
+  case "$local_sha" in
+    0000000000000000000000000000000000000000) continue ;;
+  esac
+  case "$remote_ref" in
+    refs/heads/main) targets_main=1 ;;
+  esac
+done
+
+if [ "$targets_main" -eq 0 ]; then
+  echo "pre-push: not targeting main — skipping the full suite (CI will still run)."
+  exit 0
+fi
+
+echo "pre-push: pushing to main — running the gates CI will run..."
+
+if ! pnpm check; then
+  echo ""
+  echo "pre-push: BLOCKED — build, lint, test or typecheck failed."
+  echo "Fix it, or use 'git push --no-verify' if you genuinely must."
+  exit 1
+fi
+
+if ! pnpm run docs; then
+  echo ""
+  echo "pre-push: BLOCKED — doc coverage failed."
+  echo "An exported symbol is missing its TSDoc comment, or a {@link} is broken."
+  exit 1
+fi
+
+echo "pre-push: all gates green — pushing."

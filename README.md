@@ -57,13 +57,19 @@ Three layers, so mistakes are caught as early as possible:
 1. **On commit** — Husky runs [lint-staged](https://github.com/lint-staged/lint-staged),
    which formats and lints only the files you staged. Unfixable lint errors abort the
    commit. commitlint then checks the message against Conventional Commits.
-2. **On push and PR** — GitHub Actions runs typecheck → lint → test → build → doc
+2. **On push to `main`** — a `pre-push` hook runs the full suite and refuses the push
+   if anything is red. Feature branches push freely.
+3. **On push and PR** — GitHub Actions runs typecheck → lint → test → build → doc
    coverage. `main` is only ever green.
-3. **On release** — [Changesets](https://github.com/changesets/changesets) turns the
+4. **On release** — [Changesets](https://github.com/changesets/changesets) turns the
    changes you describe into version bumps and `CHANGELOG.md`.
 
-To bypass the hooks in a genuine emergency: `git commit --no-verify`. CI still runs,
-so this defers the check rather than skipping it.
+To bypass a hook in a genuine emergency: `--no-verify` on `git commit` or `git push`.
+CI still runs, so this defers a check rather than skipping it.
+
+> The `pre-push` hook substitutes for GitHub branch protection, which needs GitHub Pro
+> on a private repo. See
+> [ADR 0002](docs/adr/0002-local-pre-push-gate-instead-of-branch-protection.md).
 
 ## Documentation
 

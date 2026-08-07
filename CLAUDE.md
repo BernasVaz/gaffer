@@ -103,6 +103,10 @@ Rules:
 - Work on a branch; `main` stays green. CI runs typecheck → lint → test → build →
   doc coverage on every push and PR, and must pass before merge.
 - Husky + lint-staged format and lint **staged files only** on the `pre-commit` hook.
+- A `pre-push` hook runs the full suite before any push to `main` and blocks it if red;
+  other branches are not gated. This substitutes for GitHub branch protection, which
+  needs GitHub Pro on a private repo — see ADR 0002. Enable real protection the day
+  the repo goes public.
 - **Do not use `--no-verify`** to get around a failing hook. Fix the cause. The one
   exception is a genuine emergency, and CI will catch it anyway.
 - Behaviour changes need a changeset (`pnpm changeset`). Tooling-only changes do not.

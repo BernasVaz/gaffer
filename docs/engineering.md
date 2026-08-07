@@ -141,6 +141,16 @@ Staged-files-only is a deliberate choice: it keeps commits fast as the repo grow
 means a pre-existing problem elsewhere never blocks unrelated work. Whole-repo
 checking is CI's job.
 
+**On push to `main`** (Husky, `.husky/pre-push`) — runs `pnpm check` and
+`pnpm run docs` and refuses the push if either fails. Pushes to other branches skip
+this entirely; branches are meant to be cheap.
+
+This stands in for GitHub branch protection, which requires GitHub Pro on a private
+repository. It is a guardrail against accident, not a control against intent —
+`git push --no-verify` bypasses it, and it only exists on machines that have run
+`pnpm install`. See [ADR 0002](adr/0002-local-pre-push-gate-instead-of-branch-protection.md);
+real branch protection should be enabled the day the repo goes public at M3.
+
 **On push and PR** (`.github/workflows/ci.yml`) — typecheck → lint → test → build →
 doc coverage, each as a named step so a failure identifies itself in the GitHub UI
 rather than hiding in one long log. `pnpm install --frozen-lockfile` guarantees CI

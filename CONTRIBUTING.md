@@ -32,11 +32,15 @@ Small and reversible beats large and clever. `main` always works.
   and your working tree is restored exactly as it was.
 - `commit-msg` runs commitlint against your message.
 
+**When you push to `main`,** the `pre-push` hook runs the whole suite — `pnpm check`
+plus `pnpm run docs` — and refuses the push if anything fails. Pushing to any other
+branch skips this, so branches stay cheap to use.
+
 **When you push or open a PR,** GitHub Actions runs typecheck → lint → test → build →
 doc coverage.
 
-In a genuine emergency, `git commit --no-verify` skips the hooks — but CI will still
-catch it, so this buys time rather than an exemption.
+In a genuine emergency, `--no-verify` skips hooks on `git commit` or `git push` — but
+CI will still catch it, so this buys time rather than an exemption.
 
 ## Changesets
 
