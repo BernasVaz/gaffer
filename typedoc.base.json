@@ -1,0 +1,21 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+
+  /*
+   * Shared by every package's typedoc.json.
+   *
+   * These options must live here rather than in the root typedoc.json: in
+   * "packages" mode TypeDoc converts each package using that package's own
+   * config, so root-level validation settings would never run against the
+   * source. Extending this file is what makes them apply.
+   *
+   * Master Plan §5.1: "code without a doc-comment is unfinished code."
+   * An exported symbol with no TSDoc comment, or a broken {@link}, fails here.
+   */
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": true
+  },
+  "treatWarningsAsErrors": true
+}

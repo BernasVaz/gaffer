@@ -82,7 +82,10 @@ Rules:
 
 - **Every exported** function, type, and module gets a TSDoc `/** ... */` comment
   covering _what_ and _why_. If someone would ask "why does this exist?", the answer
-  belongs in the comment. TypeDoc generates the API site from these.
+  belongs in the comment. TypeDoc generates the API site from these, and
+  `pnpm run docs` **fails** on an undocumented export or a broken `{@link}` — so this
+  is enforced, not optional. Do not silence it by deleting the export from the
+  barrel; write the comment.
 - **`docs/GDD.md`** is the source of truth for game rules. The engine is built and
   tested against it; when the two disagree, one of them is a bug — decide which and
   fix it, don't paper over it.
@@ -113,7 +116,11 @@ Run from the repo root:
 | `pnpm test`      | run all tests                           |
 | `pnpm lint`      | ESLint across the monorepo              |
 | `pnpm typecheck` | TypeScript with no emit                 |
+| `pnpm run docs`  | generate the TypeDoc API site           |
 | `pnpm format`    | Prettier write                          |
+
+`docs` requires the explicit `run` — pnpm reserves the bare `pnpm docs` for a
+built-in command of its own.
 
 Use **pnpm** — never `npm` or `yarn`. Node comes from fnm; the version is pinned in
 `.node-version`.

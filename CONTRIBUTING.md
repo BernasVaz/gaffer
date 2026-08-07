@@ -42,7 +42,8 @@ A change is finished when it has:
 
 - **Tests.** Engine work is test-first, written from `docs/GDD.md`.
 - **Docs.** Every exported function, type, and module has a TSDoc comment covering
-  what it is and why it exists.
+  what it is and why it exists. `pnpm run docs` fails if one is missing, so this is
+  checkable rather than a matter of opinion.
 - **A green `pnpm check`.**
 
 Code without a test or a doc-comment is unfinished code, not a follow-up ticket.

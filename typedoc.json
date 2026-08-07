@@ -1,0 +1,25 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "Gaffer API Reference",
+
+  /*
+   * "packages" strategy: TypeDoc reads each workspace package's own typedoc.json
+   * and merges the results into one site, so the engine and shared APIs are
+   * browsable together rather than as two disconnected doc sets.
+   */
+  "entryPointStrategy": "packages",
+  "entryPoints": ["packages/engine", "packages/shared"],
+
+  "out": "docs/api",
+  "readme": "none",
+  "hideGenerator": true,
+  "includeVersion": false,
+
+  /*
+   * Documentation-coverage enforcement lives in typedoc.base.json, which each
+   * package extends. It cannot live here — in "packages" mode this config only
+   * governs the final merge step, not the per-package conversion where the
+   * source is actually read.
+   */
+  "extends": ["./typedoc.base.json"]
+}
