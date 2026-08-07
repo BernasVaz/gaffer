@@ -68,6 +68,8 @@ export const REJECTION_REASONS = [
   "unknown-target",
   /** Well-formed, but not among the actions the rules allow right now. */
   "illegal-action",
+  /** The match has already been decided; nothing further can be played. */
+  "match-over",
 ] as const;
 
 /** A closed set of refusal codes. See {@link REJECTION_REASONS}. */

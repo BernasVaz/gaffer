@@ -19,6 +19,7 @@ export * from "./command.js";
 export * from "./duel.js";
 export * from "./formation.js";
 export * from "./match.js";
+export * from "./outcome.js";
 export * from "./pitch.js";
 export * from "./player.js";
 export * from "./roles.js";

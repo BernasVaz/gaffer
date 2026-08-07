@@ -1,62 +1,8 @@
-import {
-  ACTIONS_PER_TURN,
-  ActionSchema,
-  DEFAULT_BOARD,
-  MatchStateSchema,
-  ROLE_PROFILES,
-  type Action,
-  type MatchState,
-  type Player,
-  type Role,
-  type Team,
-} from "@gaffer/shared";
+import { ActionSchema, DEFAULT_BOARD, type Action, type Team } from "@gaffer/shared";
 import { describe, expect, it } from "vitest";
 
 import { createInitialState, legalActions } from "../src/index.js";
-
-/** One player to place, as `[team, role, x, y]`, optionally holding the ball. */
-type Spec = { team: Team; role: Role; at: [number, number]; ball?: boolean };
-
-/**
- * Build a valid match state from a handful of placed players, so each test can
- * describe exactly the board it cares about instead of the full kickoff eleven.
- */
-function makeState(
-  specs: readonly Spec[],
-  opts: { activeTeam?: Team; actionsRemaining?: number } = {},
-): MatchState {
-  const players: Player[] = specs.map((spec, index) => ({
-    id: `${spec.team}-${spec.role}-${index}`,
-    team: spec.team,
-    role: spec.role,
-    position: { x: spec.at[0], y: spec.at[1] },
-    stats: { ...ROLE_PROFILES[spec.role].stats },
-    moveRange: ROLE_PROFILES[spec.role].moveRange,
-  }));
-
-  const carrierIndex = specs.findIndex((spec) => spec.ball === true);
-  const carrier = carrierIndex >= 0 ? players[carrierIndex] : undefined;
-
-  const state: MatchState = {
-    board: { ...DEFAULT_BOARD },
-    players,
-    ball: carrier
-      ? { position: { ...carrier.position }, carrierId: carrier.id }
-      : { position: { x: 0, y: 4 }, carrierId: null },
-    possession: carrier ? carrier.team : null,
-    turn: 1,
-    activeTeam: opts.activeTeam ?? "home",
-    actionsRemaining: opts.actionsRemaining ?? ACTIONS_PER_TURN,
-    score: { home: 0, away: 0 },
-  };
-
-  // Every fixture must itself be a legal board, or the test proves nothing.
-  const parsed = MatchStateSchema.safeParse(state);
-  if (!parsed.success) {
-    throw new Error(`test fixture is not a valid state: ${parsed.error.message}`);
-  }
-  return state;
-}
+import { makeState } from "./helpers.js";
 
 const only = (actions: readonly Action[], type: Action["type"]) =>
   actions.filter((action) => action.type === type);

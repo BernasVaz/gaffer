@@ -57,6 +57,12 @@ export function makeState(
     activeTeam: opts.activeTeam ?? "home",
     actionsRemaining: opts.actionsRemaining ?? ACTIONS_PER_TURN,
     score: { home: 0, away: 0 },
+    kickedOff: "home",
+    stats: {
+      shotsAttempted: { home: 0, away: 0 },
+      duelsWon: { home: 0, away: 0 },
+    },
+    result: null,
   };
 
   const parsed = MatchStateSchema.safeParse(state);
