@@ -15,6 +15,7 @@
  */
 
 export * from "./action.js";
+export * from "./duel.js";
 export * from "./formation.js";
 export * from "./match.js";
 export * from "./pitch.js";
