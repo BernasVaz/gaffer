@@ -1,0 +1,20 @@
+{
+  "name": "@gaffer/play",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dev-only match viewer: plays a full match from a seed and prints it turn by turn. Never shipped.",
+  "scripts": {
+    "start": "node src/main.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@gaffer/engine": "workspace:*",
+    "@gaffer/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "typescript": "6.0.3"
+  }
+}

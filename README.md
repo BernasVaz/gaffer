@@ -7,9 +7,9 @@ A turn-based, web-first football game built on a pure, deterministic TypeScript 
 > `gaffer` is a codename — a stable handle for the repo and packages until the real
 > name is chosen. Renaming later is a short job, so it is not blocking anything.
 
-**Status:** Phases 2–4 complete — the monorepo scaffold builds, lints, tests, and
-typechecks, with CI and commit-time quality gates enforcing it. No game code yet.
-Next up is [M1: the Game Design Document](docs/GDD.md).
+**Status:** **M2 complete** — the engine plays a full match, from the kickoff formation
+through legal actions, duels, the turn economy and the win condition, to a decided
+result. Watch one with `pnpm play`. Next up is **M3**, the shareable web prototype.
 
 ## What's here
 
@@ -19,6 +19,7 @@ Next up is [M1: the Game Design Document](docs/GDD.md).
 | [`packages/shared`](packages/shared) | Zod schemas, shared types and constants.                    |
 | `apps/web`                           | Vite + React client — arrives in M3.                        |
 | `apps/server`                        | Colyseus multiplayer server — arrives in M4.                |
+| [`tools/play`](tools/play)           | Dev-only match viewer. Never shipped.                       |
 
 The engine knows nothing about rendering or networking. The web client draws its
 state; the multiplayer server runs the same engine as an authoritative referee. One
@@ -46,6 +47,27 @@ pnpm check      # build + lint + test + typecheck
 | `pnpm run docs`  | Generate the API site into `docs/api`    |
 | `pnpm format`    | Format with Prettier                     |
 | `pnpm changeset` | Describe a change for the changelog      |
+| `pnpm play`      | Watch a full match play out (dev only)   |
+
+### Watching a match
+
+`pnpm play` runs a whole match through the engine and prints it turn by turn — the
+board, every action, every duel with the odds that were shown before the dice, and the
+final result. It exists so a design question can be _seen_ rather than inferred from
+test names.
+
+```bash
+pnpm play                                # seed 1, keepers as designed
+pnpm play -- --seed 42                   # a different match
+pnpm play -- --seed 42 --keeper-def 4    # the same match with weaker keepers
+pnpm play -- --seed 42 --quiet           # result only
+```
+
+`--keeper-def` overrides the keepers' DEF **for that run only**. It edits the state the
+engine is handed and never the locked role table, so it is a way to eyeball a balance
+question — see the watch-list in [GDD §13](docs/GDD.md) — without pre-empting the answer.
+
+The tool lives in `tools/play` and is never shipped.
 
 > `docs` needs the explicit `run` — pnpm reserves the bare `pnpm docs` for its own
 > built-in command. Every other script works with or without it.
