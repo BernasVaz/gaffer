@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /*
+     * Bundler resolution rather than the monorepo's NodeNext: Vite resolves the
+     * imports here, so relative paths carry no `.js` extension. This is the one
+     * package where that convention does not apply.
+     */
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": ["src", "tests", "vite.config.ts"]
+}

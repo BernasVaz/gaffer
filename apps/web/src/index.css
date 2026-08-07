@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@theme {
+  /* The pitch. Two greens so the columns read as mown stripes. */
+  --color-turf: #2f7d4f;
+  --color-turf-alt: #2b7449;
+  --color-turf-line: #ffffff40;
+  /* The goal mouths at each end. */
+  --color-mouth: #3f9a63;
+}

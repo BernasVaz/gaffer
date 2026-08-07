@@ -32,8 +32,9 @@ honours them.
   possible.
 - `packages/shared` — Zod schemas, shared types and constants. Imported by everything;
   imports nothing from `engine` or `apps/`.
-- `apps/web` (from M3) — Vite + React + Tailwind. Renders engine state via DOM +
-  CSS-grid, not canvas. Holds no game rules.
+- `apps/web` — Vite + React + Tailwind. Renders engine state via DOM + CSS-grid, not
+  canvas. Holds no game rules. Unlike every other package it uses **Bundler** module
+  resolution, so relative imports there carry no `.js` extension.
 - `apps/server` (from M4) — Colyseus. Runs the engine as authoritative referee.
   Holds no game rules of its own.
 
@@ -146,6 +147,7 @@ Use **pnpm** — never `npm` or `yarn`. Node comes from fnm; the version is pinn
 - Ask one focused question rather than guessing when genuinely unsure — but make
   routine calls independently.
 - Prefer small, reviewable changes over large sweeping ones.
-- Current status: **M2 complete, Phase 5 closed.** The engine plays a full match end
-  to end, with a 90% coverage floor and fast-check property tests. Watch a match with
-  `pnpm play`. Next up is **M3**, the shareable web prototype.
+- Current status: **M2 complete, M3 started.** The engine plays a full match; the web
+  client renders the starting position read-only. `pnpm dev` serves it, `pnpm play`
+  watches a match in the terminal. Next: board interaction — click-to-select first,
+  drag layered onto the same commit path.

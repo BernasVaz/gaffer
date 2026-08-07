@@ -6,6 +6,12 @@ packages:
   # dev-only tooling; never shipped
   - "tools/*"
 
+# vitest pulls vite in transitively and would resolve to whatever shipped today,
+# which trips pnpm's minimum-release-age guard and makes it write itself an
+# exemption. Pinning one settled version keeps that guard meaningful.
+overrides:
+  vite: 8.2.0
+
 # pnpm blocks dependency install-scripts by default (a supply-chain safeguard).
 # These are the ones we have reviewed and explicitly allow to run.
 onlyBuiltDependencies:

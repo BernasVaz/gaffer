@@ -7,9 +7,9 @@ A turn-based, web-first football game built on a pure, deterministic TypeScript 
 > `gaffer` is a codename — a stable handle for the repo and packages until the real
 > name is chosen. Renaming later is a short job, so it is not blocking anything.
 
-**Status:** **M2 complete** — the engine plays a full match, from the kickoff formation
-through legal actions, duels, the turn economy and the win condition, to a decided
-result. Watch one with `pnpm play`. Next up is **M3**, the shareable web prototype.
+**Status:** **M2 complete, M3 started.** The engine plays a full match end to end; the
+web client renders the starting position. Run it with `pnpm dev`, or watch a whole match
+in the terminal with `pnpm play`.
 
 ## What's here
 
@@ -17,7 +17,7 @@ result. Watch one with `pnpm play`. Next up is **M3**, the shareable web prototy
 | ------------------------------------ | ----------------------------------------------------------- |
 | [`packages/engine`](packages/engine) | The rules of the game. Pure, deterministic, framework-free. |
 | [`packages/shared`](packages/shared) | Zod schemas, shared types and constants.                    |
-| `apps/web`                           | Vite + React client — arrives in M3.                        |
+| [`apps/web`](apps/web)               | Vite + React + Tailwind client. Draws the engine.           |
 | `apps/server`                        | Colyseus multiplayer server — arrives in M4.                |
 | [`tools/play`](tools/play)           | Dev-only match viewer. Never shipped.                       |
 
@@ -39,6 +39,7 @@ pnpm check      # build + lint + test + typecheck
 
 | Command          | Does                                     |
 | ---------------- | ---------------------------------------- |
+| `pnpm dev`       | Serve the web client on localhost:5173   |
 | `pnpm build`     | Build all packages (cached by Turborepo) |
 | `pnpm test`      | Run all tests                            |
 | `pnpm lint`      | Lint the monorepo                        |

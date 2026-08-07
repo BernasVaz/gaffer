@@ -1,5 +1,6 @@
 import js from "@eslint/js";
 import prettier from "eslint-config-prettier";
+import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
@@ -58,6 +59,16 @@ export default tseslint.config(
         },
       ],
     },
+  },
+
+  /*
+   * React's rules of hooks, for the client only. They catch a class of bug that
+   * is invisible until it misbehaves at runtime — a hook called conditionally
+   * reads the wrong state rather than throwing.
+   */
+  {
+    files: ["apps/web/**/*.{ts,tsx}"],
+    extends: [reactHooks.configs.flat["recommended-latest"]],
   },
 
   /* Tests may use whatever they need to set up scenarios. */
