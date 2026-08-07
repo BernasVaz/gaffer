@@ -155,3 +155,24 @@ export function attackingGoalMouth(team: Team, board: Board): Position[] {
     y: firstRow + offset,
   }));
 }
+
+/** The cells making up the goal `team` is defending. */
+export function defendingGoalMouth(team: Team, board: Board): Position[] {
+  return attackingGoalMouth(team === "home" ? "away" : "home", board);
+}
+
+/**
+ * Which side defends the goal this cell belongs to, or null for ordinary pitch.
+ *
+ * The mouth is not somewhere a player stands: it is what a shot is aimed *into*.
+ * Only the keeper defending it may occupy it, which is what stops an attacker
+ * walking into the net and then shooting at the goal it is standing inside.
+ * The goal-line cells outside the mouth — the corners — remain ordinary pitch.
+ */
+export function goalMouthOwner(cell: Position, board: Board): Team | null {
+  for (const team of ["home", "away"] as const) {
+    const mine = defendingGoalMouth(team, board);
+    if (mine.some((mouth) => mouth.x === cell.x && mouth.y === cell.y)) return team;
+  }
+  return null;
+}

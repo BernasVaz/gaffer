@@ -60,11 +60,14 @@ describe("legalActions", () => {
       const state = makeState([{ team: "home", role: "midfielder", at: [3, 2] }]);
       const moves = cellsOf(legalActions(state), "move");
 
-      // N and S run out of pitch after 2; E and W reach the full 3; the four
-      // diagonals leave the pitch after 2.
-      expect(moves.size).toBe(18);
-      expect(moves).toContain("6,2"); // three east
-      expect(moves).toContain("0,2"); // three west
+      // N and S run out of pitch after 2 and the four diagonals after 2. East
+      // and west would reach three, but the third cell each way is a goal mouth,
+      // which no outfielder may enter — so they stop at two.
+      expect(moves.size).toBe(16);
+      expect(moves).toContain("5,2"); // up to the away mouth
+      expect(moves).not.toContain("6,2"); // never into it
+      expect(moves).toContain("1,2"); // up to its own mouth
+      expect(moves).not.toContain("0,2"); // nor into that one
       expect(moves).toContain("3,0"); // two north
       expect(moves).toContain("5,0"); // two north-east
       expect(moves).not.toContain("3,2"); // never its own cell

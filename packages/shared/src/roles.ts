@@ -56,7 +56,7 @@ export type RoleProfile = z.infer<typeof RoleProfileSchema>;
  * a Striker.
  */
 export const ROLE_PROFILES: Readonly<Record<Role, RoleProfile>> = {
-  goalkeeper: { role: "goalkeeper", stats: { atk: 1, def: 5, pas: 2 }, moveRange: 1 },
+  goalkeeper: { role: "goalkeeper", stats: { atk: 1, def: 4, pas: 2 }, moveRange: 1 },
   defender: { role: "defender", stats: { atk: 2, def: 4, pas: 3 }, moveRange: 2 },
   midfielder: { role: "midfielder", stats: { atk: 3, def: 3, pas: 4 }, moveRange: 3 },
   winger: { role: "winger", stats: { atk: 4, def: 2, pas: 3 }, moveRange: 3 },

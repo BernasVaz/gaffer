@@ -3,6 +3,7 @@ import {
   attackingGoalMouth,
   chebyshevDistance,
   DIRECTIONS,
+  goalMouthOwner,
   isWithinBoard,
   SHOT_RANGE,
   type Action,
@@ -15,11 +16,26 @@ import {
 const cellKey = (position: Position): string => `${position.x},${position.y}`;
 
 /**
+ * Whether `player` is allowed to stand on `cell`.
+ *
+ * A goal mouth is what a shot is aimed into, not somewhere a player stands, so
+ * only the keeper defending that goal may occupy one. Without this an attacker
+ * could walk into the net and then shoot at the goal it was standing inside.
+ * The goal-line corners either side of the mouth stay ordinary pitch.
+ */
+function mayOccupy(player: Player, cell: Position, state: MatchState): boolean {
+  const owner = goalMouthOwner(cell, state.board);
+  if (owner === null) return true;
+  return player.team === owner && player.role === "goalkeeper";
+}
+
+/**
  * Cells a player could travel to, walking outward in each of the 8 directions
  * until the board runs out or a player blocks the way.
  *
  * The blocker's own cell is excluded and nothing beyond it is reachable — you
- * may move neither onto nor through an occupied cell (GDD §7).
+ * may move neither onto nor through an occupied cell (GDD §7). A goal mouth the
+ * player may not enter blocks it in the same way.
  */
 function reachableCells(
   player: Player,
@@ -33,6 +49,8 @@ function reachableCells(
       const cell = { x: player.position.x + dx * step, y: player.position.y + dy * step };
       if (!isWithinBoard(cell, state.board)) break;
       if (occupied.has(cellKey(cell))) break;
+      // A mouth this player may not enter blocks the ray, exactly as a body does.
+      if (!mayOccupy(player, cell, state)) break;
       reachable.push(cell);
     }
   }

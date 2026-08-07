@@ -3,7 +3,9 @@ import {
   attackingGoalMouth,
   chebyshevDistance,
   COVERING_DEFENDER_BONUS,
+  defendingGoalMouth,
   duelWinChance,
+  SHOOT_COVERING_BONUS,
   type Action,
   type DuelPreview,
   type DuelSide,
@@ -78,6 +80,21 @@ function shotLaneCells(state: MatchState, shooter: Player): Position[] {
   }
 
   return [...cells.values()];
+}
+
+/**
+ * Whether a keeper is actually in its goal.
+ *
+ * A keeper defends a shot only while it stands in the mouth it is guarding. Step
+ * off — to press, to tackle, to chase — and the goal is unattended: the shot is
+ * then contested by whoever is in the lane, or by nobody at all. Drawing the
+ * keeper out is meant to be a way to score, so it has to cost the keeper's side
+ * something real.
+ */
+function isGuardingGoal(keeper: Player, state: MatchState): boolean {
+  return defendingGoalMouth(keeper.team, state.board).some(
+    (cell) => cell.x === keeper.position.x && cell.y === keeper.position.y,
+  );
 }
 
 /** Assemble a preview, computing the odds from the two finished scores. */
@@ -166,22 +183,33 @@ export function previewDuel(state: MatchState, action: Action): DuelPreview | nu
       const keeper = state.players.find(
         (player) => player.team !== actor.team && player.role === "goalkeeper",
       );
-      if (!keeper) return null;
+      const guarding = keeper !== undefined && isGuardingGoal(keeper, state);
 
       const lane = new Set(shotLaneCells(state, actor).map(cellKey));
-      const covering = state.players.filter(
+      const inLane = state.players.filter(
         (player) =>
           player.team !== actor.team &&
-          player.id !== keeper.id &&
+          player.id !== (guarding ? keeper.id : "") &&
           lane.has(cellKey(player.position)),
       );
+
+      /*
+       * With nobody in goal and nobody in the way there is no duel to have: an
+       * open net is a certainty, not a gamble, and resolving it consumes no dice.
+       */
+      if (!guarding && inLane.length === 0) return null;
+
+      // A keeper off its line is just another body; whoever has the best DEF in
+      // the lane leads the defence instead.
+      const primary = guarding ? keeper : primaryDefender(inLane);
+      const covering = guarding ? inLane : inLane.filter((player) => player.id !== primary.id);
 
       return preview(
         { playerId: actor.id, stat: actor.stats.atk, modifier: 0 },
         {
-          playerId: keeper.id,
-          stat: keeper.stats.def,
-          modifier: COVERING_DEFENDER_BONUS * covering.length,
+          playerId: primary.id,
+          stat: primary.stats.def,
+          modifier: SHOOT_COVERING_BONUS * covering.length,
         },
         covering,
       );

@@ -1,6 +1,7 @@
 import {
   COVERING_DEFENDER_BONUS,
   duelWinChance,
+  SHOOT_COVERING_BONUS,
   MatchStateSchema,
   ROLE_PROFILES,
   type Action,
@@ -150,13 +151,13 @@ describe("previewDuel", () => {
     it("pits the shooter's ATK against the keeper's DEF", () => {
       const state = makeState([
         { team: "home", role: "striker", at: [4, 2], ball: true }, // ATK 5
-        { team: "away", role: "goalkeeper", at: [6, 2] }, // DEF 5
+        { team: "away", role: "goalkeeper", at: [6, 2] }, // DEF 4, in its goal
       ]);
       const duel = previewDuel(state, { type: "shoot", playerId: "home-striker-0", target: null })!;
 
       expect(duel.attacker.stat).toBe(5);
-      expect(duel.defender).toEqual({ playerId: "away-goalkeeper-1", stat: 5, modifier: 0 });
-      expect(duel.winChance).toBeCloseTo(duelWinChance(5, 5), 10);
+      expect(duel.defender).toEqual({ playerId: "away-goalkeeper-1", stat: 4, modifier: 0 });
+      expect(duel.winChance).toBeCloseTo(duelWinChance(5, 4), 10);
     });
 
     it("counts an opponent standing in the lane to the mouth as covering", () => {
@@ -168,7 +169,8 @@ describe("previewDuel", () => {
       const duel = previewDuel(state, { type: "shoot", playerId: "home-striker-0", target: null })!;
 
       expect(duel.coveringPlayerIds).toEqual(["away-defender-2"]);
-      expect(duel.defender.modifier).toBe(COVERING_DEFENDER_BONUS);
+      // Softer than a field duel: a shot already faces a keeper.
+      expect(duel.defender.modifier).toBe(SHOOT_COVERING_BONUS);
     });
 
     it("ignores an opponent who is merely near the shooter but not in a lane", () => {
@@ -551,7 +553,7 @@ describe("stat and role sanity", () => {
   it("uses the GDD §6 stat lines, not hard-coded numbers", () => {
     expect(ROLE_PROFILES.striker.stats.atk).toBe(5);
     expect(ROLE_PROFILES.defender.stats.def).toBe(4);
-    expect(ROLE_PROFILES.goalkeeper.stats.def).toBe(5);
+    expect(ROLE_PROFILES.goalkeeper.stats.def).toBe(4);
     expect(ROLE_PROFILES.midfielder.stats.pas).toBe(4);
   });
 });
