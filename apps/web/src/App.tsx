@@ -4,29 +4,29 @@ import { useMemo } from "react";
 
 import { Pitch } from "./board/Pitch";
 import { Scoreboard } from "./board/Scoreboard";
+import { SQUADS } from "./board/squads";
 
-const ROLE_INITIAL: Record<string, string> = {
-  goalkeeper: "G",
-  defender: "D",
-  midfielder: "M",
-  winger: "W",
-  striker: "S",
-};
-
-/** What the letters on the tokens mean, with the stat line behind each one. */
-function Legend() {
+/** Who wears which number, and what the shirt is worth in a duel. */
+function TeamSheet() {
   return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-emerald-100/70 sm:grid-cols-3">
+    <dl className="grid gap-x-6 gap-y-1.5 text-xs text-emerald-100/70 sm:grid-cols-2">
       {ROLES.map((role) => {
         const { stats, moveRange } = ROLE_PROFILES[role];
+        const home = SQUADS.home[role];
+        const away = SQUADS.away[role];
         return (
           <div key={role} className="flex items-center gap-2">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-[0.6rem] font-bold text-emerald-950">
-              {ROLE_INITIAL[role]}
+            <span className="w-4 shrink-0 text-right font-semibold text-white tabular-nums">
+              {home.number}
             </span>
             <dt className="capitalize">{role}</dt>
-            <dd className="ml-auto tabular-nums">
-              {stats.atk}/{stats.def}/{stats.pas} · {moveRange}
+            <dd className="ml-auto flex items-center gap-3 tabular-nums">
+              <span className="text-emerald-100/50">
+                {home.name} / {away.name}
+              </span>
+              <span>
+                {stats.atk}/{stats.def}/{stats.pas} · {moveRange}
+              </span>
             </dd>
           </div>
         );
@@ -69,12 +69,11 @@ export function App() {
 
         <section aria-label="Key" className="rounded-xl bg-emerald-950/40 px-5 py-4">
           <h2 className="mb-3 text-[0.65rem] tracking-widest text-emerald-200/70 uppercase">
-            Key &middot; ATK/DEF/PAS &middot; move
+            Team sheet &middot; home / away &middot; ATK/DEF/PAS &middot; move
           </h2>
-          <Legend />
+          <TeamSheet />
           <p className="mt-3 text-xs text-emerald-100/50">
-            White tokens are the home side, dark tokens the away side. The amber dot marks whoever
-            has the ball.
+            Home play in white, away in black. The amber disc marks whoever has the ball.
           </p>
         </section>
       </div>

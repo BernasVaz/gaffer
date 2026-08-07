@@ -112,12 +112,45 @@ describe("createInitialState", () => {
       }
     });
 
-    it("puts the defender and midfielder on the central row", () => {
+    it("keeps the defender central, just ahead of its keeper", () => {
       const s = createInitialState();
       for (const team of ["home", "away"] as const) {
         expect(one(s, team, "defender").position.y).toBe(2);
-        expect(one(s, team, "midfielder").position.y).toBe(2);
       }
+    });
+
+    it("spreads the midfielder and winger off the central row", () => {
+      // The shape is meant to read as a formation, not as a column of players
+      // stacked nose to tail. Only the keeper, the defender and the kicking-off
+      // striker belong on the centre row.
+      const s = createInitialState();
+      for (const team of ["home", "away"] as const) {
+        expect(one(s, team, "midfielder").position.y).not.toBe(2);
+        expect(one(s, team, "winger").position.y).not.toBe(2);
+      }
+    });
+
+    it("puts the midfielder and winger on opposite sides of centre", () => {
+      const s = createInitialState();
+      for (const team of ["home", "away"] as const) {
+        const midfielder = one(s, team, "midfielder").position.y;
+        const winger = one(s, team, "winger").position.y;
+        expect(Math.sign(midfielder - 2)).toBe(-Math.sign(winger - 2));
+      }
+    });
+
+    it("leaves nobody standing on the cell in front of the defender", () => {
+      // (2,2) staying empty is what stops the centre row reading as a stack.
+      const s = createInitialState();
+      const occupied = new Set(s.players.map((p) => `${p.position.x},${p.position.y}`));
+      expect(occupied.has("2,2")).toBe(false);
+      expect(occupied.has("4,2")).toBe(false);
+    });
+
+    it("puts at least one player on every row of the pitch", () => {
+      const s = createInitialState();
+      const rows = new Set(s.players.map((p) => p.position.y));
+      expect(rows.size).toBe(s.board.height);
     });
 
     it("puts each winger on a touchline", () => {

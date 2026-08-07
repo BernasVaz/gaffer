@@ -1,13 +1,6 @@
 import { attackingGoalMouth, type MatchState, type Player, type Role } from "@gaffer/shared";
 
-/** The letter shown on a token. */
-const ROLE_INITIAL: Record<Role, string> = {
-  goalkeeper: "G",
-  defender: "D",
-  midfielder: "M",
-  winger: "W",
-  striker: "S",
-};
+import { SQUADS } from "./squads";
 
 /** Spoken form of a role, for the cell's accessible name. */
 const ROLE_NAME: Record<Role, string> = {
@@ -23,24 +16,58 @@ const cellKey = (x: number, y: number) => `${x},${y}`;
 /** Join class names, dropping anything falsy. */
 const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(" ");
 
-function Token({ player, hasBall }: { player: Player; hasBall: boolean }) {
+/**
+ * A player, drawn as a shirt with a number and a name on it.
+ *
+ * Kept to the minimum that reads as football: a jersey silhouette, the squad
+ * number, the surname beneath. Home play in white, away in black, and the ball
+ * is an amber disc at the shirt's shoulder.
+ *
+ * Presentation only. It is handed a `Player` and draws it — the number and name
+ * are flavour the engine has never heard of.
+ */
+function Jersey({ player, hasBall }: { player: Player; hasBall: boolean }) {
+  const kit = SQUADS[player.team][player.role];
   const isHome = player.team === "home";
 
+  const shirt = isHome ? "bg-white text-emerald-950" : "bg-zinc-900 text-white";
+
   return (
-    <span
-      aria-hidden
-      className={cx(
-        "relative flex h-[78%] w-[78%] items-center justify-center rounded-full",
-        "text-[min(3.2vw,1.05rem)] leading-none font-bold ring-2 select-none",
-        isHome
-          ? "bg-white text-emerald-950 ring-emerald-950/50"
-          : "bg-zinc-900 text-white ring-white/60",
-      )}
-    >
-      {ROLE_INITIAL[player.role]}
-      {hasBall && (
-        <span className="absolute -right-1 -bottom-1 h-[38%] w-[38%] rounded-full bg-amber-300 ring-2 ring-amber-800" />
-      )}
+    <span aria-hidden className="flex h-full w-full flex-col items-center justify-center">
+      <span
+        className={cx(
+          "relative flex w-[54%] items-center justify-center rounded-[26%]",
+          "py-[16%] text-[min(3.1vw,1rem)] leading-none font-bold tabular-nums",
+          "ring-1",
+          shirt,
+          isHome ? "ring-emerald-950/25" : "ring-white/25",
+        )}
+      >
+        {/* Sleeves — two stubs at the shoulders make the block read as a shirt. */}
+        <span
+          className={cx("absolute top-[6%] -left-[30%] h-[42%] w-[30%] rounded-l-[45%]", shirt)}
+        />
+        <span
+          className={cx("absolute top-[6%] -right-[30%] h-[42%] w-[30%] rounded-r-[45%]", shirt)}
+        />
+        {/* Collar. */}
+        <span
+          className={cx(
+            "absolute top-0 h-[16%] w-[38%] rounded-b-full",
+            isHome ? "bg-emerald-950/20" : "bg-white/25",
+          )}
+        />
+
+        <span className="relative">{kit.number}</span>
+
+        {hasBall && (
+          <span className="absolute -top-[16%] -right-[34%] h-[46%] w-[46%] rounded-full bg-amber-300 ring-2 ring-amber-800" />
+        )}
+      </span>
+
+      <span className="mt-[6%] max-w-full truncate px-[4%] text-[min(1.6vw,0.55rem)] leading-none font-medium text-white/85">
+        {kit.name}
+      </span>
     </span>
   );
 }
@@ -87,9 +114,9 @@ export function Pitch({ state }: { state: MatchState }) {
             const isMouth = mouths.has(key);
 
             const name = player
-              ? `Column ${x}, row ${y}: ${player.team} ${ROLE_NAME[player.role]}${
-                  hasBall ? ", with the ball" : ""
-                }`
+              ? `Column ${x}, row ${y}: ${player.team} ${ROLE_NAME[player.role]}, number ${
+                  SQUADS[player.team][player.role].number
+                } ${SQUADS[player.team][player.role].name}${hasBall ? ", with the ball" : ""}`
               : `Column ${x}, row ${y}: empty${isMouth ? ", goal mouth" : ""}`;
 
             return (
@@ -107,7 +134,7 @@ export function Pitch({ state }: { state: MatchState }) {
                       : "bg-(--color-turf-alt)",
                 )}
               >
-                {player && <Token player={player} hasBall={hasBall} />}
+                {player && <Jersey player={player} hasBall={hasBall} />}
               </div>
             );
           })}

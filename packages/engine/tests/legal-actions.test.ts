@@ -390,12 +390,16 @@ describe("legalActions", () => {
       expect(cellsOf(actions, "dribble", striker.id).size).toBeGreaterThan(0);
     });
 
-    it("offers exactly one pass from the kickoff", () => {
-      // Striker PAS 2; only the midfielder sits on one of its eight lanes.
-      // Flagged for review: a kickoff with a single passing option is thin.
+    it("offers two passes from the kickoff", () => {
+      // Striker PAS 2, so only players within two steps on one of its eight
+      // lanes can receive. The spread formation puts both the midfielder and the
+      // defender on one; the earlier central-column shape offered just one, which
+      // was flagged as a thin opening.
       const passes = only(legalActions(createInitialState()), "pass");
-      expect(passes).toHaveLength(1);
-      expect(passes[0]!.target).toBe("home-midfielder");
+      expect(passes.map((pass) => pass.target).sort()).toEqual([
+        "home-defender",
+        "home-midfielder",
+      ]);
     });
 
     it("allows no shot straight from the kickoff", () => {
