@@ -3,6 +3,8 @@
 packages:
   - "apps/*"
   - "packages/*"
+  # dev-only tooling; never shipped
+  - "tools/*"
 
 # pnpm blocks dependency install-scripts by default (a supply-chain safeguard).
 # These are the ones we have reviewed and explicitly allow to run.

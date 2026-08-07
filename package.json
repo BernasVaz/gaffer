@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Gaffer — a turn-based, web-first football game built on a pure deterministic TypeScript engine.",
+  "description": "Gaffer \u2014 a turn-based, web-first football game built on a pure deterministic TypeScript engine.",
   "packageManager": "pnpm@11.20.0",
   "engines": {
     "node": ">=24.0.0"
@@ -16,6 +16,7 @@
     "check": "turbo run build lint test typecheck",
     "docs": "typedoc",
     "docs:watch": "typedoc --watch",
+    "play": "turbo run build --filter=@gaffer/engine && node tools/play/src/main.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "changeset": "changeset",
