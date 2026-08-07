@@ -1,4 +1,4 @@
-# Gaffer — Game Design Document (v1.2 — LOCKED, v1 baseline)
+# Gaffer — Game Design Document (v1.3 — LOCKED, v1 baseline)
 
 _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementable baseline**: the design is complete enough to build with no open questions. Values marked *(tunable)* are locked starting numbers we will refine in playtest — changing them is a data edit, not a redesign. This is the contract the engine (M2) is built and tested against._
 
@@ -9,6 +9,7 @@ _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementabl
 > - **v0.3 → v1.0:** closed all nine open decisions (§13); fixed drifted section cross-references. Design is now implementable.
 > - **v1.0 → v1.1:** pinned down what building legal-action generation exposed as under-specified — movement and passing geometry, the goal's shape, `SHOT_RANGE`, the Move/Dribble boundary, and Tackle as an atomic action that no longer bundles movement (§5, §7, §13). No change to stats, duels, information or the win condition.
 > - **v1.1 → v1.2:** `SHOT_RANGE` cut from 3 to 2. At 3 the kickoff spot sat exactly in range, so a match could open with a strike at goal; 2 forces the ball into the attacking third first.
+> - **v1.2 → v1.3:** bounded the win condition (§10, §13) — extra time is 4 turns, then a penalty shootout of 3 kicks plus 10 sudden-death rounds, then most shots, then most duels won, then the side that did not kick off. A tiebreaker cascade was needed because §10 forbids draws and no symmetric shootout terminates on its own.
 
 ---
 
@@ -117,9 +118,18 @@ Every contested action is a duel:
 
 ## 10. Win condition (LOCKED)
 
-- A match runs to a **turn cap of ≈ 20 turns (10 per side)** _(tunable to a ~3–5 min match)_. Highest score at the cap wins.
-- **Sudden-death:** level at the cap → **golden goal** — play continues and the **first goal wins**. No flat draws; every match ends decisively and earned.
+- A match runs to a **turn cap of 20 turns (10 per side)** _(tunable to a ~3–5 min match)_. Highest score at the cap wins.
+- **Sudden-death:** level at the cap → **golden goal in extra time** — the first goal wins immediately.
+- **Extra time is bounded: 4 turns, 2 per side** _(tunable)_. It has to be: goals are scarce, so "play until someone scores" has no upper bound and an engine cannot be asked to run it.
 - After every goal (regulation or extra time), **positions reset for a kickoff** to the conceding side.
+- **No flat draws.** Level after extra time goes to a decision cascade, tried in order:
+
+  1. **Penalty shootout** — 3 kicks a side, then sudden death capped at **10 rounds**. Each penalty is the ordinary shot duel (taker **ATK** vs keeper **DEF**, opposed d3, tie to the keeper) with no covering defenders. Nothing is chosen by the players, so the engine resolves the whole shootout in one step from the match's own seed and hands back the kicks for the client to play out. _(Auto-resolved in v1; interactive penalties are a possible later feature.)_
+  2. **Most shots attempted** across the match.
+  3. **Most duels won** across the match.
+  4. **The side that did not take the opening kickoff.** The kickoff is the game's only structural asymmetry — one side moves first with the ball — so the other takes a tie nothing else could settle. That side also kicks first in the shootout, for the same reason.
+
+  Rung 4 cannot tie, which is what guarantees every match ends. A shootout **cannot** provide that guarantee on its own: two evenly matched sides settle a sudden-death round at most half the time, so the tail never closes — the cap only makes reaching rung 2 rare (roughly one shootout in a thousand).
 
 ## 11. Match-length target
 
@@ -151,6 +161,10 @@ The numeric knobs, in one place — all live as Zod data in `@gaffer/shared`, so
 | Duel die                    | opposed **d3**                                                   |
 | Covering-defender modifier  | +2 DEF each                                                      |
 | Turn cap                    | ≈ 20 turns (10 per side)                                         |
+| Extra time                  | 4 turns (2 per side), golden goal                                |
+| Shootout                    | 3 kicks each, then sudden death                                  |
+| Shootout sudden-death cap   | 10 rounds                                                        |
+| Tiebreaker cascade          | shootout -> shots -> duels won -> non-kickoff side               |
 | Tie-breaker                 | golden-goal sudden death                                         |
 | Per-turn timer              | ≈ 25s _(client-side)_                                            |
 | Shot resolution             | single duel (ATK vs keeper DEF)                                  |
@@ -173,6 +187,13 @@ Recorded so they are not rediscovered from scratch later.
   Stats span 1–5 and a covering defender adds another 2, so certainty is reachable in
   ordinary play. This is consistent with "stats dominate, dice tip" (§9), but it does
   mean some matchups have no upset available at all. A d4 would restore a sliver.
+- **Almost every scripted match reaches penalties.** Under random play 98% of matches
+  are settled by the shootout rather than by football. If playtest shows the same, the
+  fix is **goal-scoring, not the shootout** — a tiebreaker that fires constantly is a
+  symptom, not the disease.
+- **Penalties may want their own, higher conversion odds.** They currently reuse the
+  ordinary shot duel, which at ATK 5 vs DEF 5 converts a third of the time — low for a
+  penalty, and the reason sudden death runs long (22 kicks observed against a cap of 26).
 - **Goals are rare under random play** — roughly one per eighty scripted matches. Skilled
   play should score far more often, so this is context for the two items above rather
   than a finding in itself.

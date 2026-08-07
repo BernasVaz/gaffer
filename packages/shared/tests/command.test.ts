@@ -86,6 +86,7 @@ describe("RejectionReasonSchema", () => {
       "no-actions-left",
       "unknown-target",
       "illegal-action",
+      "match-over",
     ]);
     for (const reason of REJECTION_REASONS) {
       expect(RejectionReasonSchema.safeParse(reason).success).toBe(true);

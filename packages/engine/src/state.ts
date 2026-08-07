@@ -100,5 +100,11 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
     activeTeam: kickingOff,
     actionsRemaining: ACTIONS_PER_TURN,
     score: { home: 0, away: 0 },
+    kickedOff: kickingOff,
+    stats: {
+      shotsAttempted: { home: 0, away: 0 },
+      duelsWon: { home: 0, away: 0 },
+    },
+    result: null,
   };
 }

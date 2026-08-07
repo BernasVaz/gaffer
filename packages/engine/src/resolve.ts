@@ -86,6 +86,10 @@ function afterGoal(state: MatchState, scoringTeam: Team): MatchState {
     turn: state.turn,
     activeTeam: state.activeTeam,
     actionsRemaining: state.actionsRemaining,
+    // createInitialState builds a brand-new match; these belong to this one.
+    kickedOff: state.kickedOff,
+    stats: state.stats,
+    result: state.result,
   };
 }
 

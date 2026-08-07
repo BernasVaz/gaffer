@@ -6,9 +6,11 @@ import {
   type MatchCommand,
   type MatchState,
   type RejectionReason,
+  type Team,
 } from "@gaffer/shared";
 
 import { legalActions } from "./legal-actions.js";
+import { concludeIfOver } from "./outcome.js";
 import { resolveAction } from "./resolve.js";
 import type { Rng } from "./rng.js";
 
@@ -53,6 +55,44 @@ function actionKey(action: Action): string {
     case "shoot":
       return `${action.type}|${action.playerId}|`;
   }
+}
+
+/** Add one to a side's tally, leaving the other alone. */
+const bump = (tally: { home: number; away: number }, team: Team) => ({
+  home: tally.home + (team === "home" ? 1 : 0),
+  away: tally.away + (team === "away" ? 1 : 0),
+});
+
+/**
+ * Record what the command contributed to the running totals.
+ *
+ * These exist for one reason: when a shootout comes back level, GDD §10's ban on
+ * draws has to be honoured by comparing something. Shots count whether they score
+ * or are saved; a duel is credited to whichever side came out on top, which for a
+ * tackle is the tackler and for a dribble is the carrier.
+ */
+function withStats(
+  resolved: MatchState,
+  before: MatchState,
+  command: Action,
+  duel: Duel | null,
+): MatchState {
+  const actor = before.players.find((player) => player.id === command.playerId);
+  if (!actor) return resolved;
+
+  let { shotsAttempted, duelsWon } = resolved.stats;
+
+  if (command.type === "shoot") {
+    shotsAttempted = bump(shotsAttempted, actor.team);
+  }
+
+  if (duel !== null) {
+    const winnerId = duel.attackerWon ? duel.attacker.playerId : duel.defender.playerId;
+    const winner = before.players.find((player) => player.id === winnerId);
+    if (winner) duelsWon = bump(duelsWon, winner.team);
+  }
+
+  return { ...resolved, stats: { shotsAttempted, duelsWon } };
 }
 
 /** Hand the turn to the other side with a fresh pool of actions. */
@@ -103,9 +143,16 @@ function passTurn(state: MatchState): MatchState {
  * ```
  */
 export function applyAction(state: MatchState, command: MatchCommand, rng: Rng): CommandResult {
+  if (state.result !== null) return { ok: false, reason: "match-over" };
+
   if (command.type === "endTurn") {
     if (command.team !== state.activeTeam) return { ok: false, reason: "not-your-turn" };
-    return { ok: true, state: passTurn(state), duel: null, turnEnded: true };
+    return {
+      ok: true,
+      state: concludeIfOver(passTurn(state), rng),
+      duel: null,
+      turnEnded: true,
+    };
   }
 
   const actor = state.players.find((player) => player.id === command.playerId);
@@ -122,6 +169,7 @@ export function applyAction(state: MatchState, command: MatchCommand, rng: Rng):
   if (!permitted.has(actionKey(command))) return { ok: false, reason: "illegal-action" };
 
   const { state: resolved, duel } = resolveAction(state, command, rng);
+  const tallied = withStats(resolved, state, command, duel);
 
   /*
    * A goal ends the turn on the spot. resolveAction has already rebuilt the
@@ -131,12 +179,12 @@ export function applyAction(state: MatchState, command: MatchCommand, rng: Rng):
   const scored =
     resolved.score.home !== state.score.home || resolved.score.away !== state.score.away;
   if (scored) {
-    return { ok: true, state: passTurn(resolved), duel, turnEnded: true };
+    return { ok: true, state: concludeIfOver(passTurn(tallied), rng), duel, turnEnded: true };
   }
 
-  const spent: MatchState = { ...resolved, actionsRemaining: resolved.actionsRemaining - 1 };
+  const spent: MatchState = { ...tallied, actionsRemaining: tallied.actionsRemaining - 1 };
   if (spent.actionsRemaining <= 0) {
-    return { ok: true, state: passTurn(spent), duel, turnEnded: true };
+    return { ok: true, state: concludeIfOver(passTurn(spent), rng), duel, turnEnded: true };
   }
 
   return { ok: true, state: spent, duel, turnEnded: false };

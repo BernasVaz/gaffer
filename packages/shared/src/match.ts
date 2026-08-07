@@ -2,39 +2,11 @@ import { z } from "zod";
 
 import { BoardSchema, isWithinBoard, PositionSchema } from "./pitch.js";
 import { PlayerIdSchema, PlayerSchema } from "./player.js";
+import { MatchResultSchema } from "./outcome.js";
 import { TeamSchema } from "./team.js";
 
 /** Actions a side may spend per turn (GDD §13). */
 export const ACTIONS_PER_TURN = 2;
-
-/**
- * Turns a match runs for before the score decides it (GDD §10, §13).
- *
- * Counted across both sides — 20 turns is 10 each — which is why it must stay
- * even, or one side would get an extra go. Tuned so a match lands in the 3–5
- * minute target of GDD §11.
- */
-export const TURN_CAP = 20;
-
-/**
- * Turns left in regulation, counting the one in progress.
- *
- * Zero once the cap has passed. Whether that ends the match is the win
- * condition's business, not this function's.
- */
-export function turnsRemaining(turn: number): number {
-  return Math.max(0, TURN_CAP - turn + 1);
-}
-
-/**
- * Whether regulation has run out.
- *
- * Reports only. It does not stop play — GDD §10 sends a level match to golden
- * goal rather than ending it, and deciding that is the win condition's job.
- */
-export function isRegulationOver(turn: number): boolean {
-  return turn > TURN_CAP;
-}
 
 /**
  * The single ball.
@@ -64,6 +36,33 @@ export const ScoreSchema = z.object({
 
 /** A validated scoreline. See {@link ScoreSchema}. */
 export type Score = z.infer<typeof ScoreSchema>;
+
+/**
+ * Running match totals, kept because the tiebreaker needs them.
+ *
+ * Not statistics for their own sake: when a shootout ends level, GDD §10's ban on
+ * draws has to be honoured by something, and these are what the cascade compares
+ * before falling back to kickoff compensation.
+ */
+export const MatchStatsSchema = z.object({
+  /** Shots taken, whether scored or saved. Shootout penalties do not count. */
+  shotsAttempted: z.object({
+    /** Home shots. */
+    home: z.number().int().min(0),
+    /** Away shots. */
+    away: z.number().int().min(0),
+  }),
+  /** Duels each side came out of on top, across every contested action. */
+  duelsWon: z.object({
+    /** Duels won by home. */
+    home: z.number().int().min(0),
+    /** Duels won by away. */
+    away: z.number().int().min(0),
+  }),
+});
+
+/** Validated match totals. See {@link MatchStatsSchema}. */
+export type MatchStats = z.infer<typeof MatchStatsSchema>;
 
 /**
  * The complete state of a match at one instant.
@@ -96,6 +95,18 @@ export const MatchStateSchema = z
     actionsRemaining: z.number().int().min(0).max(ACTIONS_PER_TURN),
     /** Current scoreline. */
     score: ScoreSchema,
+    /**
+     * Which side took the opening kickoff.
+     *
+     * Fixed for the whole match — kickoffs after a goal go to the conceding side
+     * and do not change this. It is the last rung of the tiebreaker: the side
+     * that did *not* start with the ball takes a tie nothing else could settle.
+     */
+    kickedOff: TeamSchema,
+    /** Running totals the tiebreaker compares. */
+    stats: MatchStatsSchema,
+    /** How the match ended, or null while it is still being played. */
+    result: MatchResultSchema.nullable(),
   })
   .superRefine((state, ctx) => {
     const seenIds = new Set<string>();
