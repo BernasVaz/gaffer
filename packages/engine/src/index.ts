@@ -21,3 +21,5 @@
 export { createRng, type Rng } from "./rng.js";
 export { createInitialState, type CreateInitialStateOptions } from "./state.js";
 export { legalActions } from "./legal-actions.js";
+export { previewDuel } from "./duel.js";
+export { resolveAction, type ResolvedAction } from "./resolve.js";
