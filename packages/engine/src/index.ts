@@ -11,10 +11,12 @@
  * exactly from a seed and move log, and allows the server to re-verify every move a
  * client claims to have made.
  *
- * Currently a scaffold: only the seeded RNG exists. The rules themselves arrive in
- * M2, written test-first against `docs/GDD.md`.
+ * Currently covers the seeded RNG and the initial match state. Legal-action
+ * generation, the duel resolver, the turn economy and the win condition follow, in
+ * that order (GDD §15).
  *
  * @packageDocumentation
  */
 
 export { createRng, type Rng } from "./rng.js";
+export { createInitialState, type CreateInitialStateOptions } from "./state.js";
