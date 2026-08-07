@@ -20,3 +20,4 @@
 
 export { createRng, type Rng } from "./rng.js";
 export { createInitialState, type CreateInitialStateOptions } from "./state.js";
+export { legalActions } from "./legal-actions.js";
