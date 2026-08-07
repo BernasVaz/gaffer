@@ -156,6 +156,27 @@ The numeric knobs, in one place — all live as Zod data in `@gaffer/shared`, so
 | Shot resolution             | single duel (ATK vs keeper DEF)                                  |
 | Degrees of success          | none in v1                                                       |
 
+### Balance watch-list (observed, not yet changed)
+
+Things the engine has surfaced that we are **deliberately not tuning until playtest**.
+Recorded so they are not rediscovered from scratch later.
+
+- **A shot is capped at 33% and skill cannot raise it.** The keeper's DEF of 5 equals
+  the highest ATK in the game, so the best possible shooter faces a level duel — and a
+  level duel goes to the defender on a tie, which is 3/9. Every other duel in the game
+  can be improved by position and support; this one cannot, because there is no
+  attacking equivalent of a covering defender. If shots prove too scarce in playtest,
+  the likeliest fix is **keeper DEF → 4**, which turns the best shooter into a +1
+  favourite at 6/9 without touching the die.
+- **A stat gap of 3 or more removes the die entirely.** With an opposed d3, a +3 edge is
+  9/9 and a −3 edge is 0/9 — a Winger (DEF 2) can never dispossess a Striker (ATK 5).
+  Stats span 1–5 and a covering defender adds another 2, so certainty is reachable in
+  ordinary play. This is consistent with "stats dominate, dice tip" (§9), but it does
+  mean some matchups have no upset available at all. A d4 would restore a sliver.
+- **Goals are rare under random play** — roughly one per eighty scripted matches. Skilled
+  play should score far more often, so this is context for the two items above rather
+  than a finding in itself.
+
 ## 14. Explicitly OUT of v1 scope
 
 No accounts/ladder/trophies, no squad collection or squad-building (both players use the same fixed 5), no cosmetics, no mobile build, no medium/full modes shipped, no AI beyond a basic solo-test opponent. All planned — none in v1.

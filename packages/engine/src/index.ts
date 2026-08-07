@@ -8,12 +8,20 @@
  *
  * That constraint is enforced by ESLint, not just convention — see `eslint.config.js`.
  * It is what makes the engine fully testable without a browser, lets a match replay
- * exactly from a seed and move log, and allows the server to re-verify every move a
+ * exactly from a seed and command log, and allows the server to re-verify every move a
  * client claims to have made.
  *
- * Currently covers the seeded RNG and the initial match state. Legal-action
- * generation, the duel resolver, the turn economy and the win condition follow, in
- * that order (GDD §15).
+ * **{@link applyAction} is the only way in.** It checks a command against the rules
+ * before playing it out, so a client, a server and a replay all travel the same path
+ * and meet the same referee. The assumes-legal transition underneath is deliberately
+ * not exported: a second, unchecked door would eventually be used by mistake, and the
+ * saving is not worth the class of bug it invites.
+ *
+ * Read the board with {@link legalActions} and {@link previewDuel}; advance it with
+ * {@link applyAction}.
+ *
+ * Currently covers the seeded RNG, the initial state, legal-action generation, duel
+ * resolution and the turn economy. The win condition follows (GDD §15).
  *
  * @packageDocumentation
  */
@@ -22,4 +30,9 @@ export { createRng, type Rng } from "./rng.js";
 export { createInitialState, type CreateInitialStateOptions } from "./state.js";
 export { legalActions } from "./legal-actions.js";
 export { previewDuel } from "./duel.js";
-export { resolveAction, type ResolvedAction } from "./resolve.js";
+export {
+  applyAction,
+  type CommandAccepted,
+  type CommandRejected,
+  type CommandResult,
+} from "./turn.js";

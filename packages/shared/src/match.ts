@@ -8,6 +8,35 @@ import { TeamSchema } from "./team.js";
 export const ACTIONS_PER_TURN = 2;
 
 /**
+ * Turns a match runs for before the score decides it (GDD §10, §13).
+ *
+ * Counted across both sides — 20 turns is 10 each — which is why it must stay
+ * even, or one side would get an extra go. Tuned so a match lands in the 3–5
+ * minute target of GDD §11.
+ */
+export const TURN_CAP = 20;
+
+/**
+ * Turns left in regulation, counting the one in progress.
+ *
+ * Zero once the cap has passed. Whether that ends the match is the win
+ * condition's business, not this function's.
+ */
+export function turnsRemaining(turn: number): number {
+  return Math.max(0, TURN_CAP - turn + 1);
+}
+
+/**
+ * Whether regulation has run out.
+ *
+ * Reports only. It does not stop play — GDD §10 sends a level match to golden
+ * goal rather than ending it, and deciding that is the win condition's job.
+ */
+export function isRegulationOver(turn: number): boolean {
+  return turn > TURN_CAP;
+}
+
+/**
  * The single ball.
  *
  * `carrierId` is null when the ball is loose — nobody is carrying it. While it
