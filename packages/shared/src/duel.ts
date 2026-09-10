@@ -5,8 +5,18 @@ import { PlayerIdSchema } from "./player.js";
 /** Sides on each duel die — an opposed d3 (GDD §13). */
 export const DUEL_DIE_SIDES = 3;
 
-/** What each covering defender adds to the defending total (GDD §13). */
+/** What each covering defender adds to the defending total in open play (GDD §13). */
 export const COVERING_DEFENDER_BONUS = 2;
+
+/**
+ * What each defender in the lane adds to a shot (GDD §13).
+ *
+ * Softer than {@link COVERING_DEFENDER_BONUS} on purpose. A shot already faces a
+ * keeper, so charging the field rate on top drove any covered effort to near
+ * zero and made bodies in the box worth more than the goalkeeper. At +1 a single
+ * defender turns a good chance into a gamble rather than into nothing.
+ */
+export const SHOOT_COVERING_BONUS = 1;
 
 /**
  * The exact probability the attacker wins a duel, from the two scores.
