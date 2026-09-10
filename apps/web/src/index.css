@@ -8,3 +8,33 @@
   /* The goal mouths at each end. */
   --color-mouth: #3f9a63;
 }
+
+/*
+ * Movement timing, in one place so the feel is tunable without hunting through
+ * components.
+ *
+ * These values are *cosmetic only*. Nothing in the engine reads them, and no
+ * animation callback feeds back into it: the engine computes the next state
+ * synchronously on click and the board spends this long catching up. Changing
+ * them cannot change a match result.
+ *
+ * ~240ms is the window where a slide reads as deliberate rather than sluggish;
+ * the ball is a touch quicker so a pass arrives just ahead of the eye.
+ */
+:root {
+  --piece-travel: 240ms;
+  --ball-travel: 200ms;
+  --travel-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/*
+ * Honour a reader who has asked for less motion. Pieces still move — the board
+ * would be unreadable otherwise — they simply arrive at once, which is exactly
+ * how the board behaved before this pass.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --piece-travel: 0ms;
+    --ball-travel: 0ms;
+  }
+}

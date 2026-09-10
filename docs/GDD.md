@@ -1,4 +1,4 @@
-# Gaffer — Game Design Document (v1.4 — LOCKED, v1 baseline)
+# Gaffer — Game Design Document (v1.5 — LOCKED, v1 baseline)
 
 _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementable baseline**: the design is complete enough to build with no open questions. Values marked *(tunable)* are locked starting numbers we will refine in playtest — changing them is a data edit, not a redesign. This is the contract the engine (M2) is built and tested against._
 
@@ -11,6 +11,7 @@ _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementabl
 > - **v1.1 → v1.2:** `SHOT_RANGE` cut from 3 to 2. At 3 the kickoff spot sat exactly in range, so a match could open with a strike at goal; 2 forces the ball into the attacking third first.
 > - **v1.2 → v1.3:** bounded the win condition (§10, §13) — extra time is 4 turns, then a penalty shootout of 3 kicks plus 10 sudden-death rounds, then most shots, then most duels won, then the side that did not kick off. A tiebreaker cascade was needed because §10 forbids draws and no symmetric shootout terminates on its own.
 > - **v1.3 → v1.4:** made scoring possible. Keeper DEF 5 → 4; the keeper defends a shot only while standing in its own mouth, so drawing it out opens the goal; covering on a shot softened to +1; and only the defending keeper may occupy a goal mouth, which closes the hole where an attacker could stand in the net and shoot at it (§5, §6, §7, §9, §13). See ADR 0004.
+> - **v1.4 → v1.5:** brought feel into v1 scope (§14). Playtesting the first interactive build showed that an instant result reads as a state change rather than as football, which Pillar 1 depends on. Movement, the goal moment and the duel reveal are now in; animation stays presentation-only and may never affect the engine or its determinism. See ADR 0005.
 
 ---
 
@@ -204,7 +205,11 @@ Recorded so they are not rediscovered from scratch later.
 
 ## 14. Explicitly OUT of v1 scope
 
-No accounts/ladder/trophies, no squad collection or squad-building (both players use the same fixed 5), no cosmetics, no mobile build, no medium/full modes shipped, no AI beyond a basic solo-test opponent. All planned — none in v1.
+No accounts/ladder/trophies, no squad collection or squad-building (both players use the same fixed 5), no mobile build, no medium/full modes shipped, no AI beyond a basic solo-test opponent. All planned — none in v1.
+
+**Feel is IN.** "No cosmetics" was in this list until the board became playable, at which point it was obvious that a match with no motion does not deliver Pillar 1: a result that appears instantly is information, and "one more game" needs it to be an _event_. Movement, the goal moment and the duel reveal are therefore v1 scope. See ADR 0005.
+
+The line to hold is that feel is **presentation only**. Animation lives in `apps/web`, never in the engine, and no animation timing may influence a result — the engine resolves the instant a command is committed and the board catches up afterwards. Sound and the wider visual theme are still out of v1.
 
 ## 15. How this maps to the engine (for M2)
 
