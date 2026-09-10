@@ -1,17 +1,19 @@
 import type { MatchState, Team } from "@gaffer/shared";
 import { useCallback, useEffect, useState } from "react";
 
+import { GOAL } from "../feel";
+
 /**
  * How long the goal celebration runs, in milliseconds.
  *
- * Lives in TypeScript rather than CSS because a JS timer releases the board and
- * the same number drives the burst's animation — the overlay passes it down as a
- * custom property so there is one source of truth rather than two that can drift.
+ * Re-exported from `feel.ts`, which is where every number that decides how the
+ * board feels lives, so the rhythm can be tuned in one place. A JS timer releases
+ * the board and the same number drives the burst's animation.
  *
  * Presentation only. Nothing in the engine reads it, and changing it cannot
  * change a match result.
  */
-export const GOAL_MOMENT_MS = 1100;
+export const GOAL_MOMENT_MS = GOAL.hold;
 
 /** A goal being celebrated: who scored, and the board as it was when they did. */
 export interface GoalMoment {

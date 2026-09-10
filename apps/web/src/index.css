@@ -10,34 +10,14 @@
 }
 
 /*
- * Movement timing, in one place so the feel is tunable without hunting through
- * components.
+ * Travel timing now lives in `src/feel.ts`, where every number that decides how
+ * the board feels sits together — springs cannot be expressed as a CSS duration,
+ * and splitting the rhythm across two files would guarantee it drifts.
  *
- * These values are *cosmetic only*. Nothing in the engine reads them, and no
- * animation callback feeds back into it: the engine computes the next state
- * synchronously on click and the board spends this long catching up. Changing
- * them cannot change a match result.
- *
- * ~240ms is the window where a slide reads as deliberate rather than sluggish;
- * the ball is a touch quicker so a pass arrives just ahead of the eye.
+ * What stays here is everything CSS is genuinely better at: the ambient loops
+ * below, and the reduced-motion overrides, which hold whether or not any
+ * JavaScript ran.
  */
-:root {
-  --piece-travel: 240ms;
-  --ball-travel: 200ms;
-  --travel-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-
-/*
- * Honour a reader who has asked for less motion. Pieces still move — the board
- * would be unreadable otherwise — they simply arrive at once, which is exactly
- * how the board behaved before this pass.
- */
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --piece-travel: 0ms;
-    --ball-travel: 0ms;
-  }
-}
 
 /*
  * The goal moment.
@@ -72,13 +52,19 @@
 /* The score, popping as it ticks up. */
 @keyframes score-tick {
   0% {
-    transform: scale(1);
+    transform: scale(1) rotate(0deg);
   }
-  30% {
-    transform: scale(1.28);
+  18% {
+    transform: scale(1.75) rotate(-4deg);
+  }
+  38% {
+    transform: scale(0.94) rotate(2deg);
+  }
+  60% {
+    transform: scale(1.14) rotate(0deg);
   }
   100% {
-    transform: scale(1);
+    transform: scale(1) rotate(0deg);
   }
 }
 
@@ -103,5 +89,48 @@
     100% {
       transform: none;
     }
+  }
+}
+
+/* The board breathing. Subtle enough that you notice its absence, not its presence. */
+@keyframes pitch-breathe {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3.5%);
+  }
+}
+
+.pitch-breathe {
+  animation: pitch-breathe 3.4s ease-in-out infinite;
+}
+
+/* A player you could command, quietly asking to be. */
+@keyframes pitch-ready {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.06);
+  }
+}
+
+.pitch-ready {
+  animation: pitch-ready 2.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pitch-breathe,
+  .pitch-ready {
+    animation: none;
+  }
+  /* The ready ring still shows — it is information, it simply stops pulsing. */
+  .pitch-ready {
+    opacity: 0.5;
   }
 }
