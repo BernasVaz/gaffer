@@ -135,6 +135,40 @@ never hand-written.
 - Never commit secrets. `.env` is gitignored; the Supabase service-role key is
   server-side only.
 
+## Presentation lags the engine
+
+Feel is part of v1 (GDD §14, ADR 0005) and animation is time, so there has to be a rule
+about where time is allowed to live. It is this one:
+
+> **The engine resolves immediately. The view is allowed to be briefly out of date. The
+> engine is never allowed to wait.**
+
+A goal is the clearest case. `applyAction` scores it, rebuilds the pitch into the kickoff
+formation and passes the turn, all synchronously — so by the time React renders, the
+moment worth celebrating has already been erased from the state. The client therefore
+keeps its own copy of the outgoing board and shows _that_ for a beat, then drops it and
+lets the pieces slide to where the engine already put them.
+
+How to build one of these without putting a timer in the rules:
+
+- **React to a settled result, never produce one.** `play()` returns what the engine
+  decided, so a click handler can start a presentation knowing the outcome is already
+  final. There is deliberately no "when the animation finishes, apply the result" path —
+  that path is how presentation becomes a rule.
+- **Hold the view, not the state.** Keep a stale `MatchState` for drawing. Everything
+  read rather than looked at — the score, the turn, the status line, every cell's
+  accessible name — stays live throughout. A screen-reader user must never be made to
+  wait for an effect they cannot perceive.
+- **Suspend input, not the engine.** While a beat is running the board offers no actions,
+  because it is displaying a position that is no longer true. That is a property of the
+  view; the engine has already moved on and would accept a command perfectly well.
+- **Give the presentation no way to reach the engine.** `useGoalMoment` is handed a board
+  and a team and returns a board and a team. It cannot see `applyAction`, a command, or
+  the seeded generator, so no amount of timing can change a result. Prefer that shape to
+  a comment promising the same thing.
+- **One number, one source.** A duration that drives both a timer and an animation lives
+  in TypeScript and is passed to CSS as a custom property, so the two cannot drift.
+
 ## Quality gates
 
 Each layer catches what the previous one is too early or too slow to see.

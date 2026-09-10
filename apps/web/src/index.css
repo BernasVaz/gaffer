@@ -38,3 +38,70 @@
     --ball-travel: 0ms;
   }
 }
+
+/*
+ * The goal moment.
+ *
+ * One keyframe run covers in, hold and out, so the beat cannot fall out of step
+ * with itself the way a chain of timers can. Its duration is set by the overlay
+ * from GOAL_MOMENT_MS, which is also what releases the held board — one number,
+ * two uses, no drift.
+ */
+@keyframes goal-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  12% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  22% {
+    transform: scale(1);
+  }
+  74% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+}
+
+/* The score, popping as it ticks up. */
+@keyframes score-tick {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.28);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /*
+   * The burst still appears — a goal is information, not decoration, and it is
+   * the one moment the board must not under-report. It simply stops moving.
+   */
+  @keyframes goal-burst {
+    0%,
+    100% {
+      opacity: 0;
+    }
+    12%,
+    74% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes score-tick {
+    0%,
+    100% {
+      transform: none;
+    }
+  }
+}

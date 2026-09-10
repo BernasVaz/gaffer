@@ -5,7 +5,8 @@ import { Pitch } from "./board/Pitch";
 import { Scoreboard } from "./board/Scoreboard";
 import { SQUADS } from "./board/squads";
 import { StatusBar } from "./board/StatusBar";
-import { isCommandable, targetsFor, type Target } from "./board/targets";
+import { isCommandable, NO_TARGETS, targetsFor, type Target } from "./board/targets";
+import { useGoalMoment } from "./match/useGoalMoment";
 import { useMatch } from "./match/useMatch";
 
 /** Read `?seed=` so a match can be reproduced from its link. Defaults to 1. */
@@ -53,6 +54,8 @@ export function App() {
   const [seed] = useState(seedFromUrl);
   const { state, lastEvent, rejection, play, restart } = useMatch(seed);
 
+  const { moment, celebrate } = useGoalMoment();
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focused, setFocused] = useState<Target | null>(null);
 
@@ -63,14 +66,28 @@ export function App() {
    * board instead of being cleared by an effect chasing the state.
    */
   const selection = selectedId !== null && isCommandable(state, selectedId) ? selectedId : null;
-  const targets = targetsFor(state, selection);
   const over = state.result !== null;
+
+  /*
+   * Presentation lags the engine, never the reverse. While a goal is being
+   * celebrated the pitch shows where everyone stood when the ball went in, even
+   * though the engine has already reset them to the kickoff. Everything that is
+   * *read* rather than looked at — the score, the turn, the status line, the
+   * accessible description of every cell — stays live throughout, so nothing
+   * anyone depends on is ever held back.
+   */
+  const board = moment?.board ?? state;
+  const targets = moment ? NO_TARGETS : targetsFor(state, selection);
 
   /** Every command clears the selection: whoever it named has now acted. */
   const send = (command: MatchCommand) => {
-    play(command);
+    const outcome = play(command);
     setSelectedId(null);
     setFocused(null);
+
+    // The engine has already scored, reset the pitch and passed the turn. All
+    // that is left is to show it, holding the board it just replaced.
+    if (outcome?.scored && outcome.scorer) celebrate(outcome.before, outcome.scorer);
   };
 
   const commit = (action: Action) => send(action);
@@ -92,7 +109,7 @@ export function App() {
           </p>
         </header>
 
-        <Scoreboard state={state} />
+        <Scoreboard state={state} scoredBy={moment?.team ?? null} />
 
         {over && state.result && (
           <p className="rounded-xl bg-amber-300/15 px-5 py-3 text-sm ring-1 ring-amber-300/40">
@@ -109,12 +126,14 @@ export function App() {
         )}
 
         <Pitch
-          state={state}
-          selectedId={selection}
+          state={board}
+          selectedId={moment ? null : selection}
           targets={targets}
           onSelect={setSelectedId}
           onCommit={commit}
           onFocusTarget={setFocused}
+          frozen={moment !== null}
+          goalFor={moment?.team ?? null}
         />
 
         <StatusBar state={state} focused={focused} lastEvent={lastEvent} rejection={rejection} />
@@ -123,13 +142,14 @@ export function App() {
           <button
             type="button"
             onClick={() => send({ type: "endTurn", team: state.activeTeam })}
-            disabled={over}
+            disabled={over || moment !== null}
             className="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-medium ring-1 ring-emerald-300/25 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             End turn
           </button>
           <button
             type="button"
+            disabled={moment !== null}
             onClick={() => {
               restart();
               setSelectedId(null);

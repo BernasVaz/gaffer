@@ -1,4 +1,4 @@
-import { TOTAL_TURNS, TURN_CAP, type MatchState } from "@gaffer/shared";
+import { TOTAL_TURNS, TURN_CAP, type MatchState, type Team } from "@gaffer/shared";
 
 /**
  * Score, clock and whose move it is.
@@ -9,7 +9,14 @@ import { TOTAL_TURNS, TURN_CAP, type MatchState } from "@gaffer/shared";
  * rather than a lone `2` — because a lone digit beside a pitch full of shirt
  * numbers is ambiguous to a reader and to a screen reader alike.
  */
-export function Scoreboard({ state }: { state: MatchState }) {
+export function Scoreboard({
+  state,
+  scoredBy = null,
+}: {
+  state: MatchState;
+  /** The side that has just scored, so the new number lands rather than appears. */
+  scoredBy?: Team | null;
+}) {
   const inExtraTime = state.turn > TURN_CAP;
 
   return (
@@ -19,7 +26,14 @@ export function Scoreboard({ state }: { state: MatchState }) {
     >
       <p className="flex items-baseline gap-3">
         <span className="text-sm font-medium text-emerald-100/80">Home</span>
-        <span className="text-2xl font-bold text-white tabular-nums">
+        <span
+          data-score
+          className={[
+            "text-2xl font-bold tabular-nums",
+            scoredBy ? "text-amber-300" : "text-white",
+          ].join(" ")}
+          style={scoredBy ? { animation: "score-tick 420ms ease-out" } : undefined}
+        >
           {state.score.home}&ndash;{state.score.away}
         </span>
         <span className="text-sm font-medium text-emerald-100/80">Away</span>

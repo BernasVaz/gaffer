@@ -4,8 +4,10 @@ import {
   type MatchState,
   type Player,
   type Role,
+  type Team,
 } from "@gaffer/shared";
 
+import { GoalBurst } from "./GoalBurst";
 import { Pieces } from "./Pieces";
 import { SQUADS } from "./squads";
 import { cellKey, isCommandable, type Target, type Targets } from "./targets";
@@ -122,6 +124,16 @@ export interface PitchProps {
   onCommit: (action: Action) => void;
   /** Called as targets are hovered or focused, so a breakdown can be shown. */
   onFocusTarget: (target: Target | null) => void;
+  /**
+   * Suspend every interaction while something is being shown.
+   *
+   * Presentation only: the engine has already resolved whatever is being
+   * celebrated. This stops the board offering moves against a position it is no
+   * longer displaying, and is why nothing needs to gate the engine itself.
+   */
+  frozen?: boolean;
+  /** The side whose goal is being celebrated over the pitch, if any. */
+  goalFor?: Team | null;
 }
 
 /**
@@ -148,6 +160,8 @@ export function Pitch({
   onSelect,
   onCommit,
   onFocusTarget,
+  frozen = false,
+  goalFor = null,
 }: PitchProps) {
   const { width, height } = state.board;
 
@@ -200,37 +214,39 @@ export function Pitch({
                * to them — to command that player instead, clear the selection
                * first by clicking them again or clicking open grass.
                */
-              const intent: CellIntent = cellTarget
-                ? {
-                    kind: "commit",
-                    target: cellTarget,
-                    label: `${cellTarget.action.type === "dribble" ? "Dribble" : "Move"} to column ${x}, row ${y}${
-                      cellTarget.duel ? `, ${pct(cellTarget.duel.winChance)} chance` : ""
-                    }`,
-                  }
-                : playerTarget && player
+              const intent: CellIntent = frozen
+                ? { kind: "clear" }
+                : cellTarget
                   ? {
                       kind: "commit",
-                      target: playerTarget,
-                      label: `${playerTarget.action.type === "tackle" ? "Tackle" : "Pass to"} ${describe(player)}${
-                        playerTarget.duel ? `, ${pct(playerTarget.duel.winChance)} chance` : ""
+                      target: cellTarget,
+                      label: `${cellTarget.action.type === "dribble" ? "Dribble" : "Move"} to column ${x}, row ${y}${
+                        cellTarget.duel ? `, ${pct(cellTarget.duel.winChance)} chance` : ""
                       }`,
                     }
-                  : isMouth && targets.shot
+                  : playerTarget && player
                     ? {
                         kind: "commit",
-                        target: targets.shot,
-                        label: `Shoot${targets.shot.duel ? `, ${pct(targets.shot.duel.winChance)} chance` : ""}`,
+                        target: playerTarget,
+                        label: `${playerTarget.action.type === "tackle" ? "Tackle" : "Pass to"} ${describe(player)}${
+                          playerTarget.duel ? `, ${pct(playerTarget.duel.winChance)} chance` : ""
+                        }`,
                       }
-                    : selectable && player
+                    : isMouth && targets.shot
                       ? {
-                          kind: "select",
-                          playerId: player.id,
-                          label: isSelected
-                            ? `Deselect ${describe(player)}`
-                            : `Select ${player.team} ${ROLE_NAME[player.role]}, ${describe(player)}`,
+                          kind: "commit",
+                          target: targets.shot,
+                          label: `Shoot${targets.shot.duel ? `, ${pct(targets.shot.duel.winChance)} chance` : ""}`,
                         }
-                      : { kind: "clear" };
+                      : selectable && player
+                        ? {
+                            kind: "select",
+                            playerId: player.id,
+                            label: isSelected
+                              ? `Deselect ${describe(player)}`
+                              : `Select ${player.team} ${ROLE_NAME[player.role]}, ${describe(player)}`,
+                          }
+                        : { kind: "clear" };
 
               const actionable = intent.kind !== "clear";
 
@@ -345,6 +361,8 @@ export function Pitch({
       </div>
 
       <Pieces state={state} />
+
+      {goalFor && <GoalBurst team={goalFor} />}
     </div>
   );
 }

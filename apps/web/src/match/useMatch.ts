@@ -1,5 +1,11 @@
 import { applyAction, createInitialState, createRng, type Rng } from "@gaffer/engine";
-import { parseSeed, type Duel, type MatchCommand, type MatchState } from "@gaffer/shared";
+import {
+  parseSeed,
+  type Duel,
+  type MatchCommand,
+  type MatchState,
+  type Team,
+} from "@gaffer/shared";
 import { useCallback, useRef, useState } from "react";
 
 /** What the last accepted command did, for the status line. */
@@ -12,6 +18,25 @@ export interface MatchEvent {
   scored: boolean;
 }
 
+/**
+ * What a command did, handed straight back to the caller.
+ *
+ * Returned synchronously so a click handler can start a presentation — a goal
+ * celebration, a duel reveal — knowing what the engine has *already* decided.
+ * That is the direction the dependency has to run: presentation reacts to a
+ * settled result, and never gets asked to produce one.
+ */
+export interface PlayOutcome {
+  /** The board as it stood when the command was sent. */
+  before: MatchState;
+  /** The board the engine produced. Already current by the time you read this. */
+  after: MatchState;
+  /** True when the command put the ball in the net. */
+  scored: boolean;
+  /** Which side scored, when one did. */
+  scorer: Team | null;
+}
+
 /** A match in progress, and the one way to move it forward. */
 export interface MatchController {
   /** The current board. */
@@ -20,8 +45,13 @@ export interface MatchController {
   lastEvent: MatchEvent | null;
   /** Why the last command was refused, if it was. Cleared by the next success. */
   rejection: string | null;
-  /** Send a command to the engine. */
-  play: (command: MatchCommand) => void;
+  /**
+   * Send a command to the engine.
+   *
+   * Returns what happened, or null if the command was refused, so the caller can
+   * react to a result that is already final.
+   */
+  play: (command: MatchCommand) => PlayOutcome | null;
   /** Start again from the same seed. */
   restart: () => void;
 }
@@ -53,28 +83,33 @@ export function useMatch(seed: number): MatchController {
   const rngRef = useRef<Rng | null>(null);
   rngRef.current ??= createRng(parseSeed(seed));
 
-  const play = useCallback((command: MatchCommand) => {
+  const play = useCallback((command: MatchCommand): PlayOutcome | null => {
     const before = stateRef.current;
     const rng = rngRef.current;
-    if (!rng) return;
+    if (!rng) return null;
 
     const result = applyAction(before, command, rng);
 
     if (!result.ok) {
       setRejection(result.reason);
-      return;
+      return null;
     }
+
+    const homeScored = result.state.score.home !== before.score.home;
+    const awayScored = result.state.score.away !== before.score.away;
+    const scored = homeScored || awayScored;
 
     stateRef.current = result.state;
     setState(result.state);
     setRejection(null);
-    setLastEvent({
-      command,
-      duel: result.duel,
-      scored:
-        result.state.score.home !== before.score.home ||
-        result.state.score.away !== before.score.away,
-    });
+    setLastEvent({ command, duel: result.duel, scored });
+
+    return {
+      before,
+      after: result.state,
+      scored,
+      scorer: homeScored ? "home" : awayScored ? "away" : null,
+    };
   }, []);
 
   const restart = useCallback(() => {
