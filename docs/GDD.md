@@ -1,4 +1,4 @@
-# Gaffer — Game Design Document (v1.6 — LOCKED, v1 baseline)
+# Gaffer — Game Design Document (v1.7 — LOCKED, v1 baseline)
 
 _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementable baseline**: the design is complete enough to build with no open questions. Values marked *(tunable)* are locked starting numbers we will refine in playtest — changing them is a data edit, not a redesign. This is the contract the engine (M2) is built and tested against._
 
@@ -12,6 +12,7 @@ _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementabl
 > - **v1.2 → v1.3:** bounded the win condition (§10, §13) — extra time is 4 turns, then a penalty shootout of 3 kicks plus 10 sudden-death rounds, then most shots, then most duels won, then the side that did not kick off. A tiebreaker cascade was needed because §10 forbids draws and no symmetric shootout terminates on its own.
 > - **v1.3 → v1.4:** made scoring possible. Keeper DEF 5 → 4; the keeper defends a shot only while standing in its own mouth, so drawing it out opens the goal; covering on a shot softened to +1; and only the defending keeper may occupy a goal mouth, which closes the hole where an attacker could stand in the net and shoot at it (§5, §6, §7, §9, §13). See ADR 0004.
 > - **v1.4 → v1.5:** brought feel into v1 scope (§14). Playtesting the first interactive build showed that an instant result reads as a state change rather than as football, which Pillar 1 depends on. Movement, the goal moment and the duel reveal are now in; animation stays presentation-only and may never affect the engine or its determinism. See ADR 0005.
+> - **v1.6 → v1.7:** doubled extra time, 4 turns → **8**. Re-measuring v1.6 for the record showed its shootout figures had been taken mid-branch and were wrong: matches decided on penalties went 38.7% → 35.3%, not 44% → 20%. The goals were real (0.99 → 1.50) — what they did not do was reduce draws, because killing _goalless_ matches turns 0–0 into 1–1. §10's reason for a short extra time ("goals are scarce, so it mostly delays the shootout") was true at 0.6 goals a match and false at 1.5: golden goal now fires. Penalties fall to **24%**, golden goals rise to **17%**, at about one turn on the average match. See ADR 0011.
 > - **v1.5 → v1.6:** tuned the match on evidence. A solo opponent (ADR 0006) made self-play possible, and 150 matches at the v1.5 numbers produced 0.60 goals a match with 42% goalless and 44% settled on penalties. Three numbers moved: the duel die d3 → **d4**, keeper DEF 4 → **3**, turn cap 20 → **24**. Both §13 watch-items are closed by the change — the d3 saturation directly, penalty conversion as a consequence (33% → 81%). Result: **1.50 goals a match, 9% goalless, 80% decided by football**. See ADR 0007. The solo opponent also moves from "out of scope" to shipped (§14).
 
 ---
@@ -129,7 +130,7 @@ Every contested action is a duel:
 
 - A match runs to a **turn cap of 24 turns (12 per side)** _(tunable to a ~3–5 min match)_. Highest score at the cap wins. Raised from 20 in v1.6: possession changes hands roughly every two and a half actions and an attack needs three or four to finish, so at 20 a real share of matches ended mid-move (ADR 0007).
 - **Sudden-death:** level at the cap → **golden goal in extra time** — the first goal wins immediately.
-- **Extra time is bounded: 4 turns, 2 per side** _(tunable)_. It has to be: goals are scarce, so "play until someone scores" has no upper bound and an engine cannot be asked to run it.
+- **Extra time is bounded: 8 turns, 4 per side** _(tunable)_. It has to be bounded at all because "play until someone scores" has no upper bound and an engine cannot be asked to run it. It was 4 until v1.7, on the reasoning that scarce goals made a longer extra time a delay rather than a reprieve — true at 0.6 goals a match, false at 1.5. At 8 turns golden goal decides one match in six, where it decided one in twenty (ADR 0011).
 - After every goal (regulation or extra time), **positions reset for a kickoff** to the conceding side.
 - **No flat draws.** Level after extra time goes to a decision cascade, tried in order:
 
@@ -174,7 +175,7 @@ The numeric knobs, in one place — all live as Zod data in `@gaffer/shared`, so
 | Duel die                    | opposed **d4** (was d3)                                          |
 | Covering-defender modifier  | +2 DEF each in open play, **+1 on a shot**                       |
 | Turn cap                    | **24** turns (12 per side)                                       |
-| Extra time                  | 4 turns (2 per side), golden goal                                |
+| Extra time                  | **8** turns (4 per side), golden goal                            |
 | Shootout                    | 3 kicks each, then sudden death                                  |
 | Shootout sudden-death cap   | 10 rounds                                                        |
 | Tiebreaker cascade          | shootout -> shots -> duels won -> non-kickoff side               |
@@ -197,9 +198,13 @@ Recorded so they are not rediscovered from scratch later.
   missing upset: of 152 shots taken across 80 matches, 122 were shown 33% and 17 were
   shown 67%, and **none fell between** — the odds on the board were a three-valued enum,
   which a game built on Pillar 2 cannot afford. See ADR 0007.
-- ~~**Almost every scripted match reaches penalties.**~~ **Closed in v1.6.** The note was
-  right that the fix was goal-scoring rather than the shootout. With the v1.6 numbers,
-  **80% of matches are decided by football** and 20% by penalties, against 56/44 before.
+- **Almost every scripted match reaches penalties.** **Much reduced, not closed** — and
+  the v1.6 claim that it was closed rested on a figure measured mid-branch. Honest
+  numbers: 98% under random play, 38.7% under skilled play at the v1.5 balance, 35.3% at
+  v1.6, and **24% at v1.7** once extra time doubled. The note's own diagnosis turned out
+  to be half right: scoring more was the fix for _goalless_ matches, but it does not
+  reduce _draws_ — 0–0 simply becomes 1–1. See ADR 0011, which also carries the corrected
+  v1.6 table.
 - ~~**Penalties may want their own, higher conversion odds.**~~ **Closed in v1.6**, and
   without a special rule. The ordinary shot duel now puts a penalty at **81%** — close to
   real football's ~78% — because the keeper is on DEF 3 and the die is a d4. Sudden death
@@ -208,7 +213,11 @@ Recorded so they are not rediscovered from scratch later.
   the right instrument. Under self-play with the solo opponent (ADR 0006) a match now
   produces **1.50 goals**, with 9% goalless.
 
-**Still watched, not yet acted on:**
+**Still watched:**
+
+- **One match in four is still settled on penalties.** The lever that moved it is extra
+  time, and it has diminishing returns: 12 turns would take it to one in six, at the cost
+  of a 36-turn ceiling against GDD §11's 3–5 minute target. Left where the curve bends.
 
 - **Kicking off is worth about 62% of matches.** Measured over 150 self-play matches from
   each end. It is a property of a low-scoring game: the first completed attack usually

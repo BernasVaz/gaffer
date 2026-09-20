@@ -77,10 +77,11 @@ export async function step(page: Page): Promise<Step> {
 /**
  * Play until the match is decided, or until `limit` steps have gone by.
  *
- * The limit is a guard against a hang, not an expectation: a match is 28 turns
- * of two actions, so anything near it means something has stopped progressing.
+ * The limit is a guard against a hang, not an expectation: a match is at most 32
+ * turns of two actions, so anything near it means something has stopped
+ * progressing.
  */
-export async function playToTheEnd(page: Page, limit = 220): Promise<number> {
+export async function playToTheEnd(page: Page, limit = 260): Promise<number> {
   for (let taken = 0; taken < limit; taken += 1) {
     const outcome = await step(page);
     if (outcome === "over") return taken;

@@ -87,7 +87,7 @@ test.describe("a whole match", () => {
 
     // It got there by playing, not by running out of the step budget.
     expect(steps).toBeGreaterThan(20);
-    expect(steps).toBeLessThan(220);
+    expect(steps).toBeLessThan(260);
 
     await expectNoRuleBug(page);
     expect(refusals, `console errors during the match: ${refusals.join(" | ")}`).toEqual([]);
