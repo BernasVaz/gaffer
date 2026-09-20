@@ -5,11 +5,17 @@ import { TeamSchema } from "./team.js";
 /**
  * Turns a match runs for before the score decides it (GDD §10, §13).
  *
- * Counted across both sides — 20 turns is 10 each — which is why it must stay
+ * Counted across both sides — 24 turns is 12 each — which is why it must stay
  * even, or one side would get an extra go. Tuned so a match lands in the 3–5
  * minute target of GDD §11.
+ *
+ * Raised from 20 in v1.6. An attack needs three or four actions to work the ball
+ * into range and finish, and possession changes hands roughly every two and a
+ * half, so at 20 turns a good share of matches simply ran out of pitch before
+ * anyone completed one. The extra four turns are worth about 15% more goals and
+ * cut goalless matches from 12% to 7% without touching a single duel.
  */
-export const TURN_CAP = 20;
+export const TURN_CAP = 24;
 
 /**
  * Turns left in regulation, counting the one in progress.

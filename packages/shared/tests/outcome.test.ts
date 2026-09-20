@@ -19,9 +19,9 @@ describe("extra time", () => {
     expect(EXTRA_TIME_TURNS % 2).toBe(0); // must split evenly
   });
 
-  it("brings the whole match to 24 turns", () => {
+  it("brings the whole match to 28 turns", () => {
     expect(TOTAL_TURNS).toBe(TURN_CAP + EXTRA_TIME_TURNS);
-    expect(TOTAL_TURNS).toBe(24);
+    expect(TOTAL_TURNS).toBe(28);
   });
 });
 

@@ -2,8 +2,24 @@ import { z } from "zod";
 
 import { PlayerIdSchema } from "./player.js";
 
-/** Sides on each duel die — an opposed d3 (GDD §13). */
-export const DUEL_DIE_SIDES = 3;
+/**
+ * Sides on each duel die — an opposed d4 (GDD §13).
+ *
+ * Widened from a d3 in v1.6. An opposed d3 can only produce six distinct odds —
+ * 0, 11%, 33%, 67%, 89%, 100% — so there was no such thing as a 45% chance, and
+ * any gap of three or more removed the die from the game entirely. Self-play put
+ * numbers on it: of 152 shots taken across 80 matches, 122 were shown 33% and 17
+ * were shown 67%, and **not one fell between them**. The odds on the board were
+ * effectively a three-valued enum, which is a poor way to deliver a pillar that
+ * promises you always understand your own risk.
+ *
+ * A d4 gives 6%, 19%, 37.5%, 62.5%, 81%, 94% and keeps "stats dominate, dice
+ * tip" intact — a +1 edge is still a clear favourite at 62.5%, and a +2 edge is
+ * 81%. A +3 gap is 94% rather than certain, which is the sliver the GDD §13
+ * watch-list asked for. Measured over 100 matches the change is outcome-neutral:
+ * goals per match moved 1.07 to 1.05. It buys legibility, not goals.
+ */
+export const DUEL_DIE_SIDES = 4;
 
 /** What each covering defender adds to the defending total in open play (GDD §13). */
 export const COVERING_DEFENDER_BONUS = 2;

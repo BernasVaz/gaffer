@@ -54,7 +54,7 @@ describe("previewDuel", () => {
       expect(duel.attacker).toEqual({ playerId: "home-striker-0", stat: 5, modifier: 0 });
       expect(duel.defender).toEqual({ playerId: "away-defender-1", stat: 4, modifier: 0 });
       expect(duel.coveringPlayerIds).toEqual([]);
-      expect(duel.winChance).toBeCloseTo(6 / 9, 10); // GDD §9's worked example
+      expect(duel.winChance).toBeCloseTo(10 / 16, 10); // GDD §9's worked example
     });
 
     it("adds a covering defender, turning the favourite into the underdog", () => {
@@ -72,7 +72,7 @@ describe("previewDuel", () => {
       expect(duel.defender.stat).toBe(4);
       expect(duel.defender.modifier).toBe(COVERING_DEFENDER_BONUS);
       expect(duel.coveringPlayerIds).toEqual(["away-midfielder-2"]);
-      expect(duel.winChance).toBeCloseTo(1 / 9, 10); // exactly the GDD's ~11%
+      expect(duel.winChance).toBeCloseTo(3 / 16, 10); // exactly the GDD's ~19%
     });
 
     it("picks the highest-DEF opponent as the primary defender", () => {
@@ -151,13 +151,13 @@ describe("previewDuel", () => {
     it("pits the shooter's ATK against the keeper's DEF", () => {
       const state = makeState([
         { team: "home", role: "striker", at: [4, 2], ball: true }, // ATK 5
-        { team: "away", role: "goalkeeper", at: [6, 2] }, // DEF 4, in its goal
+        { team: "away", role: "goalkeeper", at: [6, 2] }, // DEF 3, in its goal
       ]);
       const duel = previewDuel(state, { type: "shoot", playerId: "home-striker-0", target: null })!;
 
       expect(duel.attacker.stat).toBe(5);
-      expect(duel.defender).toEqual({ playerId: "away-goalkeeper-1", stat: 4, modifier: 0 });
-      expect(duel.winChance).toBeCloseTo(duelWinChance(5, 4), 10);
+      expect(duel.defender).toEqual({ playerId: "away-goalkeeper-1", stat: 3, modifier: 0 });
+      expect(duel.winChance).toBeCloseTo(duelWinChance(5, 3), 10);
     });
 
     it("counts an opponent standing in the lane to the mouth as covering", () => {
@@ -553,7 +553,7 @@ describe("stat and role sanity", () => {
   it("uses the GDD §6 stat lines, not hard-coded numbers", () => {
     expect(ROLE_PROFILES.striker.stats.atk).toBe(5);
     expect(ROLE_PROFILES.defender.stats.def).toBe(4);
-    expect(ROLE_PROFILES.goalkeeper.stats.def).toBe(4);
+    expect(ROLE_PROFILES.goalkeeper.stats.def).toBe(3);
     expect(ROLE_PROFILES.midfielder.stats.pas).toBe(4);
   });
 });

@@ -12,8 +12,8 @@ import {
 } from "../src/index.js";
 
 describe("TURN_CAP", () => {
-  it("is 20 turns — 10 a side, per GDD §10", () => {
-    expect(TURN_CAP).toBe(20);
+  it("is 24 turns — 12 a side, per GDD §10", () => {
+    expect(TURN_CAP).toBe(24);
     expect(TURN_CAP % 2).toBe(0); // must split evenly, or one side gets more
   });
 });

@@ -22,7 +22,7 @@ describe("ROLE_PROFILES", () => {
    * duel maths depends on, not incidental data.
    */
   it.each([
-    { role: "goalkeeper", atk: 1, def: 4, pas: 2, moveRange: 1 },
+    { role: "goalkeeper", atk: 1, def: 3, pas: 2, moveRange: 1 },
     { role: "defender", atk: 2, def: 4, pas: 3, moveRange: 2 },
     { role: "midfielder", atk: 3, def: 3, pas: 4, moveRange: 3 },
     { role: "winger", atk: 4, def: 2, pas: 3, moveRange: 3 },
@@ -51,12 +51,17 @@ describe("ROLE_PROFILES", () => {
     expect(best("atk")).toBe("striker");
   });
 
-  it("ties the keeper with the defender at the back", () => {
-    // Since keeper DEF dropped to 4 the goalkeeper is no longer the outright
-    // best defender: it is level with the Defender. That is the point — the best
-    // striker now beats it two times in three from a clean position.
+  it("no longer makes the keeper the best defender — its job is positional", () => {
+    /*
+     * ADR 0004 took keeper DEF from 5 to 4 and started moving the keeper's
+     * identity from a stat line to a position; ADR 0006 took it to 3 and
+     * finished the move. The keeper is now beaten by an outfield Defender in a
+     * straight duel, and what makes it a goalkeeper is that it is the only
+     * player allowed to stand in a goal and the only one who defends a shot
+     * while it does. If this ever reverts, the shot model reverts with it.
+     */
     const best = Math.max(...ROLES.map((role) => ROLE_PROFILES[role].stats.def));
-    expect(ROLE_PROFILES.goalkeeper.stats.def).toBe(best);
     expect(ROLE_PROFILES.defender.stats.def).toBe(best);
+    expect(ROLE_PROFILES.goalkeeper.stats.def).toBeLessThan(best);
   });
 });

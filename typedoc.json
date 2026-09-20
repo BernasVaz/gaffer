@@ -8,7 +8,7 @@
    * browsable together rather than as two disconnected doc sets.
    */
   "entryPointStrategy": "packages",
-  "entryPoints": ["packages/engine", "packages/shared"],
+  "entryPoints": ["packages/ai", "packages/engine", "packages/shared"],
 
   "out": "docs/api",
   "readme": "none",
