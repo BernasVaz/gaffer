@@ -10,6 +10,7 @@ import {
 import { motion, useAnimationControls, useReducedMotion } from "motion/react";
 import { useEffect, useRef } from "react";
 
+import { GoalNet, PitchMarkings } from "../art/PitchMarkings";
 import { GOAL, POP_SPRING, TURN_FLOURISH } from "../feel";
 import { GoalBurst } from "./GoalBurst";
 import { Pieces } from "./Pieces";
@@ -261,13 +262,16 @@ export function Pitch({
   );
 
   return (
-    <motion.div className="relative" animate={shake}>
+    <motion.div
+      className="relative rounded-2xl bg-gradient-to-b from-(--color-edge) to-(--color-night) p-[3px] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75)]"
+      animate={shake}
+    >
       <div
         role="grid"
         aria-label={`Pitch, ${width} columns by ${height} rows`}
         aria-rowcount={height}
         aria-colcount={width}
-        className="grid w-full gap-px overflow-hidden rounded-xl bg-emerald-950/50 p-px shadow-2xl ring-1 ring-emerald-950/40"
+        className="relative grid w-full overflow-hidden rounded-xl"
         style={{ gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))` }}
       >
         {Array.from({ length: height }, (_unused, y) => (
@@ -349,15 +353,15 @@ export function Pitch({
                   aria-selected={isSelected || undefined}
                   className={cx(
                     "relative aspect-square",
-                    isMouth
-                      ? "bg-sky-500/30"
-                      : goalCells.has(key)
-                        ? "bg-(--color-mouth)"
-                        : x % 2 === 0
-                          ? "bg-(--color-turf)"
-                          : "bg-(--color-turf-alt)",
+                    goalCells.has(key)
+                      ? "bg-(--color-mouth)"
+                      : x % 2 === 0
+                        ? "bg-(--color-turf)"
+                        : "bg-(--color-turf-alt)",
                   )}
                 >
+                  {/* Netting, drawn per cell because a mouth is three cells. */}
+                  {goalCells.has(key) && <GoalNet side={x === 0 ? "left" : "right"} />}
                   <ActiveOrPlain
                     actionable={actionable}
                     label={actionable ? intent.label : undefined}
@@ -390,10 +394,16 @@ export function Pitch({
 
                     {/* The goal mouth, lit as one target across its three cells. */}
                     {isMouth && (
-                      <span
-                        aria-hidden
-                        className="absolute inset-0 ring-2 ring-sky-300 ring-inset"
-                      />
+                      <>
+                        <span
+                          aria-hidden
+                          className="mouth-glow absolute inset-0 bg-(--color-gold)/35"
+                        />
+                        <span
+                          aria-hidden
+                          className="absolute inset-0 ring-2 ring-(--color-gold) ring-inset"
+                        />
+                      </>
                     )}
 
                     {/* Who is selected. */}
@@ -431,7 +441,7 @@ export function Pitch({
                     {isMouth && y === mouthCentre && targets.shot?.duel && (
                       <span
                         aria-hidden
-                        className="pointer-events-none absolute rounded-sm bg-sky-200/95 px-[3px] text-[min(2vw,0.65rem)] leading-tight font-bold text-sky-950 tabular-nums"
+                        className="pointer-events-none absolute rounded-md bg-(--color-gold) px-[4px] text-[min(2.1vw,0.7rem)] leading-tight font-extrabold text-amber-950 tabular-nums shadow"
                       >
                         {pct(targets.shot.duel.winChance)}
                       </span>
@@ -443,6 +453,8 @@ export function Pitch({
           </div>
         ))}
       </div>
+
+      <PitchMarkings board={state.board} />
 
       <Pieces state={state} readyIds={readyIds} />
 

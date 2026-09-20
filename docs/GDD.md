@@ -228,6 +228,8 @@ No accounts/ladder/trophies, no squad collection or squad-building (both players
 
 **Feel is IN.** "No cosmetics" was in this list until the board became playable, at which point it was obvious that a match with no motion does not deliver Pillar 1: a result that appears instantly is information, and "one more game" needs it to be an _event_. Movement, the goal moment and the duel reveal are therefore v1 scope. See ADR 0005.
 
+**The look is IN too, and drawn in code.** M3's exit gate is about strangers with a link, and a stranger decides in about a second whether they are looking at a game or at somebody's weekend project — a grid of lettered tokens answers that badly, and correct football underneath does not rescue the answer. So the client has a designed identity: cartoon SVG players with kits, roles you can tell apart without reading the number, and eyes that follow the ball; a pitch with markings and netting; crests, a broadcast scoreboard and buttons you can feel. All of it is code, all of it lives in `apps/web`, and none of it reaches the engine. **Sound is still out**, and so is illustrated or animated character art — that is a decision with a budget attached. See ADR 0008.
+
 The line to hold is that feel is **presentation only**. Animation lives in `apps/web`, never in the engine, and no animation timing may influence a result — the engine resolves the instant a command is committed and the board catches up afterwards. Sound and the wider visual theme are still out of v1.
 
 ## 15. How this maps to the engine (for M2)

@@ -2,6 +2,8 @@ import type { Board, MatchState, Player, Position } from "@gaffer/shared";
 import { motion, useAnimationControls, useReducedMotion } from "motion/react";
 import { useEffect, useRef } from "react";
 
+import { Football } from "../art/Football";
+import { Footballer, type Gaze } from "../art/Footballer";
 import { BALL_ARC, BALL_SPRING, IDLE, INSTANT, PIECE_SPRING, SQUASH } from "../feel";
 import { SQUADS } from "./squads";
 
@@ -63,41 +65,61 @@ function useSquashOnMove(position: Position, still: boolean) {
   return controls;
 }
 
-function Shirt({ player, ready, dimmed }: { player: Player; ready: boolean; dimmed: boolean }) {
+/**
+ * Where a player should be looking.
+ *
+ * Straight at the ball, as a unit-ish vector from the player to it. Divided by a
+ * couple of cells rather than normalised, so a player standing next to the ball
+ * looks hard at it and one across the pitch merely glances — the intensity of
+ * the look carries distance, which a normalised vector would throw away.
+ *
+ * The carrier looks up the pitch instead. Someone staring at a ball they are
+ * already holding looks cross-eyed, and looking where they are going is both
+ * more natural and quietly useful: ten heads turned the same way is the
+ * direction of play, legible before you have read anything.
+ */
+function gazeFor(player: Player, state: MatchState): Gaze {
+  if (state.ball.carrierId === player.id) {
+    return { x: player.team === "home" ? 1 : -1, y: 0 };
+  }
+
+  const ball = state.ball.position;
+  return {
+    x: (ball.x - player.position.x) / 2.5,
+    y: (ball.y - player.position.y) / 2,
+  };
+}
+
+function Shirt({
+  player,
+  state,
+  ready,
+  dimmed,
+}: {
+  player: Player;
+  state: MatchState;
+  ready: boolean;
+  dimmed: boolean;
+}) {
   const kit = SQUADS[player.team][player.role];
-  const isHome = player.team === "home";
-  const shirt = isHome ? "bg-white text-emerald-950" : "bg-zinc-900 text-white";
 
   return (
     <>
-      <span
-        className={cx(
-          "relative flex w-[54%] items-center justify-center rounded-[26%] py-[16%]",
-          "text-[min(3.1vw,1rem)] leading-none font-bold tabular-nums ring-1",
-          shirt,
-          isHome ? "ring-emerald-950/25" : "ring-white/25",
-          dimmed && "opacity-70",
-        )}
-      >
+      <span className={cx("relative block h-[92%] w-[92%]", dimmed && "opacity-65")}>
         {/* A player who can be commanded quietly says so. */}
         {ready && (
-          <span className="pitch-ready absolute -inset-[14%] rounded-[30%] ring-2 ring-white/45" />
+          <span className="pitch-ready absolute inset-[6%] top-[14%] rounded-full ring-[3px] ring-white/55" />
         )}
-        <span
-          className={cx("absolute top-[6%] -left-[30%] h-[42%] w-[30%] rounded-l-[45%]", shirt)}
+        <Footballer
+          id={player.id}
+          team={player.team}
+          role={player.role}
+          number={kit.number}
+          gaze={gazeFor(player, state)}
+          hasBall={state.ball.carrierId === player.id}
         />
-        <span
-          className={cx("absolute top-[6%] -right-[30%] h-[42%] w-[30%] rounded-r-[45%]", shirt)}
-        />
-        <span
-          className={cx(
-            "absolute top-0 h-[16%] w-[38%] rounded-b-full",
-            isHome ? "bg-emerald-950/20" : "bg-white/25",
-          )}
-        />
-        <span className="relative">{kit.number}</span>
       </span>
-      <span className="mt-[6%] max-w-full truncate px-[4%] text-[min(1.6vw,0.55rem)] leading-none font-medium text-white/85">
+      <span className="-mt-[10%] max-w-full truncate rounded-full bg-black/50 px-[9%] text-[min(1.75vw,0.6rem)] leading-[1.7] font-semibold text-white/90">
         {kit.name}
       </span>
     </>
@@ -106,19 +128,20 @@ function Shirt({ player, ready, dimmed }: { player: Player; ready: boolean; dimm
 
 function Piece({
   player,
-  board,
+  state,
   index,
   ready,
   dimmed,
   still,
 }: {
   player: Player;
-  board: Board;
+  state: MatchState;
   index: number;
   ready: boolean;
   dimmed: boolean;
   still: boolean;
 }) {
+  const board = state.board;
   const squash = useSquashOnMove(player.position, still);
 
   return (
@@ -143,7 +166,7 @@ function Piece({
           animate={squash}
           className="flex h-full w-full flex-col items-center justify-center"
         >
-          <Shirt player={player} ready={ready} dimmed={dimmed} />
+          <Shirt player={player} state={state} ready={ready} dimmed={dimmed} />
         </motion.div>
       </div>
     </motion.div>
@@ -209,11 +232,11 @@ function Ball({ state, still }: { state: MatchState; still: boolean }) {
             carried && "translate-x-[19%] -translate-y-[23%]",
           )}
         >
-          <motion.div animate={spin} className="h-[26%] w-[26%]">
-            <span className="relative block h-full w-full rounded-full bg-amber-300 shadow-lg ring-2 ring-amber-800">
-              {/* One off-centre mark, so the roll is actually visible. */}
-              <span className="absolute top-[18%] left-[20%] h-[26%] w-[26%] rounded-full bg-amber-800/70" />
-            </span>
+          <motion.div
+            animate={spin}
+            className="h-[30%] w-[30%] drop-shadow-[0_2px_4px_rgba(0,0,0,0.45)]"
+          >
+            <Football />
           </motion.div>
         </div>
       </motion.div>
@@ -253,7 +276,7 @@ export function Pieces({
         <Piece
           key={player.id}
           player={player}
-          board={state.board}
+          state={state}
           index={index}
           ready={readyIds?.has(player.id) ?? false}
           dimmed={state.result !== null}

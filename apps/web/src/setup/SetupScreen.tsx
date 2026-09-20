@@ -11,7 +11,10 @@ import {
 } from "@gaffer/shared";
 import { useState } from "react";
 
-import { SQUADS } from "../board/squads";
+import { Crest } from "../art/Crest";
+import { Footballer } from "../art/Footballer";
+import { Button } from "../ui/Button";
+import { Wordmark } from "../ui/Wordmark";
 
 const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(" ");
 
@@ -55,12 +58,13 @@ function Choice({
       onClick={onClick}
       aria-pressed={selected}
       className={cx(
-        "flex flex-1 cursor-pointer flex-col items-center gap-1 rounded-xl px-3 py-3 text-center",
-        "ring-1 transition-colors",
+        "chunky flex flex-1 cursor-pointer flex-col items-center gap-1 rounded-xl px-3 py-3 text-center",
+        "focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none",
         selected
-          ? "bg-emerald-700 text-white ring-emerald-300/60"
-          : "bg-emerald-950/50 text-emerald-100/70 ring-emerald-300/15 hover:bg-emerald-900/60",
+          ? "bg-(--color-panel-raised) text-white"
+          : "bg-(--color-panel) text-white/60 hover:text-white/85",
       )}
+      style={{ ["--btn-edge" as string]: selected ? "#07200f" : "#04120a" }}
     >
       {children}
       <span className="text-sm font-semibold">{title}</span>
@@ -69,19 +73,26 @@ function Choice({
   );
 }
 
-/** A plain shirt swatch, so picking a side shows you what you will be looking at. */
-function Swatch({ team }: { team: Team }) {
+/**
+ * A side, shown rather than named.
+ *
+ * The crest and an actual player in the kit, because "home" and "away" are the
+ * two least memorable words in football and what a player will actually
+ * recognise on the pitch is the colour.
+ */
+function SidePreview({ team }: { team: Team }) {
   return (
-    <span
-      aria-hidden
-      className={cx(
-        "mb-0.5 flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ring-1",
-        team === "home"
-          ? "bg-white text-emerald-950 ring-emerald-950/20"
-          : "bg-zinc-900 text-white ring-white/25",
-      )}
-    >
-      {SQUADS[team].striker.number}
+    <span aria-hidden className="mb-1 flex items-center gap-1">
+      <Crest team={team} className="h-9 w-8" />
+      <span className="h-12 w-10">
+        <Footballer
+          id={`preview-${team}`}
+          team={team}
+          role="striker"
+          number={9}
+          gaze={{ x: 0, y: 0 }}
+        />
+      </span>
     </span>
   );
 }
@@ -114,22 +125,24 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
   const solo = mode === "solo";
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-emerald-950 to-emerald-900 px-4 py-10 text-white">
-      <div className="flex w-full max-w-md flex-col gap-6">
+    <main className="flex min-h-dvh items-center justify-center bg-(--color-night) bg-[radial-gradient(120%_70%_at_50%_0%,var(--color-night-soft),var(--color-night))] px-4 py-10 text-white">
+      <div className="flex w-full max-w-md flex-col gap-4">
         <header className="text-center">
-          <h1 className="text-4xl font-black tracking-tight">Gaffer</h1>
-          <p className="mt-1 text-sm text-emerald-200/70">
+          <h1 className="text-5xl leading-none">
+            <Wordmark />
+          </h1>
+          <p className="mt-2 text-sm text-white/55">
             A turn-based football duel. Every risk is a number you can see.
           </p>
         </header>
 
         <section
           aria-labelledby="mode-heading"
-          className="rounded-2xl bg-emerald-950/40 p-4 ring-1 ring-emerald-300/15"
+          className="rounded-2xl bg-(--color-panel) p-4 ring-1 ring-(--color-edge)/30"
         >
           <h2
             id="mode-heading"
-            className="mb-2 text-[0.65rem] tracking-widest text-emerald-200/70 uppercase"
+            className="mb-2 text-[0.65rem] font-bold tracking-widest text-white/45 uppercase"
           >
             Who is playing
           </h2>
@@ -150,11 +163,11 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
           <>
             <section
               aria-labelledby="side-heading"
-              className="rounded-2xl bg-emerald-950/40 p-4 ring-1 ring-emerald-300/15"
+              className="rounded-2xl bg-(--color-panel) p-4 ring-1 ring-(--color-edge)/30"
             >
               <h2
                 id="side-heading"
-                className="mb-2 text-[0.65rem] tracking-widest text-emerald-200/70 uppercase"
+                className="mb-2 text-[0.65rem] font-bold tracking-widest text-white/45 uppercase"
               >
                 Your side
               </h2>
@@ -167,11 +180,11 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
                     title={team === "home" ? "Home" : "Away"}
                     blurb={team === KICKING_OFF ? "Kicks off · attacks right" : "Attacks left"}
                   >
-                    <Swatch team={team} />
+                    <SidePreview team={team} />
                   </Choice>
                 ))}
               </div>
-              <p className="mt-2 text-[0.68rem] leading-snug text-emerald-200/50">
+              <p className="mt-2 text-[0.68rem] leading-snug text-white/40">
                 Kicking off is worth about six matches in ten — you get the ball, and the first
                 attack to come off usually wins.
               </p>
@@ -179,11 +192,11 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
 
             <section
               aria-labelledby="level-heading"
-              className="rounded-2xl bg-emerald-950/40 p-4 ring-1 ring-emerald-300/15"
+              className="rounded-2xl bg-(--color-panel) p-4 ring-1 ring-(--color-edge)/30"
             >
               <h2
                 id="level-heading"
-                className="mb-2 text-[0.65rem] tracking-widest text-emerald-200/70 uppercase"
+                className="mb-2 text-[0.65rem] font-bold tracking-widest text-white/45 uppercase"
               >
                 Opponent
               </h2>
@@ -204,11 +217,11 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
 
         <section
           aria-labelledby="seed-heading"
-          className="rounded-2xl bg-emerald-950/40 p-4 ring-1 ring-emerald-300/15"
+          className="rounded-2xl bg-(--color-panel) p-4 ring-1 ring-(--color-edge)/30"
         >
           <h2
             id="seed-heading"
-            className="mb-2 text-[0.65rem] tracking-widest text-emerald-200/70 uppercase"
+            className="mb-2 text-[0.65rem] font-bold tracking-widest text-white/45 uppercase"
           >
             Seed
           </h2>
@@ -223,29 +236,25 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
                 const next = Number(event.target.value);
                 if (Number.isInteger(next) && next >= 0 && next <= MAX_SEED) setSeed(next);
               }}
-              className="w-full rounded-lg bg-emerald-950/70 px-3 py-2 font-mono text-sm tabular-nums ring-1 ring-emerald-300/20 focus:ring-2 focus:ring-emerald-300 focus:outline-none"
+              className="w-full rounded-xl bg-black/40 px-3 py-2.5 text-sm font-bold tabular-nums ring-1 ring-white/10 focus:ring-2 focus:ring-(--color-gold) focus:outline-none"
             />
-            <button
-              type="button"
-              onClick={() => setSeed(Math.floor(Math.random() * (MAX_SEED + 1)))}
-              className="cursor-pointer rounded-lg bg-emerald-800 px-3 py-2 text-sm font-medium ring-1 ring-emerald-300/25 hover:bg-emerald-700"
-            >
+            <Button onClick={() => setSeed(Math.floor(Math.random() * (MAX_SEED + 1)))}>
               Shuffle
-            </button>
+            </Button>
           </div>
-          <p className="mt-2 text-[0.68rem] leading-snug text-emerald-200/50">
+          <p className="mt-2 text-[0.68rem] leading-snug text-white/40">
             Every die in the match comes from this number. Share the link and your opponent gets the
             same match, dice and all.
           </p>
         </section>
 
-        <button
-          type="button"
+        <Button
+          tone="primary"
           onClick={() => onStart({ mode, side, difficulty, seed })}
-          className="cursor-pointer rounded-xl bg-amber-400 px-6 py-3.5 text-lg font-bold text-amber-950 ring-1 ring-amber-200/60 transition-colors hover:bg-amber-300"
+          className="mt-1 py-4 text-lg"
         >
           Kick off
-        </button>
+        </Button>
       </div>
     </main>
   );

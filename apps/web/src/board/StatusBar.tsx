@@ -23,8 +23,8 @@ function Breakdown({ target, state }: { target: Target; state: MatchState }) {
 
   if (!duel) {
     return (
-      <span className="text-emerald-100/70">
-        {verb} &middot; <span className="text-emerald-200">uncontested</span>
+      <span className="text-white/65">
+        {verb} &middot; <span className="font-semibold text-emerald-300">uncontested</span>
       </span>
     );
   }
@@ -33,18 +33,20 @@ function Breakdown({ target, state }: { target: Target; state: MatchState }) {
     side.modifier === 0 ? `${side.stat}` : `${side.stat}+${side.modifier}`;
 
   return (
-    <span className="text-emerald-50">
-      <span className="font-semibold">{verb}</span>
-      <span className="mx-2 text-emerald-300/40">|</span>
+    <span className="text-white">
+      <span className="font-bold">{verb}</span>
+      <span className="mx-2 text-white/20">|</span>
       <span className="tabular-nums">
         {nameOf(state, duel.attacker.playerId)} {score(duel.attacker)} v{" "}
         {nameOf(state, duel.defender.playerId)} {score(duel.defender)}
       </span>
       {duel.coveringPlayerIds.length > 0 && (
-        <span className="ml-2 text-emerald-200/60">({duel.coveringPlayerIds.length} covering)</span>
+        <span className="ml-2 text-white/45">({duel.coveringPlayerIds.length} covering)</span>
       )}
-      <span className="mx-2 text-emerald-300/40">|</span>
-      <span className="font-bold text-amber-300 tabular-nums">{pct(duel.winChance)}</span>
+      <span className="mx-2 text-white/20">|</span>
+      <span className="rounded-md bg-(--color-gold) px-1.5 py-0.5 font-extrabold text-amber-950 tabular-nums">
+        {pct(duel.winChance)}
+      </span>
     </span>
   );
 }
@@ -54,18 +56,18 @@ function LastEvent({ event, state }: { event: MatchEvent; state: MatchState }) {
   const { command, duel, scored } = event;
 
   if (command.type === "endTurn") {
-    return <span className="text-emerald-100/70">{command.team} ended the turn.</span>;
+    return <span className="text-white/60">{command.team} ended the turn.</span>;
   }
 
   const who = nameOf(state, command.playerId);
   const verb = command.type;
 
   return (
-    <span className="text-emerald-50">
-      <span className="font-semibold">{who}</span> {verb}
+    <span className="text-white">
+      <span className="font-bold">{who}</span> {verb}
       {duel && (
         <>
-          <span className="mx-2 text-emerald-300/40">|</span>
+          <span className="mx-2 text-white/20">|</span>
           <span className="tabular-nums">
             {pct(duel.winChance)} &middot; rolled {duel.attackerRoll}&ndash;{duel.defenderRoll}
           </span>
@@ -117,20 +119,18 @@ export function StatusBar({
     <p
       aria-live="polite"
       aria-label="Match status"
-      className="min-h-9 rounded-lg bg-emerald-950/60 px-4 py-2 text-xs ring-1 ring-emerald-300/15"
+      className="min-h-10 rounded-xl bg-(--color-panel) px-4 py-2.5 text-xs ring-1 ring-(--color-edge)/30"
     >
       {rejection ? (
         <span className="text-rose-300">Refused: {rejection}</span>
       ) : thinking ? (
-        <span className="text-emerald-200/80">{thinking} is thinking&hellip;</span>
+        <span className="text-white/70">{thinking} is thinking&hellip;</span>
       ) : focused ? (
         <Breakdown target={focused} state={state} />
       ) : lastEvent ? (
         <LastEvent event={lastEvent} state={state} />
       ) : (
-        <span className="text-emerald-200/50">
-          Click one of your players to see where it can go.
-        </span>
+        <span className="text-white/45">Click one of your players to see where it can go.</span>
       )}
     </p>
   );

@@ -1,12 +1,83 @@
 @import "tailwindcss";
 
+/*
+ * Baloo 2, self-hosted.
+ *
+ * Served from our own origin rather than from a font CDN: it is one request
+ * fewer, it cannot be blocked by a network that dislikes third parties, and
+ * there is no third party watching who loads the page. `swap` means the text is
+ * readable from the first paint and simply changes shape when the font lands —
+ * a game that is unreadable for 200ms is worse than one that reflows.
+ *
+ * SIL Open Font License 1.1; the licence ships beside it in `public/fonts/`.
+ */
+@font-face {
+  font-family: "Baloo 2";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/fonts/baloo2-latin.woff2") format("woff2");
+}
+
 @theme {
+  --font-sans:
+    "Baloo 2", ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+
   /* The pitch. Two greens so the columns read as mown stripes. */
-  --color-turf: #2f7d4f;
-  --color-turf-alt: #2b7449;
-  --color-turf-line: #ffffff40;
-  /* The goal mouths at each end. */
-  --color-mouth: #3f9a63;
+  --color-turf: #23814b;
+  --color-turf-alt: #196d3c;
+  --color-turf-line: #ffffff59;
+  /* The goal mouths at each end, and the netting drawn inside them. */
+  --color-mouth: #14532d;
+  --color-net: #d7f5e4;
+
+  /* The stadium around it. */
+  --color-night: #05130c;
+  --color-night-soft: #0c2617;
+  --color-panel: #0e2617;
+  --color-panel-raised: #164028;
+  --color-edge: #2c7b4e;
+
+  /* The one accent. Used for the ball, for odds, and for anything urgent. */
+  --color-gold: #fbbf24;
+  --color-gold-deep: #b45309;
+}
+
+/*
+ * The chunky-button treatment, in one place.
+ *
+ * A lit top edge and a hard bottom edge is the whole trick behind a button that
+ * looks pressable rather than printed, and the press just removes the bottom
+ * edge and drops the button into the gap it leaves. Doing it with box-shadow
+ * rather than borders keeps the element the same size throughout, so nothing
+ * around it moves when it is pressed.
+ */
+.chunky {
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.28),
+    inset 0 -3px 0 rgb(0 0 0 / 0.3),
+    0 4px 0 var(--btn-edge, rgb(0 0 0 / 0.42));
+  transition:
+    transform 90ms ease,
+    box-shadow 90ms ease,
+    background-color 140ms ease;
+}
+
+.chunky:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.2),
+    inset 0 -2px 0 rgb(0 0 0 / 0.28),
+    0 1px 0 var(--btn-edge, rgb(0 0 0 / 0.42));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chunky {
+    transition: background-color 140ms ease;
+  }
+  .chunky:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 /*
@@ -92,6 +163,21 @@
   }
 }
 
+/* A goal mouth, pulsing gently so the thing you are aiming at is never inert. */
+@keyframes mouth-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.mouth-glow {
+  animation: mouth-glow 3.8s ease-in-out infinite;
+}
+
 /* The board breathing. Subtle enough that you notice its absence, not its presence. */
 @keyframes pitch-breathe {
   0%,
@@ -126,8 +212,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .pitch-breathe,
-  .pitch-ready {
+  .pitch-ready,
+  .mouth-glow {
     animation: none;
+  }
+  .mouth-glow {
+    opacity: 0.7;
   }
   /* The ready ring still shows — it is information, it simply stops pulsing. */
   .pitch-ready {

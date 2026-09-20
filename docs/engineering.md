@@ -222,6 +222,29 @@ How to build one of these without putting a timer in the rules:
   and returns a command; it has no clock, so _when_ it is asked cannot change _what_ it
   answers.
 
+## The look is data
+
+Everything visual is a value somewhere, not a decision spread through components:
+
+- **`src/board/kits.ts`** — every colour a player is drawn in, plus skin and hair per role.
+- **`src/index.css` `@theme`** — the turf, the stadium, the panels, the one gold accent.
+- **`src/feel.ts`** — every number that decides rhythm (ADR 0005).
+- **`src/art/`** — the drawings themselves: `Footballer`, `Football`, `Crest`,
+  `PitchMarkings`.
+
+Restyling the game is therefore a small diff rather than an asset pipeline, which matters
+because this is the layer most likely to be argued with. Two rules hold it together:
+
+- **The art is a pure function of the board.** No randomness, no state, no clock — the
+  same player in the same position always draws identically. The eyes following the ball
+  are the clearest case: the ball's position is an input, not an animation.
+- **Every instance needs a unique id.** SVG gradient ids are document-global, so two
+  players sharing one would bleed into each other. `Footballer` takes an `id` for exactly
+  this, and a test asserts the ids are distinct.
+
+See ADR 0008 for why the look is drawn rather than sourced, and where the seam is if that
+changes.
+
 ## Quality gates
 
 Each layer catches what the previous one is too early or too slow to see.
