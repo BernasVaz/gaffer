@@ -54,9 +54,17 @@ export type RoleProfile = z.infer<typeof RoleProfileSchema>;
  * data rather than literals scattered through the engine — retuning is an edit
  * here, not a code change. There is no per-player variation in v1: a Striker is
  * a Striker.
+ *
+ * The keeper's DEF of 3 is lower than the Defender's, and that is deliberate.
+ * ADR 0004 began moving the keeper's identity from a stat line to a position;
+ * ADR 0006 finished the move. The keeper is the only player allowed to stand in
+ * a goal and the only one who defends a shot while it does — that, not a big
+ * number, is what makes it a goalkeeper. With the d4 die this puts a clean
+ * striker's effort at 81%, a winger's at 62.5% and a midfielder's at 37.5%, so
+ * who gets the chance finally matters as much as whether one falls.
  */
 export const ROLE_PROFILES: Readonly<Record<Role, RoleProfile>> = {
-  goalkeeper: { role: "goalkeeper", stats: { atk: 1, def: 4, pas: 2 }, moveRange: 1 },
+  goalkeeper: { role: "goalkeeper", stats: { atk: 1, def: 3, pas: 2 }, moveRange: 1 },
   defender: { role: "defender", stats: { atk: 2, def: 4, pas: 3 }, moveRange: 2 },
   midfielder: { role: "midfielder", stats: { atk: 3, def: 3, pas: 4 }, moveRange: 3 },
   winger: { role: "winger", stats: { atk: 4, def: 2, pas: 3 }, moveRange: 3 },

@@ -216,16 +216,18 @@ describe("the four shots that matter", () => {
     return previewDuel(state, shotFrom(state, "home-striker-0")!);
   };
 
-  it("a clean striker beats the keeper two times in three", () => {
+  it("a clean striker beats the keeper four times in five", () => {
+    // ADR 0006: keeper DEF 3 against the striker's ATK 5 is a +2 edge, which an
+    // opposed d4 puts at 13/16. A clean look at goal is meant to be taken.
     expect(shot([])!.winChance).toBeCloseTo(duelWinChance(striker, keeper), 10);
-    expect(shot([])!.winChance).toBeCloseTo(6 / 9, 10);
+    expect(shot([])!.winChance).toBeCloseTo(13 / 16, 10);
   });
 
   it("one defender in the lane makes it an even-ish gamble", () => {
     const duel = shot([{ team: "away", role: "defender", at: [5, 2] }])!;
     expect(duel.coveringPlayerIds).toHaveLength(1);
     expect(duel.defender.modifier).toBe(SHOOT_COVERING_BONUS);
-    expect(duel.winChance).toBeCloseTo(3 / 9, 10);
+    expect(duel.winChance).toBeCloseTo(10 / 16, 10);
   });
 
   it("two defenders in the lane make it a long shot, not an impossibility", () => {

@@ -12,6 +12,7 @@ gaffer/
 │   ├── web/          Vite + React client        (added in M3)
 │   └── server/       Colyseus server            (added in M4)
 ├── packages/
+│   ├── ai/           the solo opponent          (added M3)
 │   ├── engine/       pure deterministic rules   ← the game
 │   └── shared/       Zod schemas, types, constants
 └── docs/
@@ -20,8 +21,11 @@ gaffer/
     └── engineering.md
 ```
 
-Dependencies flow one way only: `shared` ← `engine` ← `apps`. Nothing in `packages/`
-may ever import from `apps/`.
+Dependencies flow one way only: `shared` ← `engine` ← `{ apps, ai, tools }`. Nothing in
+`packages/` may ever import from `apps/`. `ai` is a _consumer_ of the engine, the same as
+the client is — it sits in `packages/` only because self-play needs Node rather than a
+browser, and because the balance numbers in ADR 0007 came out of running it a few hundred
+times.
 
 ## The engine is sacred
 
@@ -135,6 +139,32 @@ never hand-written.
 - Never commit secrets. `.env` is gitignored; the Supabase service-role key is
   server-side only.
 
+## The opponent holds no rules either
+
+`@gaffer/ai` is subject to the same rule as the client: it draws conclusions from the
+engine and never duplicates it. It reads boards with `legalActions`, prices duels with
+`previewDuel`, and produces boards with `applyAction` — the same three doors a person uses.
+
+The part worth understanding is how it sees both sides of a duel without rolling the
+match's dice. `Rng` is an interface, so the search hands the engine a **rigged scratch
+generator**: the attacker's die forced high and the defender's low gives the "attacker
+wins" board, and the reverse gives "attacker loses". A duel is decided purely by which
+total is larger, so those two branches are exhaustive, and their probabilities come from
+`previewDuel`. Nothing the opponent considers touches the generator the match is being
+played from — which is why a solo match still replays from its seed.
+
+It is deterministic, and takes an optional `variety` seed that leans _near-equal_ options
+one way. The jitter is smaller than any meaningful evaluation difference, so it can only
+reorder options the search already rated equal. Two regression tests are worth knowing
+about, because both bugs were invisible to unit tests and obvious in self-play:
+
+- **It must have no directional prejudice.** Ties broken on a raw cell coordinate mean
+  "forward" to one side and "back" to the other; that alone won away 88% of matches.
+  Keys are written in the mover's own frame, and mirroring a board must mirror the choice.
+- **It must leave its keeper in its goal.** An evaluation that counts the keeper as a
+  passing outlet walks it up the pitch, and a keeper cannot get home in the one action a
+  turnover gives it.
+
 ## Presentation lags the engine
 
 Feel is part of v1 (GDD §14, ADR 0005) and animation is time, so there has to be a rule
@@ -208,15 +238,17 @@ find inconvenient; CI runs regardless.
 
 All run from the repo root:
 
-| Command          | Does                                     |
-| ---------------- | ---------------------------------------- |
-| `pnpm install`   | install everything                       |
-| `pnpm build`     | build all packages (cached by Turborepo) |
-| `pnpm test`      | run all tests                            |
-| `pnpm lint`      | lint                                     |
-| `pnpm typecheck` | typecheck                                |
-| `pnpm check`     | all four — what CI runs                  |
-| `pnpm format`    | format with Prettier                     |
+| Command                      | Does                                     |
+| ---------------------------- | ---------------------------------------- |
+| `pnpm install`               | install everything                       |
+| `pnpm build`                 | build all packages (cached by Turborepo) |
+| `pnpm test`                  | run all tests                            |
+| `pnpm lint`                  | lint                                     |
+| `pnpm typecheck`             | typecheck                                |
+| `pnpm check`                 | all four — what CI runs                  |
+| `pnpm format`                | format with Prettier                     |
+| `pnpm play`                  | watch one match in the terminal          |
+| `pnpm play -- --matches 150` | a balance run: aggregate only            |
 
 Use pnpm, never npm or yarn. Node is pinned in `.node-version`; fnm picks it up
 automatically when you `cd` into the repo.

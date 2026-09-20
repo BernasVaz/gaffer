@@ -1,4 +1,4 @@
-# Gaffer — Game Design Document (v1.5 — LOCKED, v1 baseline)
+# Gaffer — Game Design Document (v1.6 — LOCKED, v1 baseline)
 
 _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementable baseline**: the design is complete enough to build with no open questions. Values marked *(tunable)* are locked starting numbers we will refine in playtest — changing them is a data edit, not a redesign. This is the contract the engine (M2) is built and tested against._
 
@@ -12,6 +12,7 @@ _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementabl
 > - **v1.2 → v1.3:** bounded the win condition (§10, §13) — extra time is 4 turns, then a penalty shootout of 3 kicks plus 10 sudden-death rounds, then most shots, then most duels won, then the side that did not kick off. A tiebreaker cascade was needed because §10 forbids draws and no symmetric shootout terminates on its own.
 > - **v1.3 → v1.4:** made scoring possible. Keeper DEF 5 → 4; the keeper defends a shot only while standing in its own mouth, so drawing it out opens the goal; covering on a shot softened to +1; and only the defending keeper may occupy a goal mouth, which closes the hole where an attacker could stand in the net and shoot at it (§5, §6, §7, §9, §13). See ADR 0004.
 > - **v1.4 → v1.5:** brought feel into v1 scope (§14). Playtesting the first interactive build showed that an instant result reads as a state change rather than as football, which Pillar 1 depends on. Movement, the goal moment and the duel reveal are now in; animation stays presentation-only and may never affect the engine or its determinism. See ADR 0005.
+> - **v1.5 → v1.6:** tuned the match on evidence. A solo opponent (ADR 0006) made self-play possible, and 150 matches at the v1.5 numbers produced 0.60 goals a match with 42% goalless and 44% settled on penalties. Three numbers moved: the duel die d3 → **d4**, keeper DEF 4 → **3**, turn cap 20 → **24**. Both §13 watch-items are closed by the change — the d3 saturation directly, penalty conversion as a consequence (33% → 81%). Result: **1.50 goals a match, 9% goalless, 80% decided by football**. See ADR 0007. The solo opponent also moves from "out of scope" to shipped (§14).
 
 ---
 
@@ -68,11 +69,13 @@ Synthesis: **the direct honesty of chess, the drama of a sporting duel, the pull
 
 | Role       | ATK | DEF | PAS | Move (cells) | Feel                                    |
 | ---------- | --- | --- | --- | ------------ | --------------------------------------- |
-| Goalkeeper | 1   | 4   | 2   | 1            | The only player allowed in the goal     |
+| Goalkeeper | 1   | 3   | 2   | 1            | The only player allowed in the goal     |
 | Defender   | 2   | 4   | 3   | 2            | Wall; strong in the tackle              |
 | Midfielder | 3   | 3   | 4   | 3            | Engine; links play, covers ground       |
 | Winger     | 4   | 2   | 3   | 3            | Threat; beats defenders wide            |
 | Striker    | 5   | 1   | 2   | 2            | Finisher; deadly, little defensive help |
+
+The keeper's DEF of **3** is lower than the Defender's, and that is the point. ADR 0004 began moving the keeper's identity from a stat line to a position and ADR 0007 finished the move: what makes a goalkeeper is that it is the only player allowed to stand in a goal and the only one who defends a shot while it does. A big number was doing work that position should do, and it made the goal unplayable-around.
 
 No per-player hidden variation — a Striker is a Striker. Collection identity comes later via the **squad you build**, not stat rolls. (Starting formation on the 7×5 pitch to be set at the top of M2 and tuned.)
 
@@ -107,29 +110,30 @@ The core decision each turn: with only two actions, _what is the highest-value t
 
 Every contested action is a duel:
 
-> **Attacker total = relevant stat + attack die (d3). Defender total = relevant stat + defence die (d3). Higher wins; a tie goes to the defender.**
+> **Attacker total = relevant stat + attack die (d4). Defender total = relevant stat + defence die (d4). Higher wins; a tie goes to the defender.**
 
 - **Stats used:** dribble/shot = attacker **ATK** vs defender **DEF**; keeper defends a shot with **DEF**; a pass into a covered lane = **PAS** vs interceptor **DEF**.
-- **The die is a d3 so stats dominate** _(tunable):_ a +1 edge ≈ 67%, a +2 edge ≈ 89%. The favourite usually wins; the die decides only close calls.
+- **The die is a d4 so stats dominate** _(tunable):_ a +1 edge ≈ 63%, a +2 edge ≈ 81%. The favourite usually wins; the die decides only close calls. It was a d3 until v1.6, which could only ever express six odds — 0, 11%, 33%, 67%, 89%, 100% — so there was no such thing as a 45% chance and any gap of three or more removed the die from the game. A d4 fills the middle in (6%, 19%, 37.5%, 62.5%, 81%, 94%) and leaves a sliver at +3, which is what the §13 watch-list asked for. See ADR 0007.
 - **Modifiers shift the odds before the roll** _(tunable):_ each **covering defender adjacent to the duel = +2 DEF** in open play, but only **+1 on a shot**. A shot already faces a keeper; charging the field rate on top drove any covered effort to near zero and made bodies in the box worth more than the goalkeeper.
 - **A shot is defended by whoever is actually guarding the goal.** The keeper contributes its DEF only while it stands in its own mouth. Off the line it is just another player: the shot is led by the best defender in the lane, and with the lane clear there is **no duel at all** — an open goal is a certainty, not a gamble.
 - **Three safeguards (LOCKED as principles):**
   1. **Stats dominate, dice tip.** Big edges near-certain; roll decides close calls.
   2. **Odds always shown before commit.** A loss on a chance you took is "I gambled and it didn't land," not hidden RNG.
-  3. **Skill stacks the deck.** Support and position shift the shown odds — a covering defender turns a 78% dribble into ~40%.
-- **Worked odds:** Striker (ATK 5) dribbles a lone Defender (DEF 4), d3 each → ~67%. Add a covering Midfielder (+2 DEF → effective DEF 6) → the Striker is now the underdog, ~11%. Shown, then you choose.
+  3. **Skill stacks the deck.** Support and position shift the shown odds — a covering defender turns a 63% dribble into ~19%.
+- **Worked odds:** Striker (ATK 5) dribbles a lone Defender (DEF 4), d4 each → ~63%. Add a covering Midfielder (+2 DEF → effective DEF 6) → the Striker is now the underdog, ~19%. Shown, then you choose.
+- **Worked odds at goal:** a clean Striker against a keeper on its line is **81%**; a Winger is **62.5%**; a Midfielder is **37.5%**. One defender in the lane takes the Striker to 62.5%. Who arrives in the box matters as much as whether they get a shot away.
 
 **Design rule:** if a player couldn't have anticipated the _odds_ from the visible board, the rule is wrong.
 
 ## 10. Win condition (LOCKED)
 
-- A match runs to a **turn cap of 20 turns (10 per side)** _(tunable to a ~3–5 min match)_. Highest score at the cap wins.
+- A match runs to a **turn cap of 24 turns (12 per side)** _(tunable to a ~3–5 min match)_. Highest score at the cap wins. Raised from 20 in v1.6: possession changes hands roughly every two and a half actions and an attack needs three or four to finish, so at 20 a real share of matches ended mid-move (ADR 0007).
 - **Sudden-death:** level at the cap → **golden goal in extra time** — the first goal wins immediately.
 - **Extra time is bounded: 4 turns, 2 per side** _(tunable)_. It has to be: goals are scarce, so "play until someone scores" has no upper bound and an engine cannot be asked to run it.
 - After every goal (regulation or extra time), **positions reset for a kickoff** to the conceding side.
 - **No flat draws.** Level after extra time goes to a decision cascade, tried in order:
 
-  1. **Penalty shootout** — 3 kicks a side, then sudden death capped at **10 rounds**. Each penalty is the ordinary shot duel (taker **ATK** vs keeper **DEF**, opposed d3, tie to the keeper) with no covering defenders. Nothing is chosen by the players, so the engine resolves the whole shootout in one step from the match's own seed and hands back the kicks for the client to play out. _(Auto-resolved in v1; interactive penalties are a possible later feature.)_
+  1. **Penalty shootout** — 3 kicks a side, then sudden death capped at **10 rounds**. Each penalty is the ordinary shot duel (taker **ATK** vs keeper **DEF**, opposed d4, tie to the keeper) with no covering defenders, which converts at **81%** — close to real football's ~78%, and no longer the 33% that made shootouts run for 22 kicks. Nothing is chosen by the players, so the engine resolves the whole shootout in one step from the match's own seed and hands back the kicks for the client to play out. _(Auto-resolved in v1; interactive penalties are a possible later feature.)_
   2. **Most shots attempted** across the match.
   3. **Most duels won** across the match.
   4. **The side that did not take the opening kickoff.** The kickoff is the game's only structural asymmetry — one side moves first with the ball — so the other takes a tie nothing else could settle. That side also kicks first in the shootout, for the same reason.
@@ -161,22 +165,22 @@ The numeric knobs, in one place — all live as Zod data in `@gaffer/shared`, so
 | Adjacency                   | the 8 surrounding cells                                          |
 | Goal mouth                  | 3 cells, rows 1–3 of each end column                             |
 | **SHOT_RANGE**              | **2** cells from the goal mouth                                  |
-| Keeper DEF                  | **4** (was 5)                                                    |
+| Keeper DEF                  | **3** (was 4, was 5)                                             |
 | Keeper guards               | only while standing in its own mouth                             |
 | Goal-mouth occupancy        | defending keeper only                                            |
 | Undefended shot             | no duel — a certain goal                                         |
 | Dribble trigger             | carrier adjacent to an opponent at origin **or** destination     |
 | Tackle                      | atomic; the defender must already be adjacent                    |
-| Duel die                    | opposed **d3**                                                   |
+| Duel die                    | opposed **d4** (was d3)                                          |
 | Covering-defender modifier  | +2 DEF each in open play, **+1 on a shot**                       |
-| Turn cap                    | ≈ 20 turns (10 per side)                                         |
+| Turn cap                    | **24** turns (12 per side)                                       |
 | Extra time                  | 4 turns (2 per side), golden goal                                |
 | Shootout                    | 3 kicks each, then sudden death                                  |
 | Shootout sudden-death cap   | 10 rounds                                                        |
 | Tiebreaker cascade          | shootout -> shots -> duels won -> non-kickoff side               |
 | Tie-breaker                 | golden-goal sudden death                                         |
 | Per-turn timer              | ≈ 25s _(client-side)_                                            |
-| Shot resolution             | single duel (ATK vs keeper DEF)                                  |
+| Shot resolution             | single duel (ATK vs keeper DEF) — clean striker **81%**          |
 | Degrees of success          | none in v1                                                       |
 
 ### Balance watch-list (observed, not yet changed)
@@ -187,25 +191,40 @@ Recorded so they are not rediscovered from scratch later.
 - ~~**A shot is capped at 33% and skill cannot raise it.**~~ **Acted on in v1.4.** Keeper
   DEF is now 4, so a clean striker is a +1 favourite at 6/9, and the keeper's position
   gives skill a lever it never had: draw it off its line and the goal opens.
-- **A stat gap of 3 or more removes the die entirely.** With an opposed d3, a +3 edge is
-  9/9 and a −3 edge is 0/9 — a Winger (DEF 2) can never dispossess a Striker (ATK 5).
-  Stats span 1–5 and a covering defender adds another 2, so certainty is reachable in
-  ordinary play. This is consistent with "stats dominate, dice tip" (§9), but it does
-  mean some matchups have no upset available at all. A d4 would restore a sliver.
-- **Almost every scripted match reaches penalties.** Under random play 98% of matches
-  are settled by the shootout rather than by football. If playtest shows the same, the
-  fix is **goal-scoring, not the shootout** — a tiebreaker that fires constantly is a
-  symptom, not the disease.
-- **Penalties may want their own, higher conversion odds.** They currently reuse the
-  ordinary shot duel, which at ATK 5 vs DEF 5 converts a third of the time — low for a
-  penalty, and the reason sudden death runs long (22 kicks observed against a cap of 26).
-- **Goals are rare under random play** — roughly one per eighty scripted matches. Skilled
-  play should score far more often, so this is context for the two items above rather
-  than a finding in itself.
+- ~~**A stat gap of 3 or more removes the die entirely.**~~ **Closed in v1.6.** The die is
+  now a **d4**, so a +3 edge is 15/16 rather than certain and a Winger can dispossess a
+  Striker about one time in sixteen. Self-play showed the saturation was worse than a
+  missing upset: of 152 shots taken across 80 matches, 122 were shown 33% and 17 were
+  shown 67%, and **none fell between** — the odds on the board were a three-valued enum,
+  which a game built on Pillar 2 cannot afford. See ADR 0007.
+- ~~**Almost every scripted match reaches penalties.**~~ **Closed in v1.6.** The note was
+  right that the fix was goal-scoring rather than the shootout. With the v1.6 numbers,
+  **80% of matches are decided by football** and 20% by penalties, against 56/44 before.
+- ~~**Penalties may want their own, higher conversion odds.**~~ **Closed in v1.6**, and
+  without a special rule. The ordinary shot duel now puts a penalty at **81%** — close to
+  real football's ~78% — because the keeper is on DEF 3 and the die is a d4. Sudden death
+  no longer runs to 22 kicks.
+- ~~**Goals are rare under random play.**~~ **Superseded in v1.6.** Random play was never
+  the right instrument. Under self-play with the solo opponent (ADR 0006) a match now
+  produces **1.50 goals**, with 9% goalless.
+
+**Still watched, not yet acted on:**
+
+- **Kicking off is worth about 62% of matches.** Measured over 150 self-play matches from
+  each end. It is a property of a low-scoring game: the first completed attack usually
+  wins, and one side gets first use of the ball. §10's final tiebreaker rung already
+  compensates in the right direction, and the client is explicit that choosing a side is
+  choosing whether you kick off. If players come to resent it, the lever is the kickoff
+  position itself, not the duel maths.
+- **A clean striker's shot is 81%**, which is close to a formality. Intended — the work is
+  in getting the striker a clean look — but it means a defence that allows one is already
+  beaten. First number to look at if finishing feels cheap.
 
 ## 14. Explicitly OUT of v1 scope
 
-No accounts/ladder/trophies, no squad collection or squad-building (both players use the same fixed 5), no mobile build, no medium/full modes shipped, no AI beyond a basic solo-test opponent. All planned — none in v1.
+No accounts/ladder/trophies, no squad collection or squad-building (both players use the same fixed 5), no mobile build, no medium/full modes shipped. All planned — none in v1.
+
+**The solo opponent is IN.** It was listed here as "no AI beyond a basic solo-test opponent", on the assumption that a single-player mode was a nicety. Two things changed that. A shareable link is worthless without one — the first thing anyone does with a link is play it alone — and a competent opponent turned out to be the only honest way to _measure_ the game, which is how v1.6's balance was settled. It ships as three settings and lives in `@gaffer/ai`, holding no rules of its own. See ADR 0006.
 
 **Feel is IN.** "No cosmetics" was in this list until the board became playable, at which point it was obvious that a match with no motion does not deliver Pillar 1: a result that appears instantly is information, and "one more game" needs it to be an _event_. Movement, the goal moment and the duel reveal are therefore v1 scope. See ADR 0005.
 
