@@ -24,6 +24,7 @@ const stylesheet = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8")
 
 const board = (extra: Partial<React.ComponentProps<typeof Pitch>> = {}) => (
   <Pitch
+    seat="both"
     state={createInitialState()}
     selectedId={null}
     targets={NO_TARGETS}

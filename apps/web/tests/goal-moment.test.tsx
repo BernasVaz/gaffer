@@ -151,6 +151,7 @@ describe("a frozen board", () => {
   it("offers no interaction at all while something is being shown", () => {
     render(
       <Pitch
+        seat="both"
         state={createInitialState()}
         selectedId={null}
         targets={NO_TARGETS}
@@ -166,6 +167,7 @@ describe("a frozen board", () => {
   it("still offers selection when nothing is being shown", () => {
     render(
       <Pitch
+        seat="both"
         state={createInitialState()}
         selectedId={null}
         targets={NO_TARGETS}
@@ -181,6 +183,7 @@ describe("a frozen board", () => {
     // Frozen means "you cannot act", not "you cannot know".
     render(
       <Pitch
+        seat="both"
         state={createInitialState()}
         selectedId={null}
         targets={NO_TARGETS}

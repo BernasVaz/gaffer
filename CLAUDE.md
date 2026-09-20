@@ -155,5 +155,7 @@ Use **pnpm** — never `npm` or `yarn`. Node comes from fnm; the version is pinn
 - Current status: **M2 complete, M3 in progress.** The engine plays a full match and the
   client is playable hotseat with motion and a goal moment. `@gaffer/ai` provides the solo
   opponent, and the v1.6 balance (ADR 0007) was settled by self-play through it.
-  `pnpm dev` serves the client; `pnpm play` watches one match; `pnpm play -- --matches 150`
-  is the balance run.
+  The client has a setup screen and plays both hotseat and solo, with the whole
+  setup carried in the URL so a link _is_ a match. `pnpm dev` serves the client;
+  `pnpm play` watches one match; `pnpm play -- --matches 150` is the balance run.
+  Next: the visual theme, a Playwright pass, and the Vercel deploy that closes M3.

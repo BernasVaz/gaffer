@@ -1,11 +1,22 @@
 import { createInitialState, legalActions, previewDuel } from "@gaffer/engine";
-import { DEFAULT_BOARD, ROLES, TOTAL_TURNS } from "@gaffer/shared";
+import { DEFAULT_BOARD, DEFAULT_SETUP, ROLES, TOTAL_TURNS } from "@gaffer/shared";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { App } from "../src/App";
+import { Match } from "../src/match/Match";
 import { SQUADS } from "../src/board/squads";
+
+/**
+ * A hotseat match, rendered directly.
+ *
+ * These are tests of the board, not of the routing: `App` decides which screen
+ * to show and `Match` is the screen they are about. Rendering it straight avoids
+ * standing up a URL and clicking through a setup screen before every assertion.
+ */
+const hotseat = () => (
+  <Match setup={{ ...DEFAULT_SETUP, mode: "hotseat", seed: 1 }} onLeave={() => {}} />
+);
 
 /** The accessible name of every cell, in row-major order. */
 const cellNames = () =>
@@ -22,19 +33,19 @@ const buttonFor = (fragment: RegExp) => screen.getByRole("button", { name: fragm
 
 describe("the pitch", () => {
   it("draws a cell for every square of the board", () => {
-    render(<App />);
+    render(hotseat());
     expect(screen.getAllByRole("gridcell")).toHaveLength(
       DEFAULT_BOARD.width * DEFAULT_BOARD.height,
     );
   });
 
   it("shows exactly the ten players the engine placed", () => {
-    render(<App />);
+    render(hotseat());
     expect(cellNames().filter((name) => /home |away /.test(name))).toHaveLength(10);
   });
 
   it("puts every player on the cell the engine says", () => {
-    render(<App />);
+    render(hotseat());
     const named = new Set(cellNames());
     for (const player of createInitialState().players) {
       const { x, y } = player.position;
@@ -46,7 +57,7 @@ describe("the pitch", () => {
   });
 
   it("marks the ball on the kicking-off striker", () => {
-    render(<App />);
+    render(hotseat());
     const withBall = cellNames().filter((name) => name.includes("with the ball"));
     expect(withBall).toHaveLength(1);
     expect(withBall[0]).toMatch(/home striker.*with the ball/);
@@ -55,13 +66,13 @@ describe("the pitch", () => {
 
 describe("selecting a player", () => {
   it("offers nothing until something is selected", () => {
-    render(<App />);
+    render(hotseat());
     expect(offered(/^Move to|^Dribble to|^Pass to|^Tackle |^Shoot/)).toHaveLength(0);
   });
 
   it("lights every legal destination at once", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     await user.click(buttonFor(/^Select home winger/));
 
@@ -72,7 +83,7 @@ describe("selecting a player", () => {
 
   it("deselects when the same player is clicked again", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     await user.click(buttonFor(/^Select home winger/));
     expect(offered(/^Move to/).length).toBeGreaterThan(0);
@@ -82,7 +93,7 @@ describe("selecting a player", () => {
   });
 
   it("will not select a player from the side that is not to move", () => {
-    render(<App />);
+    render(hotseat());
     // Home kicks off, so no away player is offered for selection.
     expect(offered(/^Select away/)).toHaveLength(0);
     expect(offered(/^Select home/).length).toBeGreaterThan(0);
@@ -92,7 +103,7 @@ describe("selecting a player", () => {
 describe("the odds on the board", () => {
   it("shows a number on exactly the targets the engine says are contested", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
     await user.click(buttonFor(/^Select home striker/));
 
     // Ask the engine which of the striker's options are contested, then check
@@ -115,7 +126,7 @@ describe("the odds on the board", () => {
 
   it("keeps a free player's board free of numbers entirely", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     await user.click(buttonFor(/^Select home midfielder/));
     for (const move of offered(/^Move to/)) {
@@ -125,7 +136,7 @@ describe("the odds on the board", () => {
 
   it("explains the focused target in the status line", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     await user.click(buttonFor(/^Select home striker/));
     await user.hover(offered(/^Dribble to/)[0]!);
@@ -139,7 +150,7 @@ describe("the odds on the board", () => {
 describe("committing a move", () => {
   it("plays it straight through, with no confirm step", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     await user.click(buttonFor(/^Select home winger/));
     const destination = offered(/^Move to/)[0]!;
@@ -156,7 +167,7 @@ describe("committing a move", () => {
 
   it("spends an action and clears the selection", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     expect(screen.getByText("2 actions left")).toBeInTheDocument();
 
@@ -169,7 +180,7 @@ describe("committing a move", () => {
 
   it("reports what happened underneath the board", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     await user.click(buttonFor(/^Select home striker/));
     await user.click(offered(/^Dribble to/)[0]!);
@@ -181,7 +192,7 @@ describe("committing a move", () => {
 describe("hotseat", () => {
   it("hands the board to the other side once the pool is spent", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     expect(screen.getByText(/home to play/)).toBeInTheDocument();
 
@@ -197,7 +208,7 @@ describe("hotseat", () => {
 
   it("passes the turn early on demand", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     await user.click(screen.getByRole("button", { name: "End turn" }));
 
@@ -208,7 +219,7 @@ describe("hotseat", () => {
 
 describe("the team sheet", () => {
   it("pairs the home and away names for each role", () => {
-    render(<App />);
+    render(hotseat());
     for (const role of ROLES) {
       expect(
         screen.getByText(`${SQUADS.home[role].name} / ${SQUADS.away[role].name}`),

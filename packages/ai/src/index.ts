@@ -14,16 +14,14 @@
  * The search runs on a scratch generator of its own (see `branches.ts`), so
  * nothing it considers can disturb the dice of the match being played.
  *
+ * The settings it offers — `casual`, `pro`, `elite` — are declared in
+ * `@gaffer/shared` rather than here, because a difficulty arrives from outside
+ * in a shared match link and so has to be validated like anything else that
+ * crosses a boundary. What each one *does* is this package's business.
+ *
  * @packageDocumentation
  */
 
 export { outcomesOf, type Outcome } from "./branches.js";
 export { evaluateState, shotThreat, WEIGHTS, type EvaluateOptions } from "./evaluate.js";
-export {
-  chooseCommand,
-  DIFFICULTIES,
-  PROFILES,
-  type ChooseOptions,
-  type Difficulty,
-  type OpponentProfile,
-} from "./choose.js";
+export { chooseCommand, PROFILES, type ChooseOptions, type OpponentProfile } from "./choose.js";

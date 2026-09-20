@@ -27,13 +27,15 @@
 
 import process from "node:process";
 
-import { chooseCommand, DIFFICULTIES, type Difficulty } from "@gaffer/ai";
+import { chooseCommand } from "@gaffer/ai";
 import { applyAction, createInitialState, createRng } from "@gaffer/engine";
 import {
+  DIFFICULTIES,
   parseSeed,
   ROLE_PROFILES,
   TOTAL_TURNS,
   type DecisionMethod,
+  type Difficulty,
   type Duel,
   type MatchCommand,
   type MatchState,

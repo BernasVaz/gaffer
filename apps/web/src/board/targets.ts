@@ -1,5 +1,5 @@
 import { legalActions, previewDuel } from "@gaffer/engine";
-import type { Action, DuelPreview, MatchState, Position } from "@gaffer/shared";
+import type { Action, DuelPreview, MatchState, Position, Team } from "@gaffer/shared";
 
 /** A cell reference that can be used as a map key. */
 export const cellKey = (position: Position) => `${position.x},${position.y}`;
@@ -73,9 +73,29 @@ export function targetsFor(state: MatchState, playerId: string | null): Targets 
   return { cells, players, shot };
 }
 
-/** Whether this side may be commanded right now — hotseat, so whoever is to move. */
-export function isCommandable(state: MatchState, playerId: string): boolean {
+/**
+ * Which side or sides the person at the keyboard is commanding.
+ *
+ * `"both"` is hotseat — two people, one screen, so whoever is to move is
+ * whoever is playing. A team means a solo match: the other side belongs to the
+ * opponent and its players are never yours to move, even while it is thinking.
+ */
+export type Seat = Team | "both";
+
+/**
+ * Whether `playerId` may be commanded right now.
+ *
+ * Two questions at once, and both have to be yes: the rules must allow this side
+ * to act, and the seat must be one the person at the keyboard is sitting in.
+ * Keeping them together is what stops a solo player from being offered a move
+ * for the opponent during the half-second before it plays.
+ */
+export function isCommandable(state: MatchState, playerId: string, seat: Seat): boolean {
   if (state.result !== null) return false;
+
   const player = state.players.find((candidate) => candidate.id === playerId);
-  return player !== undefined && player.team === state.activeTeam;
+  if (player === undefined) return false;
+  if (player.team !== state.activeTeam) return false;
+
+  return seat === "both" || player.team === seat;
 }
