@@ -117,9 +117,9 @@ Rules:
   doc coverage on every push and PR, and must pass before merge.
 - Husky + lint-staged format and lint **staged files only** on the `pre-commit` hook.
 - A `pre-push` hook runs the full suite before any push to `main` and blocks it if red;
-  other branches are not gated. This substitutes for GitHub branch protection, which
-  needs GitHub Pro on a private repo — see ADR 0002. Enable real protection the day
-  the repo goes public.
+  other branches are not gated. **Branch protection on `main` is also live** now the repo
+  is public: both CI jobs must be green, the branch must be up to date, history stays
+  linear, and `main` cannot be force-pushed or deleted (ADR 0010, superseding ADR 0002).
 - **Do not use `--no-verify`** to get around a failing hook. Fix the cause. The one
   exception is a genuine emergency, and CI will catch it anyway.
 - Behaviour changes need a changeset (`pnpm changeset`). Tooling-only changes do not.
