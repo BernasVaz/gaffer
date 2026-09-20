@@ -4,21 +4,21 @@ import { expectNoRuleBug, playToTheEnd, result, selectable, status, step, target
 
 test.describe("arriving", () => {
   test("a bare visit asks how you want to play", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("./");
 
     await expect(page.getByRole("button", { name: /Kick off/ })).toBeVisible();
     await expect(page.getByRole("grid")).toHaveCount(0);
   });
 
   test("a link with a seed starts that match straight away", async ({ page }) => {
-    await page.goto("/?seed=4242&mode=hotseat");
+    await page.goto("./?seed=4242&mode=hotseat");
 
     await expect(page.getByRole("grid")).toBeVisible();
     await expect(page.getByText(/seed 4242/)).toBeVisible();
   });
 
   test("choosing a setup puts it in the address bar, ready to share", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("./");
 
     await page.getByRole("button", { name: /Away/ }).click();
     await page.getByRole("button", { name: /Elite/ }).click();
@@ -31,13 +31,13 @@ test.describe("arriving", () => {
   });
 
   test("a mangled link is still a match", async ({ page }) => {
-    await page.goto("/?seed=banana&mode=chess&side=middle");
+    await page.goto("./?seed=banana&mode=chess&side=middle");
     await expect(page.getByRole("grid")).toBeVisible();
   });
 });
 
 test.describe("the board", () => {
-  test.beforeEach(async ({ page }) => page.goto("/?seed=1&mode=hotseat"));
+  test.beforeEach(async ({ page }) => page.goto("./?seed=1&mode=hotseat"));
 
   test("offers nothing until a player is chosen, then lights every legal option", async ({
     page,
@@ -77,7 +77,7 @@ test.describe("a whole match", () => {
       if (message.type() === "error") refusals.push(message.text());
     });
 
-    await page.goto("/?seed=12&mode=hotseat");
+    await page.goto("./?seed=12&mode=hotseat");
 
     const steps = await playToTheEnd(page);
 
@@ -94,7 +94,7 @@ test.describe("a whole match", () => {
   });
 
   test("lets a solo player take a turn and the opponent answer", async ({ page }) => {
-    await page.goto("/?seed=5&mode=solo&side=home&level=pro");
+    await page.goto("./?seed=5&mode=solo&side=home&level=pro");
 
     // Everything offered is ours; the opponent's players are never on the menu.
     const names = await selectable(page).evaluateAll((nodes) =>
@@ -147,12 +147,12 @@ test.describe("the seed in the link", () => {
   };
 
   test("plays out the same way twice", async ({ page }) => {
-    await page.goto("/?seed=777&mode=hotseat");
+    await page.goto("./?seed=777&mode=hotseat");
     const first = await endEveryTurn(page);
     await expect(result(page)).toBeVisible();
     const firstResult = await result(page).textContent();
 
-    await page.goto("/?seed=777&mode=hotseat");
+    await page.goto("./?seed=777&mode=hotseat");
     const second = await endEveryTurn(page);
     const secondResult = await result(page).textContent();
 
@@ -162,11 +162,11 @@ test.describe("the seed in the link", () => {
 
   test("plays out differently under a different seed", async ({ page }) => {
     // Otherwise the first test would pass on an engine that ignored the seed.
-    await page.goto("/?seed=777&mode=hotseat");
+    await page.goto("./?seed=777&mode=hotseat");
     await endEveryTurn(page);
     const seven = await result(page).textContent();
 
-    await page.goto("/?seed=31337&mode=hotseat");
+    await page.goto("./?seed=31337&mode=hotseat");
     await endEveryTurn(page);
     const other = await result(page).textContent();
 

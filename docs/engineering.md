@@ -106,6 +106,18 @@ The headline test plays a whole match a click at a time and asserts the engine n
 refuses a command the board offered — the two disagreeing about the same position is
 precisely the bug this layer exists to catch.
 
+**The same suite can be pointed at a deployed site**, which is how the M3 exit gate is
+actually checked rather than assumed:
+
+```bash
+GAFFER_E2E_URL=https://bernasvaz.github.io/gaffer/ pnpm --filter @gaffer/web test:e2e
+```
+
+With the variable set it skips building and serving and drives the real thing. This is
+why every `goto` in the suite is **relative** (`./?seed=…`, not `/?seed=…`): an absolute
+path resolves against the _host_, so it would silently drop the `/gaffer/` and test
+whatever happens to live at the domain root.
+
 ## Documentation
 
 Three layers, each doing a different job.
