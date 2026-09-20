@@ -85,6 +85,27 @@ component (Testing Library), end-to-end (Playwright).
   protects the entire engine.
 - Tests live in `tests/` alongside each package's `src/`.
 
+**End-to-end** (`apps/web/e2e/`, `pnpm --filter @gaffer/web test:e2e`) drives a real
+browser against the **built** app, not the dev server — the thing a person with a link
+opens is the build, and the build is where the differences are. It is its own CI job
+rather than part of `pnpm check`, because it needs a browser download and because a
+failure there should read as "the app is broken" rather than hide among unit tests.
+
+Two conventions hold it together:
+
+- **Every locator is a role and an accessible name**, never a class or a test id. That
+  is not purity — it means the suite exercises the same surface a screen-reader user
+  has, so a change that leaves the board looking fine while making it unusable fails
+  here instead of in somebody's lap.
+- **Do not assert on something transient.** The opponent's pause is a few hundred
+  milliseconds wide; a browser test that tries to catch it mid-thought is a flake
+  waiting to happen. Assert what it _did_. The pause itself is pinned in the vitest
+  suite, where the clock is under the test's control.
+
+The headline test plays a whole match a click at a time and asserts the engine never
+refuses a command the board offered — the two disagreeing about the same position is
+precisely the bug this layer exists to catch.
+
 ## Documentation
 
 Three layers, each doing a different job.
