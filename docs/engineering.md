@@ -280,13 +280,16 @@ checking is CI's job.
 
 **On push to `main`** (Husky, `.husky/pre-push`) — runs `pnpm check` and
 `pnpm run docs` and refuses the push if either fails. Pushes to other branches skip
-this entirely; branches are meant to be cheap.
+this entirely; branches are meant to be cheap. It is fast and local, and catches a red
+commit before it is pushed rather than after CI reports.
 
-This stands in for GitHub branch protection, which requires GitHub Pro on a private
-repository. It is a guardrail against accident, not a control against intent —
-`git push --no-verify` bypasses it, and it only exists on machines that have run
-`pnpm install`. See [ADR 0002](adr/0002-local-pre-push-gate-instead-of-branch-protection.md);
-real branch protection should be enabled the day the repo goes public at M3.
+**On merge to `main`** (GitHub branch protection) — both CI jobs must be green, the
+branch must be up to date with `main`, history must stay linear, and `main` cannot be
+force-pushed or deleted. This is the authoritative gate; the hook above is the fast one,
+and the overlap is deliberate. Enabled the day the repository went public, exactly as
+ADR 0002 said it should be — see
+[ADR 0010](adr/0010-real-branch-protection-now-the-repo-is-public.md) for what is and is
+not enforced, and why admins are exempt.
 
 **On push and PR** (`.github/workflows/ci.yml`) — typecheck → lint → test → build →
 doc coverage, each as a named step so a failure identifies itself in the GitHub UI
