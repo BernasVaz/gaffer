@@ -7,6 +7,10 @@ import {
   type Team,
 } from "@gaffer/shared";
 
+import { motion, useAnimationControls, useReducedMotion } from "motion/react";
+import { useEffect, useRef } from "react";
+
+import { GOAL, POP_SPRING, TURN_FLOURISH } from "../feel";
 import { GoalBurst } from "./GoalBurst";
 import { Pieces } from "./Pieces";
 import { SQUADS } from "./squads";
@@ -90,7 +94,7 @@ function ActiveOrPlain({
   }
 
   return (
-    <button
+    <motion.button
       type="button"
       aria-label={label}
       onClick={onClick}
@@ -99,9 +103,53 @@ function ActiveOrPlain({
       onFocus={onFocus}
       onBlur={onBlur}
       className={className}
+      // The whole point of a click is that it feels like one. A target leans in
+      // as you approach and gives under the press before the board answers.
+      whileHover={{ scale: 1.09 }}
+      whileTap={{ scale: 0.9 }}
+      transition={POP_SPRING}
     >
       {children}
-    </button>
+    </motion.button>
+  );
+}
+
+/**
+ * A band sweeping the pitch as the turn changes hands.
+ *
+ * It travels the way the new side attacks, so the flourish carries information
+ * rather than only energy: you can tell whose turn it is from the direction alone
+ * before you have read anything.
+ */
+function TurnFlourish({ team, still }: { team: Team; still: boolean }) {
+  const controls = useAnimationControls();
+  const previous = useRef(team);
+
+  useEffect(() => {
+    const from = previous.current;
+    previous.current = team;
+    if (still || from === team) return;
+
+    const rightward = team === "home";
+    void controls.start({
+      x: rightward ? ["-60%", "160%"] : ["160%", "-60%"],
+      opacity: [0, 0.55, 0],
+      transition: { duration: TURN_FLOURISH.duration, ease: "easeInOut" },
+    });
+  }, [team, controls, still]);
+
+  return (
+    <motion.div
+      aria-hidden
+      initial={{ opacity: 0 }}
+      animate={controls}
+      className={cx(
+        "pointer-events-none absolute inset-y-0 z-20 w-1/3 skew-x-12 rounded-xl",
+        team === "home"
+          ? "bg-gradient-to-r from-transparent via-white/35 to-transparent"
+          : "bg-gradient-to-r from-transparent via-zinc-200/25 to-transparent",
+      )}
+    />
   );
 }
 
@@ -185,8 +233,32 @@ export function Pitch({
   );
   const mouthCentre = height >> 1;
 
+  const still = useReducedMotion() ?? false;
+  const shake = useAnimationControls();
+
+  /*
+   * A jolt when the ball goes in. Applied to the pitch rather than the page —
+   * shaking the whole document reads as a fault, shaking the thing that was hit
+   * reads as impact. Presentation only: it starts from a goal the engine has
+   * already resolved and reports nothing back.
+   */
+  useEffect(() => {
+    if (goalFor === null || still) return;
+    const a = GOAL.shakeAmount;
+    void shake.start({
+      x: [0, -a, a * 0.8, -a * 0.5, a * 0.28, 0],
+      y: [0, a * 0.5, -a * 0.36, a * 0.2, 0, 0],
+      transition: { duration: GOAL.shake, ease: "easeOut" },
+    });
+  }, [goalFor, shake, still]);
+
+  /** Which players are yours to command, so the board can show them as ready. */
+  const readyIds = new Set(
+    frozen ? [] : state.players.filter((p) => isCommandable(state, p.id)).map((p) => p.id),
+  );
+
   return (
-    <div className="relative">
+    <motion.div className="relative" animate={shake}>
       <div
         role="grid"
         aria-label={`Pitch, ${width} columns by ${height} rows`}
@@ -299,8 +371,11 @@ export function Pitch({
                   >
                     {/* An empty destination. */}
                     {cellTarget && (
-                      <span
+                      <motion.span
                         aria-hidden
+                        initial={{ scale: 0.3, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={POP_SPRING}
                         className={cx(
                           "absolute inset-[16%] rounded-full border-2",
                           cellTarget.duel
@@ -320,16 +395,22 @@ export function Pitch({
 
                     {/* Who is selected. */}
                     {isSelected && (
-                      <span
+                      <motion.span
                         aria-hidden
+                        initial={{ scale: 0.55, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={POP_SPRING}
                         className="absolute inset-[5%] rounded-lg ring-2 ring-emerald-200 ring-offset-1 ring-offset-emerald-900"
                       />
                     )}
 
                     {/* A player you can act on: the ring goes round the shirt. */}
                     {playerTarget && (
-                      <span
+                      <motion.span
                         aria-hidden
+                        initial={{ scale: 0.4, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={POP_SPRING}
                         className={cx(
                           "absolute inset-[8%] rounded-full ring-[3px]",
                           playerTarget.action.type === "tackle" ? "ring-rose-300" : "ring-sky-200",
@@ -360,9 +441,11 @@ export function Pitch({
         ))}
       </div>
 
-      <Pieces state={state} />
+      <Pieces state={state} readyIds={readyIds} />
+
+      <TurnFlourish team={state.activeTeam} still={still} />
 
       {goalFor && <GoalBurst team={goalFor} />}
-    </div>
+    </motion.div>
   );
 }
