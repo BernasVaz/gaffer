@@ -1,14 +1,15 @@
 import { legalActions } from "@gaffer/engine";
-import { mirrorPosition, type MatchCommand, type MatchState, type Team } from "@gaffer/shared";
+import {
+  DIFFICULTIES,
+  mirrorPosition,
+  type Difficulty,
+  type MatchCommand,
+  type MatchState,
+  type Team,
+} from "@gaffer/shared";
 
 import { outcomesOf } from "./branches.js";
 import { evaluateState } from "./evaluate.js";
-
-/** How hard the solo opponent tries. */
-export const DIFFICULTIES = ["casual", "pro", "elite"] as const;
-
-/** A validated difficulty. See {@link DIFFICULTIES}. */
-export type Difficulty = (typeof DIFFICULTIES)[number];
 
 /** What a difficulty actually changes about the search. */
 export interface OpponentProfile {
@@ -41,6 +42,10 @@ export const PROFILES: Readonly<Record<Difficulty, OpponentProfile>> = {
   pro: { lookahead: 2, breadth: 10, anticipate: false, reckless: false },
   elite: { lookahead: 2, breadth: 6, anticipate: true, reckless: false },
 };
+
+/* A profile for every difficulty the contract allows, checked at build time. */
+const _everyDifficultyHasAProfile: readonly Difficulty[] = DIFFICULTIES;
+void _everyDifficultyHasAProfile;
 
 /** How many replies the opponent weighs when it is looking one turn further. */
 const REPLY_BREADTH = 6;

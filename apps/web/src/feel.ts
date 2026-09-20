@@ -108,5 +108,24 @@ export const TURN_FLOURISH = {
   duration: 0.55,
 } as const;
 
+/**
+ * How long the opponent appears to think before each action.
+ *
+ * Nothing to do with how long it *takes* — a decision costs about four
+ * milliseconds. This is a pause put there on purpose, because an opponent whose
+ * two actions land the instant your turn ends reads as the board rearranging
+ * itself rather than as somebody playing. The pause is what turns a state change
+ * into a move.
+ *
+ * It cannot reach the rules. The opponent is handed a board and returns a
+ * command; when that happens changes nothing about which command it is.
+ */
+export const OPPONENT = {
+  /** Milliseconds before the opponent's first action of a turn. */
+  firstAction: 620,
+  /** Milliseconds before each action after it — it has already "seen" the board. */
+  nextAction: 460,
+} as const;
+
 /** A transition that does nothing, for readers who asked for less motion. */
 export const INSTANT: Transition = { duration: 0 };

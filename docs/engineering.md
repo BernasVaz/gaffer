@@ -165,6 +165,23 @@ about, because both bugs were invisible to unit tests and obvious in self-play:
   passing outlet walks it up the pitch, and a keeper cannot get home in the one action a
   turnover gives it.
 
+## The URL is the match
+
+`apps/web` has two screens and no router, because there is nothing to route: the
+query string describes the _match_, not the page. `parseSetup` and `setupToQuery` in
+`@gaffer/shared` are the two halves of that contract, and they round-trip.
+
+Two consequences worth knowing:
+
+- **A link with a seed starts the match; a bare visit shows the setup screen.** Being
+  sent a match and arriving to play are different intentions, and the URL is the only
+  thing that distinguishes them.
+- **`parseSetup` never throws and never gives up on a whole link.** Each field falls
+  back on its own. Links get typed, pasted, truncated by chat clients and edited out of
+  curiosity, and the useful response to `?seed=banana` is a playable match rather than a
+  blank page. That is a deliberate exception to "parse at the edge, then reject" — the
+  parsing is still total, it just has a default for every field.
+
 ## Presentation lags the engine
 
 Feel is part of v1 (GDD §14, ADR 0005) and animation is time, so there has to be a rule
@@ -198,6 +215,12 @@ How to build one of these without putting a timer in the rules:
   a comment promising the same thing.
 - **One number, one source.** A duration that drives both a timer and an animation lives
   in TypeScript and is passed to CSS as a custom property, so the two cannot drift.
+- **A pause is presentation too.** The solo opponent waits half a second before each
+  action, and that is the same rule seen from the other side: a decision costs about four
+  milliseconds, and the delay exists so two actions landing at once read as an opponent
+  playing rather than as the board rearranging itself. `chooseCommand` is handed a board
+  and returns a command; it has no clock, so _when_ it is asked cannot change _what_ it
+  answers.
 
 ## Quality gates
 

@@ -94,6 +94,8 @@ export interface StatusBarProps {
   lastEvent: MatchEvent | null;
   /** Why the last command was refused, if it was. */
   rejection: string | null;
+  /** The opponent's name while it is mid-thought, or null when it is not. */
+  thinking?: string | null;
 }
 
 /**
@@ -104,7 +106,13 @@ export interface StatusBarProps {
  * in one line is deliberate — GDD §9 wants the odds visible before committing,
  * not a second panel to look for them in.
  */
-export function StatusBar({ state, focused, lastEvent, rejection }: StatusBarProps) {
+export function StatusBar({
+  state,
+  focused,
+  lastEvent,
+  rejection,
+  thinking = null,
+}: StatusBarProps) {
   return (
     <p
       aria-live="polite"
@@ -113,6 +121,8 @@ export function StatusBar({ state, focused, lastEvent, rejection }: StatusBarPro
     >
       {rejection ? (
         <span className="text-rose-300">Refused: {rejection}</span>
+      ) : thinking ? (
+        <span className="text-emerald-200/80">{thinking} is thinking&hellip;</span>
       ) : focused ? (
         <Breakdown target={focused} state={state} />
       ) : lastEvent ? (

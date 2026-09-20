@@ -1,173 +1,55 @@
-import { ROLE_PROFILES, ROLES, type Action, type MatchCommand } from "@gaffer/shared";
-import { useState } from "react";
+import { parseSetup, setupToQuery, type MatchSetup } from "@gaffer/shared";
+import { useCallback, useState } from "react";
 
-import { Pitch } from "./board/Pitch";
-import { Scoreboard } from "./board/Scoreboard";
-import { SQUADS } from "./board/squads";
-import { StatusBar } from "./board/StatusBar";
-import { isCommandable, NO_TARGETS, targetsFor, type Target } from "./board/targets";
-import { useGoalMoment } from "./match/useGoalMoment";
-import { useMatch } from "./match/useMatch";
+import { Match } from "./match/Match";
+import { SetupScreen } from "./setup/SetupScreen";
 
-/** Read `?seed=` so a match can be reproduced from its link. Defaults to 1. */
-function seedFromUrl(): number {
-  const raw = new URLSearchParams(window.location.search).get("seed");
-  const value = Number(raw);
-  return Number.isInteger(value) && value >= 0 ? value : 1;
-}
+/** The query string this page was opened with, or an empty one under a test. */
+const search = () => (typeof window === "undefined" ? "" : window.location.search);
 
-/** Who wears which number, and what the shirt is worth in a duel. */
-function TeamSheet() {
-  return (
-    <dl className="grid gap-x-6 gap-y-1.5 text-xs text-emerald-100/70 sm:grid-cols-2">
-      {ROLES.map((role) => {
-        const { stats, moveRange } = ROLE_PROFILES[role];
-        return (
-          <div key={role} className="flex items-center gap-2">
-            <span className="w-4 shrink-0 text-right font-semibold text-white tabular-nums">
-              {SQUADS.home[role].number}
-            </span>
-            <dt className="capitalize">{role}</dt>
-            <dd className="ml-auto flex items-center gap-3 tabular-nums">
-              <span className="text-emerald-100/50">
-                {SQUADS.home[role].name} / {SQUADS.away[role].name}
-              </span>
-              <span>
-                {stats.atk}/{stats.def}/{stats.pas} &middot; {moveRange}
-              </span>
-            </dd>
-          </div>
-        );
-      })}
-    </dl>
-  );
+/**
+ * Whether the link named a match.
+ *
+ * A bare visit means somebody arrived to play and should choose how; a link with
+ * a seed in it means somebody was *sent* a specific match, and the friendliest
+ * thing to do with that is start it. They can still change their mind — "New
+ * match" comes back here.
+ */
+const wasSentAMatch = () => /(^|[?&])seed=/.test(search());
+
+/** Put the setup in the address bar, so the link is always the match on screen. */
+function publish(setup: MatchSetup) {
+  if (typeof window === "undefined" || !window.history?.replaceState) return;
+  window.history.replaceState(null, "", setupToQuery(setup) + window.location.hash);
 }
 
 /**
- * The client.
+ * The client: a setup screen, and a match.
  *
- * Hotseat: two people, one screen, whoever is to move is whoever is playing.
- * It owns the selection and nothing else — every rule comes from the engine, and
- * every move goes back through it.
+ * There is no router and no need for one — there are two screens and the URL
+ * describes the match rather than the page. What the address bar holds is always
+ * the match currently on screen, so "copy the link" needs no button and cannot
+ * go stale.
+ *
+ * The match is keyed by its setup, so starting a new one discards every scrap of
+ * the last: the board, the selection, the seeded generator. A stale die surviving
+ * a restart is the kind of bug that only shows up as "that replay doesn't match"
+ * three weeks later.
  */
 export function App() {
-  const [seed] = useState(seedFromUrl);
-  const { state, lastEvent, rejection, play, restart } = useMatch(seed);
-
-  const { moment, celebrate } = useGoalMoment();
-
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [focused, setFocused] = useState<Target | null>(null);
-
-  /*
-   * Derived rather than synced. A selection belonging to the side that is no
-   * longer to move — after a turn passes, or once the match is decided — is
-   * simply not a selection any more, so it is filtered out on the way to the
-   * board instead of being cleared by an effect chasing the state.
-   */
-  const selection = selectedId !== null && isCommandable(state, selectedId) ? selectedId : null;
-  const over = state.result !== null;
-
-  /*
-   * Presentation lags the engine, never the reverse. While a goal is being
-   * celebrated the pitch shows where everyone stood when the ball went in, even
-   * though the engine has already reset them to the kickoff. Everything that is
-   * *read* rather than looked at — the score, the turn, the status line, the
-   * accessible description of every cell — stays live throughout, so nothing
-   * anyone depends on is ever held back.
-   */
-  const board = moment?.board ?? state;
-  const targets = moment ? NO_TARGETS : targetsFor(state, selection);
-
-  /** Every command clears the selection: whoever it named has now acted. */
-  const send = (command: MatchCommand) => {
-    const outcome = play(command);
-    setSelectedId(null);
-    setFocused(null);
-
-    // The engine has already scored, reset the pitch and passed the turn. All
-    // that is left is to show it, holding the board it just replaced.
-    if (outcome?.scored && outcome.scorer) celebrate(outcome.before, outcome.scorer);
-  };
-
-  const commit = (action: Action) => send(action);
-
-  return (
-    <main className="min-h-dvh bg-gradient-to-b from-emerald-950 to-emerald-900 px-4 py-8 text-white">
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-        <header className="flex items-end justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Gaffer</h1>
-            <p className="text-sm text-emerald-200/70">
-              Hotseat &middot; two players, one screen &middot; seed {seed}
-            </p>
-          </div>
-          <p className="text-right text-xs text-emerald-200/50">
-            Home attacks &rarr;
-            <br />
-            Away attacks &larr;
-          </p>
-        </header>
-
-        <Scoreboard state={state} scoredBy={moment?.team ?? null} />
-
-        {over && state.result && (
-          <p className="rounded-xl bg-amber-300/15 px-5 py-3 text-sm ring-1 ring-amber-300/40">
-            <span className="font-bold text-amber-200 capitalize">{state.result.winner} win</span>
-            <span className="mx-2 text-amber-200/40">|</span>
-            <span className="text-amber-100/80">decided by {state.result.decidedBy}</span>
-            {state.result.shootout && (
-              <span className="text-amber-100/80">
-                {" "}
-                &middot; penalties {state.result.shootout.home}&ndash;{state.result.shootout.away}
-              </span>
-            )}
-          </p>
-        )}
-
-        <Pitch
-          state={board}
-          selectedId={moment ? null : selection}
-          targets={targets}
-          onSelect={setSelectedId}
-          onCommit={commit}
-          onFocusTarget={setFocused}
-          frozen={moment !== null}
-          goalFor={moment?.team ?? null}
-        />
-
-        <StatusBar state={state} focused={focused} lastEvent={lastEvent} rejection={rejection} />
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => send({ type: "endTurn", team: state.activeTeam })}
-            disabled={over || moment !== null}
-            className="rounded-lg bg-emerald-800 px-4 py-2 text-sm font-medium ring-1 ring-emerald-300/25 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            End turn
-          </button>
-          <button
-            type="button"
-            disabled={moment !== null}
-            onClick={() => {
-              restart();
-              setSelectedId(null);
-              setFocused(null);
-            }}
-            className="rounded-lg bg-emerald-950/60 px-4 py-2 text-sm font-medium text-emerald-100/80 ring-1 ring-emerald-300/15 hover:bg-emerald-950"
-          >
-            New match
-          </button>
-        </div>
-
-        <section aria-label="Team sheet" className="rounded-xl bg-emerald-950/40 px-5 py-4">
-          <h2 className="mb-3 text-[0.65rem] tracking-widest text-emerald-200/70 uppercase">
-            Team sheet &middot; home / away &middot; ATK/DEF/PAS &middot; move
-          </h2>
-          <TeamSheet />
-        </section>
-      </div>
-    </main>
+  const [initial] = useState<MatchSetup>(() => parseSetup(search()));
+  const [setup, setSetup] = useState<MatchSetup | null>(() =>
+    wasSentAMatch() ? parseSetup(search()) : null,
   );
+
+  const start = useCallback((chosen: MatchSetup) => {
+    publish(chosen);
+    setSetup(chosen);
+  }, []);
+
+  const leave = useCallback(() => setSetup(null), []);
+
+  if (setup === null) return <SetupScreen initial={initial} onStart={start} />;
+
+  return <Match key={setupToQuery(setup)} setup={setup} onLeave={leave} />;
 }

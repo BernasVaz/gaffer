@@ -14,7 +14,7 @@ import { GOAL, POP_SPRING, TURN_FLOURISH } from "../feel";
 import { GoalBurst } from "./GoalBurst";
 import { Pieces } from "./Pieces";
 import { SQUADS } from "./squads";
-import { cellKey, isCommandable, type Target, type Targets } from "./targets";
+import { cellKey, isCommandable, type Seat, type Target, type Targets } from "./targets";
 
 /** Spoken form of a role, for accessible names. */
 const ROLE_NAME: Record<Role, string> = {
@@ -162,6 +162,8 @@ type CellIntent =
 export interface PitchProps {
   /** The board to draw. */
   state: MatchState;
+  /** Which side or sides the person at the keyboard commands. */
+  seat: Seat;
   /** The player currently selected, if any. */
   selectedId: string | null;
   /** What that player can do. */
@@ -203,6 +205,7 @@ export interface PitchProps {
  */
 export function Pitch({
   state,
+  seat,
   selectedId,
   targets,
   onSelect,
@@ -254,7 +257,7 @@ export function Pitch({
 
   /** Which players are yours to command, so the board can show them as ready. */
   const readyIds = new Set(
-    frozen ? [] : state.players.filter((p) => isCommandable(state, p.id)).map((p) => p.id),
+    frozen ? [] : state.players.filter((p) => isCommandable(state, p.id, seat)).map((p) => p.id),
   );
 
   return (
@@ -278,7 +281,7 @@ export function Pitch({
               const playerTarget = player ? targets.players.get(player.id) : undefined;
               const isMouth = mouthCells.has(key);
               const isSelected = player !== undefined && player.id === selectedId;
-              const selectable = player !== undefined && isCommandable(state, player.id);
+              const selectable = player !== undefined && isCommandable(state, player.id, seat);
 
               /*
                * A lit target always wins over selecting whoever is standing there.

@@ -1,14 +1,16 @@
 import { applyAction, createInitialState, createRng, legalActions } from "@gaffer/engine";
 import {
   defendingGoalMouth,
+  DIFFICULTIES,
   parseSeed,
   TEAMS,
+  type Difficulty,
   type MatchCommand,
   type MatchState,
 } from "@gaffer/shared";
 import { describe, expect, it } from "vitest";
 
-import { chooseCommand, DIFFICULTIES, PROFILES, type Difficulty } from "../src/index.js";
+import { chooseCommand, PROFILES } from "../src/index.js";
 import { mirrorCommand, mirrorState } from "./helpers.js";
 
 const kickoff = () => createInitialState();

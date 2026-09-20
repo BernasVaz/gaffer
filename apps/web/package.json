@@ -13,6 +13,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@gaffer/ai": "workspace:*",
     "@gaffer/engine": "workspace:*",
     "@gaffer/shared": "workspace:*",
     "motion": "13.1.1",

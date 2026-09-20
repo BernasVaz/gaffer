@@ -3,7 +3,20 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { App } from "../src/App";
+import { DEFAULT_SETUP } from "@gaffer/shared";
+
+import { Match } from "../src/match/Match";
+
+/**
+ * A hotseat match, rendered directly.
+ *
+ * These are tests of the board, not of the routing: `App` decides which screen
+ * to show and `Match` is the screen they are about. Rendering it straight avoids
+ * standing up a URL and clicking through a setup screen before every assertion.
+ */
+const hotseat = () => (
+  <Match setup={{ ...DEFAULT_SETUP, mode: "hotseat", seed: 1 }} onLeave={() => {}} />
+);
 
 /** The one DOM node representing a given player, wherever it currently is. */
 const pieceFor = (playerId: string) =>
@@ -20,7 +33,7 @@ const buttonFor = (fragment: RegExp) => screen.getByRole("button", { name: fragm
 
 describe("pieces are drawn as one lasting node each", () => {
   it("gives every player exactly one node", () => {
-    render(<App />);
+    render(hotseat());
     for (const player of createInitialState().players) {
       expect(pieceFor(player.id), player.id).not.toBeNull();
     }
@@ -35,7 +48,7 @@ describe("pieces are drawn as one lasting node each", () => {
      * good the easing looks.
      */
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     const before = pieceFor("home-winger");
     const cellBefore = before?.dataset.cell;
@@ -49,7 +62,7 @@ describe("pieces are drawn as one lasting node each", () => {
   });
 
   it("positions each piece at the cell the engine put it on", () => {
-    render(<App />);
+    render(hotseat());
     for (const player of createInitialState().players) {
       expect(pieceFor(player.id)?.dataset.cell).toBe(`${player.position.x},${player.position.y}`);
     }
@@ -58,7 +71,7 @@ describe("pieces are drawn as one lasting node each", () => {
   it("survives the rebuild that follows a goal", () => {
     // Player ids are stable across a kickoff reset, which is what lets the same
     // nodes stay put rather than the whole board being torn down and replaced.
-    render(<App />);
+    render(hotseat());
     const ids = [...document.querySelectorAll("[data-player]")].map(
       (node) => (node as HTMLElement).dataset.player,
     );
@@ -68,19 +81,19 @@ describe("pieces are drawn as one lasting node each", () => {
 
 describe("the ball is its own piece", () => {
   it("exists once, separate from any shirt", () => {
-    render(<App />);
+    render(hotseat());
     expect(document.querySelectorAll("[data-ball]")).toHaveLength(1);
   });
 
   it("starts on its carrier's cell", () => {
-    render(<App />);
+    render(hotseat());
     const state = createInitialState();
     expect(ball()?.dataset.cell).toBe(`${state.ball.position.x},${state.ball.position.y}`);
   });
 
   it("travels to the receiver on a pass, without either player moving", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     const striker = pieceFor("home-striker");
     const strikerCell = striker?.dataset.cell;
@@ -98,7 +111,7 @@ describe("the ball is its own piece", () => {
 
   it("goes with the carrier when the carrier moves", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     await user.click(buttonFor(/^Select home striker/));
     await user.click(offered(/^Dribble to/)[0]!);
@@ -123,7 +136,7 @@ describe("motion cannot reach the engine", () => {
      * delay between the click and the state.
      */
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     expect(screen.getByText("2 actions left")).toBeInTheDocument();
 
@@ -136,7 +149,7 @@ describe("motion cannot reach the engine", () => {
 
   it("reports the new board to assistive technology at once, not after the slide", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    render(hotseat());
 
     await user.click(buttonFor(/^Select home winger/));
     const destination = offered(/^Move to/)[0]!;
@@ -150,7 +163,7 @@ describe("motion cannot reach the engine", () => {
   });
 
   it("leaves the pieces layer inert, so it can never swallow a click", () => {
-    render(<App />);
+    render(hotseat());
     const layer = document.querySelector("[data-player]")?.parentElement;
     expect(layer?.className).toContain("pointer-events-none");
   });

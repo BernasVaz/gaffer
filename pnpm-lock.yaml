@@ -59,6 +59,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@gaffer/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@gaffer/engine':
         specifier: workspace:*
         version: link:../../packages/engine
