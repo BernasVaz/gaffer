@@ -4,6 +4,7 @@ import {
   DIFFICULTIES,
   parseSeed,
   TEAMS,
+  TOTAL_TURNS,
   type Difficulty,
   type MatchCommand,
   type MatchState,
@@ -200,7 +201,7 @@ describe("the opponent across a match", () => {
     for (const seed of [2, 88]) {
       const { state } = playMatch(seed);
       expect(state.result).not.toBeNull();
-      expect(state.turn).toBeLessThanOrEqual(28);
+      expect(state.turn).toBeLessThanOrEqual(TOTAL_TURNS);
     }
   });
 

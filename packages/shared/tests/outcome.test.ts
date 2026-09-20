@@ -14,14 +14,14 @@ import {
 } from "../src/index.js";
 
 describe("extra time", () => {
-  it("is 4 turns — 2 a side, per GDD §10", () => {
-    expect(EXTRA_TIME_TURNS).toBe(4);
+  it("is 8 turns — 4 a side, per GDD §10", () => {
+    expect(EXTRA_TIME_TURNS).toBe(8);
     expect(EXTRA_TIME_TURNS % 2).toBe(0); // must split evenly
   });
 
-  it("brings the whole match to 28 turns", () => {
+  it("brings the whole match to 32 turns", () => {
     expect(TOTAL_TURNS).toBe(TURN_CAP + EXTRA_TIME_TURNS);
-    expect(TOTAL_TURNS).toBe(28);
+    expect(TOTAL_TURNS).toBe(32);
   });
 });
 

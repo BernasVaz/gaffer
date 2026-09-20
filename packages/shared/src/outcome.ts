@@ -40,11 +40,17 @@ export function isRegulationOver(turn: number): boolean {
 /**
  * Sudden-death turns played when regulation ends level (GDD §10).
  *
- * Deliberately small: it must fit inside the 3–5 minute match target of §11, and
- * because goals are scarce a longer extra time mostly delays the shootout rather
- * than avoiding it. Must stay even so both sides get the same number of turns.
+ * Raised from 4 to 8 in v1.7, reversing the reasoning that set it at 4. That
+ * reasoning was "because goals are scarce a longer extra time mostly delays the
+ * shootout rather than avoiding it" — true when a match produced 0.6 goals, and
+ * false now that it produces 1.5. Golden goal actually fires: doubling extra
+ * time turns roughly a third of the remaining shootouts into goals, and costs
+ * about one turn on the average match, because only the matches that are level
+ * at the cap ever see it.
+ *
+ * Must stay even so both sides get the same number of turns.
  */
-export const EXTRA_TIME_TURNS = 4;
+export const EXTRA_TIME_TURNS = 8;
 
 /** Every turn a match can run before a tiebreaker is required. */
 export const TOTAL_TURNS = TURN_CAP + EXTRA_TIME_TURNS;
