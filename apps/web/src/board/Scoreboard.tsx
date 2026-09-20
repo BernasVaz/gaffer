@@ -1,10 +1,4 @@
-import {
-  ACTIONS_PER_TURN,
-  TOTAL_TURNS,
-  TURN_CAP,
-  type MatchState,
-  type Team,
-} from "@gaffer/shared";
+import { totalTurns, type MatchState, type Team } from "@gaffer/shared";
 
 import { Crest } from "../art/Crest";
 
@@ -18,10 +12,10 @@ const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean
  * listening rather than looking — the pips are marked hidden so a screen reader
  * hears "2 actions left" once rather than a row of unexplained dots.
  */
-function Pips({ left }: { left: number }) {
+function Pips({ left, of }: { left: number; of: number }) {
   return (
     <span aria-hidden className="flex gap-1">
-      {Array.from({ length: ACTIONS_PER_TURN }, (_unused, index) => (
+      {Array.from({ length: of }, (_unused, index) => (
         <span
           key={index}
           className={cx(
@@ -68,7 +62,7 @@ export function Scoreboard({
   /** The side that has just scored, so the new number lands rather than appears. */
   scoredBy?: Team | null;
 }) {
-  const inExtraTime = state.turn > TURN_CAP;
+  const inExtraTime = state.turn > state.rules.turnCap;
   const over = state.result !== null;
 
   return (
@@ -111,7 +105,7 @@ export function Scoreboard({
 
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/8 px-4 py-2 text-xs text-white/70">
         <span className="tabular-nums">
-          Turn {state.turn} of {TOTAL_TURNS}
+          Turn {state.turn} of {totalTurns(state.rules)}
         </span>
         {inExtraTime && (
           <span className="rounded-full bg-(--color-gold)/20 px-2 py-0.5 text-[0.65rem] font-bold tracking-wider text-(--color-gold) uppercase">
@@ -129,7 +123,7 @@ export function Scoreboard({
             <span aria-hidden className="text-white/20">
               |
             </span>
-            <Pips left={state.actionsRemaining} />
+            <Pips left={state.actionsRemaining} of={state.rules.actionsPerTurn} />
             <span className="tabular-nums">
               {state.actionsRemaining} action{state.actionsRemaining === 1 ? "" : "s"} left
             </span>

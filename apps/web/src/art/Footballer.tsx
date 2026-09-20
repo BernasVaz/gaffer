@@ -182,7 +182,7 @@ export function Footballer({ team, role, number, gaze, hasBall = false, id }: Fo
         y="64"
         textAnchor="middle"
         fontWeight="800"
-        fontSize="17"
+        fontSize="19"
         fill={kit.number}
         style={{ fontFamily: "inherit" }}
       >

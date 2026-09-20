@@ -1,10 +1,10 @@
 import {
-  ACTIONS_PER_TURN,
+  FORMAT_PROFILES,
+  totalTurns,
   DECISION_METHODS,
   MatchStateSchema,
   parseSeed,
   REJECTION_REASONS,
-  TOTAL_TURNS,
   type MatchCommand,
   type MatchState,
   type Position,
@@ -13,6 +13,13 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 
 import { applyAction, createInitialState, createRng, legalActions } from "../src/index.js";
+
+/* These tests pin the rules, and a rule is best pinned on the smallest board
+   that can express it. The numbers are 5-a-side's; the rules they check are
+   the same at every format. */
+const FIVES = FORMAT_PROFILES["5v5"].rules;
+const ACTIONS_PER_TURN = FIVES.actionsPerTurn;
+const TOTAL_TURNS = totalTurns(FIVES);
 
 /**
  * One instruction in a generated match.
@@ -24,16 +31,16 @@ import { applyAction, createInitialState, createRng, legalActions } from "../src
 type Step = { kind: "legal"; index: number } | { kind: "raw"; command: MatchCommand };
 
 const PLAYER_IDS = [
-  "home-goalkeeper",
-  "home-defender",
-  "home-midfielder",
-  "home-winger",
-  "home-striker",
-  "away-goalkeeper",
-  "away-defender",
-  "away-midfielder",
-  "away-winger",
-  "away-striker",
+  "home-goalkeeper-1",
+  "home-defender-1",
+  "home-midfielder-1",
+  "home-winger-1",
+  "home-striker-1",
+  "away-goalkeeper-1",
+  "away-defender-1",
+  "away-midfielder-1",
+  "away-winger-1",
+  "away-striker-1",
   "nobody-at-all",
 ] as const;
 

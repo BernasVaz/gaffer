@@ -1,12 +1,16 @@
 import {
   DIFFICULTIES,
+  FORMAT_PROFILES,
+  FORMATS,
   KICKING_OFF,
-  MATCH_MODES,
   MAX_SEED,
+  PLAY_MODES,
+  squadSize,
   TEAMS,
   type Difficulty,
-  type MatchMode,
+  type MatchFormat,
   type MatchSetup,
+  type PlayMode,
   type Team,
 } from "@gaffer/shared";
 import { useState } from "react";
@@ -18,8 +22,8 @@ import { Wordmark } from "../ui/Wordmark";
 
 const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(" ");
 
-/** What each mode is, in the fewest words that are still true. */
-const MODE_COPY: Record<MatchMode, { title: string; blurb: string }> = {
+/** What each play mode is, in the fewest words that are still true. */
+const PLAY_COPY: Record<PlayMode, { title: string; blurb: string }> = {
   solo: { title: "Solo", blurb: "You against the machine" },
   hotseat: { title: "Hotseat", blurb: "Two players, one screen" },
 };
@@ -44,12 +48,15 @@ function Choice({
   onClick,
   title,
   blurb,
+  tag,
   children,
 }: {
   selected: boolean;
   onClick: () => void;
   title: string;
   blurb?: string;
+  /** A short flag, for an option whose numbers are not settled. */
+  tag?: string;
   children?: React.ReactNode;
 }) {
   return (
@@ -67,7 +74,14 @@ function Choice({
       style={{ ["--btn-edge" as string]: selected ? "#07200f" : "#04120a" }}
     >
       {children}
-      <span className="text-sm font-semibold">{title}</span>
+      <span className="flex items-center gap-1.5 text-sm font-semibold">
+        {title}
+        {tag && (
+          <span className="rounded-full bg-(--color-gold)/20 px-1.5 text-[0.55rem] font-extrabold tracking-[0.14em] text-(--color-gold) uppercase">
+            {tag}
+          </span>
+        )}
+      </span>
       {blurb && <span className="text-[0.68rem] leading-tight opacity-70">{blurb}</span>}
     </button>
   );
@@ -117,12 +131,14 @@ export interface SetupScreenProps {
  * biggest one in a footnote.
  */
 export function SetupScreen({ initial, onStart }: SetupScreenProps) {
-  const [mode, setMode] = useState<MatchMode>(initial.mode);
+  const [mode, setMode] = useState<MatchFormat>(initial.mode);
+  const [play, setPlay] = useState<PlayMode>(initial.play);
   const [side, setSide] = useState<Team>(initial.side);
   const [difficulty, setDifficulty] = useState<Difficulty>(initial.difficulty);
   const [seed, setSeed] = useState<number>(initial.seed);
 
-  const solo = mode === "solo";
+  const solo = play === "solo";
+  const chosen = FORMAT_PROFILES[mode];
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-(--color-night) bg-[radial-gradient(120%_70%_at_50%_0%,var(--color-night-soft),var(--color-night))] px-4 py-10 text-white">
@@ -137,23 +153,65 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
         </header>
 
         <section
-          aria-labelledby="mode-heading"
+          aria-labelledby="format-heading"
           className="rounded-2xl bg-(--color-panel) p-4 ring-1 ring-(--color-edge)/30"
         >
           <h2
-            id="mode-heading"
+            id="format-heading"
+            className="mb-2 text-[0.65rem] font-bold tracking-widest text-white/45 uppercase"
+          >
+            Game type
+          </h2>
+          <div className="flex gap-2">
+            {FORMATS.map((option) => {
+              const profile = FORMAT_PROFILES[option];
+              return (
+                <Choice
+                  key={option}
+                  selected={mode === option}
+                  onClick={() => setMode(option)}
+                  title={option}
+                  blurb={`${profile.shape} · ${profile.board.width}×${profile.board.height}`}
+                  tag={profile.status === "alpha" ? "Alpha" : undefined}
+                />
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[0.68rem] leading-snug text-white/40">
+            {chosen.status === "alpha" ? (
+              <>
+                <span className="font-bold text-(--color-gold)">Alpha.</span> {chosen.label} is
+                playable but its numbers are provisional — {squadSize(mode)} a side on a{" "}
+                {chosen.board.width}×{chosen.board.height} pitch, {chosen.rules.actionsPerTurn}{" "}
+                actions a turn. Expect it to move.
+              </>
+            ) : (
+              <>
+                The settled game type: {squadSize(mode)} a side on a {chosen.board.width}×
+                {chosen.board.height} pitch, {chosen.rules.actionsPerTurn} actions a turn.
+              </>
+            )}
+          </p>
+        </section>
+
+        <section
+          aria-labelledby="play-heading"
+          className="rounded-2xl bg-(--color-panel) p-4 ring-1 ring-(--color-edge)/30"
+        >
+          <h2
+            id="play-heading"
             className="mb-2 text-[0.65rem] font-bold tracking-widest text-white/45 uppercase"
           >
             Who is playing
           </h2>
           <div className="flex gap-2">
-            {MATCH_MODES.map((option) => (
+            {PLAY_MODES.map((option) => (
               <Choice
                 key={option}
-                selected={mode === option}
-                onClick={() => setMode(option)}
-                title={MODE_COPY[option].title}
-                blurb={MODE_COPY[option].blurb}
+                selected={play === option}
+                onClick={() => setPlay(option)}
+                title={PLAY_COPY[option].title}
+                blurb={PLAY_COPY[option].blurb}
               />
             ))}
           </div>
@@ -250,7 +308,7 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
 
         <Button
           tone="primary"
-          onClick={() => onStart({ mode, side, difficulty, seed })}
+          onClick={() => onStart({ mode, play, side, difficulty, seed })}
           className="mt-1 py-4 text-lg"
         >
           Kick off

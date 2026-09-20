@@ -1,4 +1,4 @@
-# Gaffer — Game Design Document (v1.7 — LOCKED, v1 baseline)
+# Gaffer — Game Design Document (v1.8 — LOCKED, v1 baseline)
 
 _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementable baseline**: the design is complete enough to build with no open questions. Values marked *(tunable)* are locked starting numbers we will refine in playtest — changing them is a data edit, not a redesign. This is the contract the engine (M2) is built and tested against._
 
@@ -12,6 +12,7 @@ _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementabl
 > - **v1.2 → v1.3:** bounded the win condition (§10, §13) — extra time is 4 turns, then a penalty shootout of 3 kicks plus 10 sudden-death rounds, then most shots, then most duels won, then the side that did not kick off. A tiebreaker cascade was needed because §10 forbids draws and no symmetric shootout terminates on its own.
 > - **v1.3 → v1.4:** made scoring possible. Keeper DEF 5 → 4; the keeper defends a shot only while standing in its own mouth, so drawing it out opens the goal; covering on a shot softened to +1; and only the defending keeper may occupy a goal mouth, which closes the hole where an attacker could stand in the net and shoot at it (§5, §6, §7, §9, §13). See ADR 0004.
 > - **v1.4 → v1.5:** brought feel into v1 scope (§14). Playtesting the first interactive build showed that an instant result reads as a state change rather than as football, which Pillar 1 depends on. Movement, the goal moment and the duel reveal are now in; animation stays presentation-only and may never affect the engine or its determinism. See ADR 0005.
+> - **v1.7 → v1.8:** shipped the game modes §12 always promised. 7-a-side (9×7, 2-3-1) and 11-a-side (13×9, 4-4-2) join 5-a-side as **alpha**, selectable before kickoff and carried in the link. **No rule changed** — the engine was already written against a board and a squad — but the numbers that scale with a pitch moved onto the match itself (§13). The one that mattered was not the turn cap: it was **actions per turn**, which is 2, 3 and 4. At 2 everywhere, the bigger formats produced 0.65 goals a match with 40–50% goalless. See ADR 0012 and ADR 0013.
 > - **v1.6 → v1.7:** doubled extra time, 4 turns → **8**. Re-measuring v1.6 for the record showed its shootout figures had been taken mid-branch and were wrong: matches decided on penalties went 38.7% → 35.3%, not 44% → 20%. The goals were real (0.99 → 1.50) — what they did not do was reduce draws, because killing _goalless_ matches turns 0–0 into 1–1. §10's reason for a short extra time ("goals are scarce, so it mostly delays the shootout") was true at 0.6 goals a match and false at 1.5: golden goal now fires. Penalties fall to **24%**, golden goals rise to **17%**, at about one turn on the average match. See ADR 0011.
 > - **v1.5 → v1.6:** tuned the match on evidence. A solo opponent (ADR 0006) made self-play possible, and 150 matches at the v1.5 numbers produced 0.60 goals a match with 42% goalless and 44% settled on penalties. Three numbers moved: the duel die d3 → **d4**, keeper DEF 4 → **3**, turn cap 20 → **24**. Both §13 watch-items are closed by the change — the d3 saturation directly, penalty conversion as a consequence (33% → 81%). Result: **1.50 goals a match, 9% goalless, 80% decided by football**. See ADR 0007. The solo opponent also moves from "out of scope" to shipped (§14).
 
@@ -147,17 +148,44 @@ Every contested action is a duel:
 
 ## 12. Game modes
 
-- **v1 (shipped & balanced):** 5-a-side flagship.
-- **Later (engine-ready):** 7-a-side, 11-a-side, and possibly a shorter "Blitz". Same rules, bigger board/squad via config.
+All three are **playable now** and chosen before kickoff; the game type travels in the match link, so a shared link is the same game as well as the same dice.
+
+|        | **5-a-side** | 7-a-side | 11-a-side |
+| ------ | ------------ | -------- | --------- |
+| Pitch  | 7 × 5        | 9 × 7    | 13 × 9    |
+| Squad  | 1 GK + 4     | 1 GK + 6 | 1 GK + 10 |
+| Shape  | 1-1-2-1      | 2-3-1    | 4-4-2     |
+| Status | **balanced** | alpha    | alpha     |
+
+**Same rules, every one of them.** Adding two formats changed no rule in the engine: it was already written against a board and a squad rather than against seven columns and five players, exactly as §5 promised. What differs is data — the pitch, the line-up, and the four numbers in §13 that scale with them.
+
+**Alpha means playable and measured once, not broken.** 5-a-side took two rounds of tuning to settle (ADR 0007, ADR 0011); the other two have had one pass, aimed only at "is anything obviously wrong". Real players are how they get tuned. The interface marks them, so nobody mistakes a rough edge for a verdict (ADR 0013).
+
+A shorter "Blitz" remains a later idea, and is now a row of data rather than a project.
 
 ## 13. Locked v1 parameters (tunable in playtest)
 
-The numeric knobs, in one place — all live as Zod data in `@gaffer/shared`, so tuning is a data change, not code:
+The numeric knobs, in one place — all live as Zod data in `@gaffer/shared`, so tuning is a data change, not code.
+
+**Four of them scale with the pitch** and therefore live on the match rather than as one global value (ADR 0012). Everything else below is the same at every game type.
+
+| Scales with the pitch | 5v5   | 7v7   | 11v11 |
+| --------------------- | ----- | ----- | ----- |
+| **Actions per turn**  | **2** | **3** | **4** |
+| Turn cap              | 24    | 32    | 44    |
+| Extra time            | 8     | 10    | 14    |
+| SHOT_RANGE            | 2     | 2     | 3     |
+
+Actions per turn is the one that decides whether a format works at all, and it was not the one we expected. An attack needs a certain number of actions to cross a pitch, and that number grows with the pitch — where a bigger turn cap only buys more turns of the same inadequate length. At 2 actions everywhere, 7-a-side produced **0.65 goals a match with 40% goalless** and 11-a-side **0.63 with 50%**; at 3 and 4 they produce **1.50** and **1.28**, against 5-a-side's 1.63.
+
+The goal mouth deliberately does **not** scale. A goal in football is a fixed physical size and the pitch grows around it, and 3 cells is exactly what a keeper on its line covers with a move range of 1 — widening it on a bigger pitch would hand the attacker a goal no keeper could defend.
+
+The 5-a-side column below is unchanged from v1.7:
 
 | Parameter                   | v1 value                                                         |
 | --------------------------- | ---------------------------------------------------------------- |
-| Actions per turn            | 2                                                                |
-| Pitch (5-a-side)            | 7 × 5 cells                                                      |
+| Actions per turn            | 2 at 5-a-side (§12 for the rest)                                 |
+| Pitch (5-a-side)            | 7 × 5 cells (§12 for the rest)                                   |
 | Squad                       | 1 GK + 4 outfield                                                |
 | Stats / roles / move ranges | §6 table                                                         |
 | Mobility stat               | PAS (no separate PACE)                                           |
@@ -165,7 +193,7 @@ The numeric knobs, in one place — all live as Zod data in `@gaffer/shared`, so
 | Distance metric             | steps (Chebyshev — a diagonal costs 1)                           |
 | Adjacency                   | the 8 surrounding cells                                          |
 | Goal mouth                  | 3 cells, rows 1–3 of each end column                             |
-| **SHOT_RANGE**              | **2** cells from the goal mouth                                  |
+| **SHOT_RANGE**              | **2** cells from the goal mouth at 5-a-side                      |
 | Keeper DEF                  | **3** (was 4, was 5)                                             |
 | Keeper guards               | only while standing in its own mouth                             |
 | Goal-mouth occupancy        | defending keeper only                                            |
@@ -174,8 +202,8 @@ The numeric knobs, in one place — all live as Zod data in `@gaffer/shared`, so
 | Tackle                      | atomic; the defender must already be adjacent                    |
 | Duel die                    | opposed **d4** (was d3)                                          |
 | Covering-defender modifier  | +2 DEF each in open play, **+1 on a shot**                       |
-| Turn cap                    | **24** turns (12 per side)                                       |
-| Extra time                  | **8** turns (4 per side), golden goal                            |
+| Turn cap                    | **24** turns (12 per side) at 5-a-side                           |
+| Extra time                  | **8** turns (4 per side) at 5-a-side, golden goal                |
 | Shootout                    | 3 kicks each, then sudden death                                  |
 | Shootout sudden-death cap   | 10 rounds                                                        |
 | Tiebreaker cascade          | shootout -> shots -> duels won -> non-kickoff side               |
@@ -231,7 +259,9 @@ Recorded so they are not rediscovered from scratch later.
 
 ## 14. Explicitly OUT of v1 scope
 
-No accounts/ladder/trophies, no squad collection or squad-building (both players use the same fixed 5), no mobile build, no medium/full modes shipped. All planned — none in v1.
+No accounts/ladder/trophies, no squad collection or squad-building (both sides field the same fixed squad), no mobile build. All planned — none in v1.
+
+**The other game modes are IN, as alpha.** This line used to read "no medium/full modes shipped", on the assumption that 7-a-side and 11-a-side would each be a project. They were not: the engine was already written against a board and a squad, so they cost a table of data, two formations and one scaling pass — and an alpha session is worth far more with three game types in it than with one. They are marked provisional in the interface, and 5-a-side remains the polished default. See §12, ADR 0012 and ADR 0013.
 
 **The solo opponent is IN.** It was listed here as "no AI beyond a basic solo-test opponent", on the assumption that a single-player mode was a nicety. Two things changed that. A shareable link is worthless without one — the first thing anyone does with a link is play it alone — and a competent opponent turned out to be the only honest way to _measure_ the game, which is how v1.6's balance was settled. It ships as three settings and lives in `@gaffer/ai`, holding no rules of its own. See ADR 0006.
 

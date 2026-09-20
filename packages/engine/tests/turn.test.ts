@@ -1,8 +1,7 @@
 import {
-  ACTIONS_PER_TURN,
+  FORMAT_PROFILES,
   MatchStateSchema,
   parseSeed,
-  TURN_CAP,
   type MatchCommand,
   type MatchState,
 } from "@gaffer/shared";
@@ -10,6 +9,13 @@ import { describe, expect, it } from "vitest";
 
 import { applyAction, createInitialState, createRng, legalActions } from "../src/index.js";
 import { makeState, scriptedRng } from "./helpers.js";
+
+/* These tests pin the rules, and a rule is best pinned on the smallest board
+   that can express it. The numbers are 5-a-side's; the rules they check are
+   the same at every format. */
+const FIVES = FORMAT_PROFILES["5v5"].rules;
+const ACTIONS_PER_TURN = FIVES.actionsPerTurn;
+const TURN_CAP = FIVES.turnCap;
 
 /** Apply a command and fail the test loudly if the engine rejected it. */
 function apply(state: MatchState, command: MatchCommand, rng = scriptedRng([3, 1, 3, 1, 3, 1])) {
@@ -118,7 +124,7 @@ describe("rejecting illegal commands", () => {
     expect(
       reject(createInitialState(), {
         type: "move",
-        playerId: "away-winger",
+        playerId: "away-winger-1",
         target: { x: 4, y: 3 },
       }),
     ).toBe("not-your-turn");
@@ -126,14 +132,14 @@ describe("rejecting illegal commands", () => {
 
   it("reports an empty action pool", () => {
     const state = { ...createInitialState(), actionsRemaining: 0 };
-    expect(reject(state, { type: "move", playerId: "home-winger", target: { x: 2, y: 1 } })).toBe(
+    expect(reject(state, { type: "move", playerId: "home-winger-1", target: { x: 2, y: 1 } })).toBe(
       "no-actions-left",
     );
   });
 
   it("reports an unknown target on a pass", () => {
     expect(
-      reject(createInitialState(), { type: "pass", playerId: "home-striker", target: "ghost" }),
+      reject(createInitialState(), { type: "pass", playerId: "home-striker-1", target: "ghost" }),
     ).toBe("unknown-target");
   });
 
@@ -142,7 +148,7 @@ describe("rejecting illegal commands", () => {
     expect(
       reject(createInitialState(), {
         type: "move",
-        playerId: "home-winger",
+        playerId: "home-winger-1",
         target: { x: 6, y: 4 },
       }),
     ).toBe("illegal-action");
@@ -150,7 +156,7 @@ describe("rejecting illegal commands", () => {
 
   it("reports a shot from out of range as illegal", () => {
     expect(
-      reject(createInitialState(), { type: "shoot", playerId: "home-striker", target: null }),
+      reject(createInitialState(), { type: "shoot", playerId: "home-striker-1", target: null }),
     ).toBe("illegal-action");
   });
 
@@ -158,8 +164,8 @@ describe("rejecting illegal commands", () => {
     const state = createInitialState();
     const nonsense: MatchCommand[] = [
       { type: "move", playerId: "nobody", target: { x: 99, y: 99 } },
-      { type: "tackle", playerId: "home-striker", target: "home-striker" },
-      { type: "dribble", playerId: "home-goalkeeper", target: { x: 0, y: 0 } },
+      { type: "tackle", playerId: "home-striker-1", target: "home-striker-1" },
+      { type: "dribble", playerId: "home-goalkeeper-1", target: { x: 0, y: 0 } },
       { type: "endTurn", team: "away" },
     ];
     for (const command of nonsense) {
@@ -172,7 +178,7 @@ describe("rejecting illegal commands", () => {
     const before = JSON.stringify(state);
     applyAction(
       state,
-      { type: "move", playerId: "away-winger", target: { x: 4, y: 3 } },
+      { type: "move", playerId: "away-winger-1", target: { x: 4, y: 3 } },
       scriptedRng([]),
     );
     expect(JSON.stringify(state)).toBe(before);
@@ -182,7 +188,7 @@ describe("rejecting illegal commands", () => {
     const state = createInitialState();
     const result = applyAction(
       state,
-      { type: "move", playerId: "home-winger", target: { x: 6, y: 4 } },
+      { type: "move", playerId: "home-winger-1", target: { x: 6, y: 4 } },
       scriptedRng([]),
     );
     expect(result.ok).toBe(false);
@@ -225,7 +231,7 @@ describe("a goal", () => {
     const { state: next } = scoreOne(scoringPosition());
 
     expect(next.players).toHaveLength(10);
-    expect(next.ball.carrierId).toBe("away-striker");
+    expect(next.ball.carrierId).toBe("away-striker-1");
     expect(MatchStateSchema.safeParse(next).success).toBe(true);
   });
 

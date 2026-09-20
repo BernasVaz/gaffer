@@ -4,8 +4,7 @@ import {
   opponentOf,
   SHOOTOUT_KICKS,
   SHOOTOUT_SUDDEN_DEATH_ROUNDS,
-  TOTAL_TURNS,
-  TURN_CAP,
+  totalTurns,
   type MatchResult,
   type MatchState,
   type Player,
@@ -145,9 +144,9 @@ function decideLevelMatch(state: MatchState, rng: Rng): MatchResult {
  * if there is another turn to play.
  *
  * Deliberately asked **before** the turn counter advances, so a decided match
- * stops on the turn that decided it. `turn` therefore never exceeds
- * {@link TOTAL_TURNS}, and `result` being non-null is the only thing that marks
- * a match as over. Reading the phase from the completed turn is also more honest
+ * stops on the turn that decided it. `turn` therefore never exceeds the match's
+ * own {@link totalTurns}, and `result` being non-null is the only thing that
+ * marks a match as over. Reading the phase from the completed turn is also more honest
  * than inferring it from an already-incremented counter.
  *
  * The three moments that matter:
@@ -168,17 +167,17 @@ export function matchResultAfterTurn(state: MatchState, rng: Rng): MatchResult |
   if (ahead !== null) {
     // A lead entering extra time is impossible — extra time only happens when
     // the sides are level — so any lead after the cap was scored during it.
-    if (completed === TURN_CAP) {
+    if (completed === state.rules.turnCap) {
       return { winner: ahead, decidedBy: "regulation", shootout: null };
     }
-    if (isExtraTime(completed)) {
+    if (isExtraTime(completed, state.rules)) {
       return { winner: ahead, decidedBy: "goldenGoal", shootout: null };
     }
     return null; // still in regulation, a lead settles nothing yet
   }
 
   // Level, and extra time has run out: the cascade has to produce a winner.
-  if (completed >= TOTAL_TURNS) return decideLevelMatch(state, rng);
+  if (completed >= totalTurns(state.rules)) return decideLevelMatch(state, rng);
 
   return null;
 }

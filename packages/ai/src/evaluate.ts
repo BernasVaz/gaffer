@@ -4,7 +4,6 @@ import {
   attackingGoalMouth,
   chebyshevDistance,
   defendingGoalMouth,
-  SHOT_RANGE,
   type MatchState,
   type Player,
   type Position,
@@ -118,7 +117,7 @@ export function shotThreat(state: MatchState): number {
   if (!carrier) return 0;
 
   const inRange = attackingGoalMouth(carrier.team, state.board).some(
-    (cell) => chebyshevDistance(carrier.position, cell) <= SHOT_RANGE,
+    (cell) => chebyshevDistance(carrier.position, cell) <= state.rules.shotRange,
   );
   if (!inRange) return 0;
 

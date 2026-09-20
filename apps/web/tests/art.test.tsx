@@ -1,6 +1,6 @@
 import { createInitialState } from "@gaffer/engine";
-import { DEFAULT_BOARD, ROLES, TEAMS, type Role } from "@gaffer/shared";
-import { render, screen } from "@testing-library/react";
+import { DEFAULT_BOARD, FORMATS, ROLES, TEAMS, type Role } from "@gaffer/shared";
+import { cleanup, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -9,7 +9,10 @@ import { Crest } from "../src/art/Crest";
 import { Footballer } from "../src/art/Footballer";
 import { GoalNet, PitchMarkings } from "../src/art/PitchMarkings";
 import { Pieces } from "../src/board/Pieces";
-import { kitFor, KITS } from "../src/board/kits";
+import { Pitch } from "../src/board/Pitch";
+import { kitFor as colourFor, KITS } from "../src/board/kits";
+import { kitFor } from "../src/board/squads";
+import { NO_TARGETS } from "../src/board/targets";
 import { Button } from "../src/ui/Button";
 
 const stylesheet = readFileSync(resolve(process.cwd(), "src/index.css"), "utf8");
@@ -37,7 +40,7 @@ describe("the kits", () => {
     for (const team of TEAMS) {
       for (const role of ROLES) {
         const expected = role === "goalkeeper" ? KITS[team].keeper : KITS[team].outfield;
-        expect(kitFor(team, role)).toBe(expected);
+        expect(colourFor(team, role)).toBe(expected);
       }
     }
   });
@@ -133,7 +136,7 @@ describe("the pieces on the board", () => {
     const { container } = render(<Pieces state={state} />);
 
     const carrier = container.querySelector(`[data-player="${state.ball.carrierId}"]`);
-    const other = container.querySelector('[data-player="home-winger"]');
+    const other = container.querySelector('[data-player="home-winger-1"]');
 
     expect(eyeCentres(carrier as HTMLElement)).not.toEqual(eyeCentres(other as HTMLElement));
   });
@@ -157,5 +160,106 @@ describe("a chunky button", () => {
     expect(stylesheet).toContain(".mouth-glow");
     const reduced = stylesheet.slice(stylesheet.lastIndexOf("@media (prefers-reduced-motion"));
     expect(reduced).toContain("mouth-glow");
+  });
+});
+
+describe("a board that has to fit a phone", () => {
+  it("sizes a cell from the board, so a wide pitch shrinks its own contents", () => {
+    // Not from the viewport: the same `3vw` is a third of a 5-a-side cell and
+    // most of an 11-a-side one.
+    expect(stylesheet).toMatch(/\.pitch-board\s*\{[^}]*container-type:\s*inline-size/);
+    expect(stylesheet).toMatch(/--cell:\s*calc\(100cqw\s*\/\s*var\(--cols\)\)/);
+  });
+
+  it("makes each piece its own one-cell container", () => {
+    // Which is what lets a name be sized against a *cell* without any component
+    // knowing how many columns the pitch has.
+    expect(stylesheet).toMatch(/\.piece\s*\{[^}]*container-type:\s*inline-size/);
+    expect(stylesheet).toMatch(/\.piece\s+\.piece-name\s*\{[^}]*font-size:\s*19cqw/);
+  });
+
+  it("drops the surname once a cell is too small to read one", () => {
+    const rule = stylesheet.slice(stylesheet.indexOf("@container (max-width: 46px)"));
+    expect(rule).toContain(".piece-name");
+    expect(rule).toContain("display: none");
+  });
+
+  it("tells the board how many columns it has, at every format", () => {
+    for (const format of FORMATS) {
+      const state = createInitialState({ format });
+      const { container } = render(
+        <Pitch
+          state={state}
+          seat="both"
+          selectedId={null}
+          targets={NO_TARGETS}
+          onSelect={() => {}}
+          onCommit={() => {}}
+          onFocusTarget={() => {}}
+        />,
+      );
+
+      const board = container.querySelector(".pitch-board") as HTMLElement;
+      expect(board.style.getPropertyValue("--cols")).toBe(String(state.board.width));
+      expect(board.style.getPropertyValue("--rows")).toBe(String(state.board.height));
+      cleanup();
+    }
+  });
+
+  it("draws a cell for every square, whatever the format", () => {
+    for (const format of FORMATS) {
+      const state = createInitialState({ format });
+      render(
+        <Pitch
+          state={state}
+          seat="both"
+          selectedId={null}
+          targets={NO_TARGETS}
+          onSelect={() => {}}
+          onCommit={() => {}}
+          onFocusTarget={() => {}}
+        />,
+      );
+      expect(screen.getAllByRole("gridcell")).toHaveLength(state.board.width * state.board.height);
+      cleanup();
+    }
+  });
+});
+
+describe("kits when a role repeats", () => {
+  it("gives an 11-a-side back four four different names and numbers", () => {
+    const state = createInitialState({ format: "11v11" });
+    const defenders = state.players
+      .filter((player) => player.team === "home" && player.role === "defender")
+      .map((player) => kitFor(player, state));
+
+    expect(defenders).toHaveLength(4);
+    expect(new Set(defenders.map((kit) => kit.name)).size).toBe(4);
+    expect(new Set(defenders.map((kit) => kit.number)).size).toBe(4);
+  });
+
+  it("numbers the keeper 1 and a striker 9, at every format", () => {
+    for (const format of FORMATS) {
+      const state = createInitialState({ format });
+      const keeper = state.players.find(
+        (player) => player.team === "home" && player.role === "goalkeeper",
+      )!;
+      const striker = state.players.find(
+        (player) => player.team === "home" && player.role === "striker",
+      )!;
+
+      expect(kitFor(keeper, state).number).toBe(1);
+      expect(kitFor(striker, state).number).toBe(9);
+    }
+  });
+
+  it("gives every player on the pitch a distinct shirt", () => {
+    const state = createInitialState({ format: "11v11" });
+    for (const team of ["home", "away"] as const) {
+      const kits = state.players
+        .filter((player) => player.team === team)
+        .map((player) => `${kitFor(player, state).number} ${kitFor(player, state).name}`);
+      expect(new Set(kits).size).toBe(kits.length);
+    }
   });
 });

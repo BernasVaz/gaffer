@@ -1,4 +1,5 @@
 import {
+  FORMAT_PROFILES,
   attackingGoalMouth,
   DEFAULT_BOARD,
   defendingGoalMouth,
@@ -6,7 +7,6 @@ import {
   goalMouthOwner,
   ROLE_PROFILES,
   SHOOT_COVERING_BONUS,
-  SHOT_RANGE,
   chebyshevDistance,
   type MatchState,
 } from "@gaffer/shared";
@@ -15,6 +15,12 @@ import { describe, expect, it } from "vitest";
 import { createInitialState, legalActions, previewDuel } from "../src/index.js";
 import { makeState, scriptedRng } from "./helpers.js";
 import { resolveAction } from "../src/resolve.js";
+
+/* These tests pin the rules, and a rule is best pinned on the smallest board
+   that can express it. The numbers are 5-a-side's; the rules they check are
+   the same at every format. */
+const FIVES = FORMAT_PROFILES["5v5"].rules;
+const SHOT_RANGE = FIVES.shotRange;
 
 const shotFrom = (state: MatchState, playerId: string) =>
   legalActions(state).find((action) => action.type === "shoot" && action.playerId === playerId);

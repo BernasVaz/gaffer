@@ -387,7 +387,7 @@ describe("legalActions", () => {
       // means the side kicking off must pass, shoot, or accept a duel.
       const state = createInitialState();
       const actions = legalActions(state);
-      const striker = state.players.find((p) => p.id === "home-striker")!;
+      const striker = state.players.find((p) => p.id === "home-striker-1")!;
 
       expect(cellsOf(actions, "move", striker.id).size).toBe(0);
       expect(cellsOf(actions, "dribble", striker.id).size).toBeGreaterThan(0);
@@ -400,8 +400,8 @@ describe("legalActions", () => {
       // was flagged as a thin opening.
       const passes = only(legalActions(createInitialState()), "pass");
       expect(passes.map((pass) => pass.target).sort()).toEqual([
-        "home-defender",
-        "home-midfielder",
+        "home-defender-1",
+        "home-midfielder-1",
       ]);
     });
 

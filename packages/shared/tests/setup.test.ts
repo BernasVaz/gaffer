@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_FORMAT,
   DEFAULT_SETUP,
   DIFFICULTIES,
+  FORMATS,
   KICKING_OFF,
-  MATCH_MODES,
   MatchSetupSchema,
   parseSetup,
+  PLAY_MODES,
   setupToQuery,
   type MatchSetup,
 } from "../src/index.js";
@@ -14,11 +16,12 @@ import {
 describe("the setup contract", () => {
   it("offers three difficulties and two modes", () => {
     expect(DIFFICULTIES).toEqual(["casual", "pro", "elite"]);
-    expect(MATCH_MODES).toEqual(["solo", "hotseat"]);
+    expect(PLAY_MODES).toEqual(["solo", "hotseat"]);
   });
 
-  it("defaults to a solo match, because that is what a link is for", () => {
-    expect(DEFAULT_SETUP.mode).toBe("solo");
+  it("defaults to a solo match at the one settled game type", () => {
+    expect(DEFAULT_SETUP.play).toBe("solo");
+    expect(DEFAULT_SETUP.mode).toBe(DEFAULT_FORMAT);
     expect(MatchSetupSchema.parse(DEFAULT_SETUP)).toEqual(DEFAULT_SETUP);
   });
 
@@ -35,9 +38,10 @@ describe("the setup contract", () => {
 
 describe("parseSetup", () => {
   it("reads a complete link", () => {
-    expect(parseSetup("?seed=42&mode=solo&side=away&level=elite")).toEqual({
+    expect(parseSetup("?seed=42&mode=5v5&play=solo&side=away&level=elite")).toEqual({
       seed: 42,
-      mode: "solo",
+      mode: "5v5",
+      play: "solo",
       side: "away",
       difficulty: "elite",
     });
@@ -50,12 +54,12 @@ describe("parseSetup", () => {
   it("falls back per field rather than giving up on the whole link", () => {
     // A link is typed, pasted, truncated and edited out of curiosity. The useful
     // answer to a mangled one is a playable match, not a blank page.
-    const setup = parseSetup("?seed=banana&mode=chess&side=middle&level=impossible");
+    const setup = parseSetup("?seed=banana&mode=chess&play=alone&side=middle&level=impossible");
     expect(setup).toEqual(DEFAULT_SETUP);
   });
 
   it("keeps the good fields of a partly broken link", () => {
-    expect(parseSetup("?seed=99&mode=nonsense")).toEqual({
+    expect(parseSetup("?seed=99&mode=nonsense&play=nonsense")).toEqual({
       ...DEFAULT_SETUP,
       seed: 99,
     });
@@ -84,16 +88,16 @@ describe("parseSetup", () => {
 
 describe("setupToQuery", () => {
   it("round-trips every setup it can produce", () => {
-    for (const mode of MATCH_MODES) {
+    for (const play of PLAY_MODES) {
       for (const side of ["home", "away"] as const) {
         for (const difficulty of DIFFICULTIES) {
-          const setup: MatchSetup = { mode, side, difficulty, seed: 1234 };
+          const setup: MatchSetup = { mode: "5v5", play, side, difficulty, seed: 1234 };
           const back = parseSetup(setupToQuery(setup));
 
           // Hotseat has no opponent, so it carries neither side nor difficulty
           // and those come back as defaults. Everything that matters survives.
-          if (mode === "solo") expect(back).toEqual(setup);
-          else expect(back).toEqual({ ...DEFAULT_SETUP, mode: "hotseat", seed: 1234 });
+          if (play === "solo") expect(back).toEqual(setup);
+          else expect(back).toEqual({ ...DEFAULT_SETUP, play: "hotseat", seed: 1234 });
         }
       }
     }
@@ -104,8 +108,59 @@ describe("setupToQuery", () => {
   });
 
   it("leaves the opponent out of a hotseat link", () => {
-    const query = setupToQuery({ ...DEFAULT_SETUP, mode: "hotseat" });
+    const query = setupToQuery({ ...DEFAULT_SETUP, play: "hotseat" });
     expect(query).not.toContain("level=");
     expect(query).not.toContain("side=");
+  });
+});
+
+describe("the game type in a link", () => {
+  it("is carried by every link", () => {
+    for (const mode of FORMATS) {
+      expect(setupToQuery({ ...DEFAULT_SETUP, mode })).toContain(`mode=${mode}`);
+      expect(parseSetup(setupToQuery({ ...DEFAULT_SETUP, mode })).mode).toBe(mode);
+    }
+  });
+
+  it("round-trips alongside everything else", () => {
+    const setup: MatchSetup = {
+      mode: "11v11",
+      play: "solo",
+      side: "away",
+      difficulty: "elite",
+      seed: 909,
+    };
+    expect(parseSetup(setupToQuery(setup))).toEqual(setup);
+  });
+
+  it("falls back to the settled game type when a link names nonsense", () => {
+    expect(parseSetup("?seed=1&mode=9v9").mode).toBe(DEFAULT_FORMAT);
+  });
+
+  it("still understands a link written before game types existed", () => {
+    /*
+     * `mode` used to mean solo-or-hotseat. Those links are out in the world, and
+     * silently reinterpreting one as "5-a-side, solo" would change what somebody
+     * sent — a hotseat link would arrive as a match against the machine.
+     */
+    expect(parseSetup("?seed=42&mode=hotseat")).toEqual({
+      ...DEFAULT_SETUP,
+      play: "hotseat",
+      seed: 42,
+    });
+    expect(parseSetup("?seed=42&mode=solo&side=away&level=casual")).toEqual({
+      mode: DEFAULT_FORMAT,
+      play: "solo",
+      side: "away",
+      difficulty: "casual",
+      seed: 42,
+    });
+  });
+
+  it("prefers the new spelling when a link somehow carries both", () => {
+    expect(parseSetup("?seed=1&mode=7v7&play=hotseat")).toMatchObject({
+      mode: "7v7",
+      play: "hotseat",
+    });
   });
 });

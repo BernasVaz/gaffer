@@ -1,13 +1,12 @@
 import {
-  ACTIONS_PER_TURN,
-  CENTRE_SPOT,
-  DEFAULT_BOARD,
-  HOME_FORMATION,
+  centreSpot,
+  DEFAULT_FORMAT,
+  FORMAT_PROFILES,
   mirrorPosition,
   playerIdFor,
   ROLE_PROFILES,
-  ROLES,
   TEAMS,
+  type MatchFormat,
   type MatchState,
   type Player,
   type Position,
@@ -18,25 +17,56 @@ import {
 /** Options for {@link createInitialState}. */
 export interface CreateInitialStateOptions {
   /**
+   * Which game type to play. Defaults to 5-a-side.
+   *
+   * The engine treats this as nothing more than a source of a board, a line-up
+   * and a set of numbers. No rule anywhere reads it — `legalActions` and the
+   * resolvers were already written against a board and a squad rather than
+   * against seven columns and five players, which is what makes a second and
+   * third format data rather than code.
+   */
+  format?: MatchFormat;
+  /**
    * Which side takes the kickoff, and therefore acts first and starts with the
    * ball. Defaults to `"home"`.
    */
   kickingOff?: Team;
 }
 
-/**
- * Where a role stands at kickoff for a given side.
- *
- * Home uses the formation as written; away uses its 180° rotation. The side
- * kicking off advances its striker onto the centre spot to stand over the ball.
- */
-function kickoffPosition(team: Team, role: Role, kickingOff: Team): Position {
-  if (role === "striker" && team === kickingOff) {
-    return { ...CENTRE_SPOT };
-  }
+/** A player from the line-up, before the kickoff spot is decided. */
+interface Placed {
+  /** Unique within the match. */
+  id: string;
+  /** Which side. */
+  team: Team;
+  /** The role, which fixes stats and move range. */
+  role: Role;
+  /** Where the line-up puts them. */
+  position: Position;
+}
 
-  const base = HOME_FORMATION[role];
-  return team === "home" ? { ...base } : mirrorPosition(base, DEFAULT_BOARD);
+/**
+ * Lay a side out from its format's line-up.
+ *
+ * Home uses the shape as written; away uses its 180° rotation, so a formation is
+ * authored once and is symmetric by construction. Ids number each role within
+ * its side, which is what lets a back four exist at all.
+ */
+function placeSide(team: Team, format: MatchFormat): Placed[] {
+  const { board, lineup } = FORMAT_PROFILES[format];
+  const seen = new Map<Role, number>();
+
+  return lineup.map((slot) => {
+    const index = (seen.get(slot.role) ?? 0) + 1;
+    seen.set(slot.role, index);
+
+    return {
+      id: playerIdFor(team, slot.role, index),
+      team,
+      role: slot.role,
+      position: team === "home" ? { ...slot.at } : mirrorPosition(slot.at, board),
+    };
+  });
 }
 
 /**
@@ -47,49 +77,69 @@ function kickoffPosition(team: Team, role: Role, kickingOff: Team): Position {
  * with the same options produces equal (but not shared) states, so a caller can
  * mutate what it receives without reaching into anyone else's match.
  *
- * The pitch is the v1 7 × 5 board (GDD §5). Larger boards for 7-a-side and
- * 11-a-side are a later mode, and will arrive as an option here rather than as
- * a change to the rules.
+ * The pitch, the squad and every number that scales with them come from the
+ * format (GDD §5, §12). The rules are copied onto the state rather than left to
+ * be looked up, so a saved match replays identically even if the format table is
+ * later retuned.
  *
  * @example
  * ```ts
  * const state = createInitialState();
  * state.players.length;                 // 10
- * state.ball.carrierId;                 // "home-striker"
- * state.score;                          // { home: 0, away: 0 }
+ * state.ball.carrierId;                 // "home-striker-1"
  *
- * createInitialState({ kickingOff: "away" }).activeTeam;  // "away"
+ * createInitialState({ format: "11v11" }).players.length;   // 22
+ * createInitialState({ kickingOff: "away" }).activeTeam;    // "away"
  * ```
  */
 export function createInitialState(options: CreateInitialStateOptions = {}): MatchState {
+  const format = options.format ?? DEFAULT_FORMAT;
   const kickingOff = options.kickingOff ?? "home";
+  const profile = FORMAT_PROFILES[format];
+  const spot = centreSpot(profile.board);
+
+  /*
+   * The side kicking off advances its first striker onto the centre spot to
+   * stand over the ball. "First" is line-up order, which is why that order is
+   * part of a format rather than an implementation detail.
+   */
+  const kickoffTakerId = (() => {
+    const striker = profile.lineup.findIndex((slot) => slot.role === "striker");
+    if (striker === -1) {
+      throw new Error(`Format "${format}" has no striker to take the kickoff`);
+    }
+    const before = profile.lineup
+      .slice(0, striker)
+      .filter((slot) => slot.role === "striker").length;
+    return playerIdFor(kickingOff, "striker", before + 1);
+  })();
 
   const players: Player[] = TEAMS.flatMap((team) =>
-    ROLES.map((role): Player => {
-      const profile = ROLE_PROFILES[role];
+    placeSide(team, format).map((placed): Player => {
+      const stats = ROLE_PROFILES[placed.role].stats;
       return {
-        id: playerIdFor(team, role),
-        team,
-        role,
-        position: kickoffPosition(team, role, kickingOff),
-        stats: { ...profile.stats },
-        moveRange: profile.moveRange,
+        id: placed.id,
+        team: placed.team,
+        role: placed.role,
+        position: placed.id === kickoffTakerId ? { ...spot } : placed.position,
+        stats: { ...stats },
+        moveRange: ROLE_PROFILES[placed.role].moveRange,
       };
     }),
   );
 
-  const kickoffTaker = players.find(
-    (player) => player.team === kickingOff && player.role === "striker",
-  );
+  const kickoffTaker = players.find((player) => player.id === kickoffTakerId);
 
-  /* Unreachable: the formation defines a striker for every side. The throw keeps
-     the invariant explicit rather than relying on a non-null assertion. */
+  /* Unreachable: the id was built from a slot the line-up definitely has. The
+     throw keeps the invariant explicit rather than relying on an assertion. */
   if (!kickoffTaker) {
     throw new Error(`Formation is missing a striker for the "${kickingOff}" side`);
   }
 
   return {
-    board: { ...DEFAULT_BOARD },
+    format,
+    rules: { ...profile.rules },
+    board: { ...profile.board },
     players,
     ball: {
       position: { ...kickoffTaker.position },
@@ -98,7 +148,7 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
     possession: kickingOff,
     turn: 1,
     activeTeam: kickingOff,
-    actionsRemaining: ACTIONS_PER_TURN,
+    actionsRemaining: profile.rules.actionsPerTurn,
     score: { home: 0, away: 0 },
     kickedOff: kickingOff,
     stats: {

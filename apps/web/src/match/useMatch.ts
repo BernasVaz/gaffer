@@ -3,6 +3,7 @@ import {
   parseSeed,
   type Duel,
   type MatchCommand,
+  type MatchFormat,
   type MatchState,
   type Team,
 } from "@gaffer/shared";
@@ -72,8 +73,8 @@ export interface MatchController {
  * Both sides are played from this one controller: hotseat, so whoever is to move
  * is whoever the person at the keyboard is currently commanding.
  */
-export function useMatch(seed: number): MatchController {
-  const initial = () => createInitialState();
+export function useMatch(seed: number, format: MatchFormat): MatchController {
+  const initial = () => createInitialState({ format });
 
   const [state, setState] = useState<MatchState>(initial);
   const [lastEvent, setLastEvent] = useState<MatchEvent | null>(null);
@@ -113,13 +114,13 @@ export function useMatch(seed: number): MatchController {
   }, []);
 
   const restart = useCallback(() => {
-    const fresh = createInitialState();
+    const fresh = createInitialState({ format });
     rngRef.current = createRng(parseSeed(seed));
     stateRef.current = fresh;
     setState(fresh);
     setLastEvent(null);
     setRejection(null);
-  }, [seed]);
+  }, [seed, format]);
 
   return { state, lastEvent, rejection, play, restart };
 }

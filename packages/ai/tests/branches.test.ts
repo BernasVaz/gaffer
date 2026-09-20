@@ -69,7 +69,7 @@ describe("outcomesOf", () => {
 
   it("reports nothing for a command the engine refuses", () => {
     const state = kickoff();
-    const notYours: Action = { type: "move", playerId: "away-winger", target: { x: 4, y: 0 } };
+    const notYours: Action = { type: "move", playerId: "away-winger-1", target: { x: 4, y: 0 } };
 
     expect(outcomesOf(state, notYours)).toEqual([]);
   });

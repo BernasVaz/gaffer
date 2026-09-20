@@ -1,4 +1,10 @@
-import { DEFAULT_SETUP, parseSetup } from "@gaffer/shared";
+import {
+  DEFAULT_FORMAT,
+  DEFAULT_SETUP,
+  FORMAT_PROFILES,
+  FORMATS,
+  parseSetup,
+} from "@gaffer/shared";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
@@ -47,17 +53,24 @@ describe("the setup screen", () => {
     await user.click(screen.getByRole("button", { name: /Elite/ }));
     await user.click(screen.getByRole("button", { name: /Kick off/ }));
 
-    expect(chosen).toEqual({ mode: "solo", side: "away", difficulty: "elite", seed: 1 });
+    expect(chosen).toEqual({
+      mode: "5v5",
+      play: "solo",
+      side: "away",
+      difficulty: "elite",
+      seed: 1,
+    });
   });
 
   it("starts from whatever the link said", () => {
     render(
       <SetupScreen
-        initial={{ mode: "solo", side: "away", difficulty: "casual", seed: 4242 }}
+        initial={{ mode: "7v7", play: "solo", side: "away", difficulty: "casual", seed: 4242 }}
         onStart={() => {}}
       />,
     );
 
+    expect(screen.getByRole("button", { name: /7v7/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /Away/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /Casual/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByLabelText("Match seed")).toHaveValue(4242);
@@ -104,7 +117,8 @@ describe("which screen you land on", () => {
     await user.click(screen.getByRole("button", { name: /Kick off/ }));
 
     expect(parseSetup(window.location.search)).toEqual({
-      mode: "solo",
+      mode: "5v5",
+      play: "solo",
       side: "away",
       difficulty: "pro",
       seed: 1,
@@ -126,5 +140,101 @@ describe("which screen you land on", () => {
 
     // A link is typed, pasted and truncated. It should still be a match.
     expect(screen.getByRole("grid")).toBeInTheDocument();
+  });
+});
+
+describe("choosing a game type", () => {
+  it("offers all three", () => {
+    render(<SetupScreen initial={DEFAULT_SETUP} onStart={() => {}} />);
+    for (const format of FORMATS) {
+      expect(screen.getByRole("button", { name: new RegExp(format) })).toBeInTheDocument();
+    }
+  });
+
+  it("starts on the one whose balance is settled", () => {
+    render(<SetupScreen initial={DEFAULT_SETUP} onStart={() => {}} />);
+    expect(screen.getByRole("button", { name: new RegExp(DEFAULT_FORMAT) })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("flags the provisional ones, and only those", () => {
+    // A tester should never have to guess which numbers are still moving.
+    render(<SetupScreen initial={DEFAULT_SETUP} onStart={() => {}} />);
+
+    for (const format of FORMATS) {
+      const tile = screen.getByRole("button", { name: new RegExp(format) });
+      const alpha = FORMAT_PROFILES[format].status === "alpha";
+      expect(/alpha/i.test(tile.textContent ?? ""), format).toBe(alpha);
+    }
+  });
+
+  it("says what a game type actually is, rather than only naming it", () => {
+    render(<SetupScreen initial={{ ...DEFAULT_SETUP, mode: "11v11" }} onStart={() => {}} />);
+    const profile = FORMAT_PROFILES["11v11"];
+
+    expect(
+      screen.getByText(new RegExp(`${profile.board.width}.${profile.board.height} pitch`)),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/provisional/)).toBeInTheDocument();
+  });
+
+  it("hands the chosen game type back", async () => {
+    const user = userEvent.setup();
+    let chosen: unknown = null;
+    render(<SetupScreen initial={DEFAULT_SETUP} onStart={(setup) => (chosen = setup)} />);
+
+    await user.click(screen.getByRole("button", { name: /11v11/ }));
+    await user.click(screen.getByRole("button", { name: /Kick off/ }));
+
+    expect(chosen).toMatchObject({ mode: "11v11" });
+  });
+
+  it("carries it into the link, so a shared match is the same game", async () => {
+    const user = userEvent.setup();
+    visit("/");
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /7v7/ }));
+    await user.click(screen.getByRole("button", { name: /Kick off/ }));
+
+    expect(parseSetup(window.location.search).mode).toBe("7v7");
+  });
+});
+
+describe("a match at another game type", () => {
+  it("draws the bigger pitch the link asked for", () => {
+    visit("?seed=3&mode=11v11&play=hotseat");
+    render(<App />);
+
+    const profile = FORMAT_PROFILES["11v11"];
+    expect(screen.getAllByRole("gridcell")).toHaveLength(
+      profile.board.width * profile.board.height,
+    );
+  });
+
+  it("fields both full squads", () => {
+    visit("?seed=3&mode=7v7&play=hotseat");
+    render(<App />);
+
+    const named = screen
+      .getAllByRole("gridcell")
+      .map((cell) => cell.getAttribute("aria-label") ?? "")
+      .filter((label) => /home |away /.test(label));
+
+    expect(named).toHaveLength(14);
+  });
+
+  it("marks a provisional game type in the match itself, not just on the way in", () => {
+    visit("?seed=3&mode=11v11&play=hotseat");
+    render(<App />);
+    expect(screen.getAllByText(/^Alpha$/).length).toBeGreaterThan(0);
+  });
+
+  it("leaves the settled game type unmarked", () => {
+    visit("?seed=3&mode=5v5&play=hotseat");
+    render(<App />);
+    expect(screen.queryByText(/^Alpha$/)).not.toBeInTheDocument();
   });
 });

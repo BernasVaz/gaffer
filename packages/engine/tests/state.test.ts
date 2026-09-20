@@ -1,5 +1,5 @@
 import {
-  ACTIONS_PER_TURN,
+  FORMAT_PROFILES,
   CENTRE_SPOT,
   DEFAULT_BOARD,
   HALFWAY_COLUMN,
@@ -15,6 +15,12 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { createInitialState } from "../src/index.js";
+
+/* These tests pin the rules, and a rule is best pinned on the smallest board
+   that can express it. The numbers are 5-a-side's; the rules they check are
+   the same at every format. */
+const FIVES = FORMAT_PROFILES["5v5"].rules;
+const ACTIONS_PER_TURN = FIVES.actionsPerTurn;
 
 /** Every player on `team`. */
 const of = (s: MatchState, team: Team) => s.players.filter((p) => p.team === team);

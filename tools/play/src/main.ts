@@ -10,6 +10,7 @@
  * pnpm play                                    # one match, seed 1, narrated
  * pnpm play -- --seed 42                       # a different match
  * pnpm play -- --matches 200                   # balance run: 200 matches, aggregate only
+ * pnpm play -- --format 11v11 --matches 50     # the same, at another game type
  * pnpm play -- --matches 200 --home casual     # a mismatch, to check the levels are real
  * pnpm play -- --seed 42 --keeper-def 5        # the same match with stronger keepers
  * pnpm play -- --seed 42 --quiet               # result only
@@ -30,13 +31,16 @@ import process from "node:process";
 import { chooseCommand } from "@gaffer/ai";
 import { applyAction, createInitialState, createRng } from "@gaffer/engine";
 import {
+  DEFAULT_FORMAT,
   DIFFICULTIES,
+  FORMATS,
   parseSeed,
   ROLE_PROFILES,
-  TOTAL_TURNS,
+  totalTurns,
   type DecisionMethod,
   type Difficulty,
   type Duel,
+  type MatchFormat,
   type MatchCommand,
   type MatchState,
   type Player,
@@ -65,9 +69,19 @@ function difficultyArg(name: string, fallback: Difficulty): Difficulty {
   return DIFFICULTIES.includes(raw as Difficulty) ? (raw as Difficulty) : fallback;
 }
 
+function formatArg(): MatchFormat {
+  const raw = rawArg("format");
+  return FORMATS.includes(raw as MatchFormat) ? (raw as MatchFormat) : DEFAULT_FORMAT;
+}
+
+const FORMAT = formatArg();
 const SEED = numberArg("seed", 1);
 const MATCHES = Math.max(1, Math.trunc(numberArg("matches", 1)));
 const KEEPER_DEF = numberArg("keeper-def", ROLE_PROFILES.goalkeeper.stats.def);
+const ACTIONS = numberArg("actions", 0);
+const SHOT_RANGE = numberArg("shot-range", 0);
+const TURN_CAP = numberArg("turn-cap", 0);
+const EXTRA_TIME = numberArg("extra-time", 0);
 const QUIET = process.argv.includes("--quiet") || MATCHES > 1;
 const KICKOFF: Team = rawArg("kickoff") === "away" ? "away" : "home";
 const LEVELS: Record<Team, Difficulty> = {
@@ -148,6 +162,24 @@ function describeCommand(command: MatchCommand): string {
 
 // ----------------------------------------------------------------- the match
 
+/**
+ * Apply the rule overrides, which touch this run's state and nothing else.
+ *
+ * The numbers live on the match state, so a balance question can be asked by
+ * handing the engine a different state rather than by editing the format table
+ * and rebuilding. That matters more than the convenience: a sweep that edits
+ * source has to remember to put it back, and one that forgets quietly measures
+ * the wrong thing for the rest of the session.
+ */
+function withRules(state: MatchState): MatchState {
+  const rules = { ...state.rules };
+  if (ACTIONS > 0) rules.actionsPerTurn = ACTIONS;
+  if (SHOT_RANGE > 0) rules.shotRange = SHOT_RANGE;
+  if (TURN_CAP > 0) rules.turnCap = TURN_CAP;
+  if (EXTRA_TIME > 0) rules.extraTimeTurns = EXTRA_TIME;
+  return { ...state, rules, actionsRemaining: rules.actionsPerTurn };
+}
+
 /** Apply the keeper-DEF override, which touches this run's state and nothing else. */
 function withKeeperDef(state: MatchState, def: number): MatchState {
   if (def === ROLE_PROFILES.goalkeeper.stats.def) return state;
@@ -176,7 +208,9 @@ interface MatchReport {
 /** Play one match to its result, narrating unless asked not to. */
 function playMatch(seed: number): MatchReport {
   const rng = createRng(parseSeed(seed));
-  let state = withKeeperDef(createInitialState({ kickingOff: KICKOFF }), KEEPER_DEF);
+  let state = withRules(
+    withKeeperDef(createInitialState({ format: FORMAT, kickingOff: KICKOFF }), KEEPER_DEF),
+  );
 
   const say = (line = "") => {
     if (!QUIET) console.log(line);
@@ -192,9 +226,9 @@ function playMatch(seed: number): MatchReport {
     if (state.turn !== shownTurn) {
       shownTurn = state.turn;
       say(
-        `── turn ${String(state.turn).padStart(2)}/${TOTAL_TURNS}  ${state.activeTeam.padEnd(4)}` +
+        `── turn ${String(state.turn).padStart(2)}/${totalTurns(state.rules)}  ${state.activeTeam.padEnd(4)}` +
           `  score ${state.score.home}-${state.score.away}` +
-          (state.turn > 20 ? "   [extra time]" : ""),
+          (state.turn > state.rules.turnCap ? "   [extra time]" : ""),
       );
       say(board(state));
     }
@@ -296,7 +330,8 @@ function reportMany(reports: MatchReport[]): void {
   console.log(`goalless matches     ${pct(goalless, matches)}`);
   console.log(`duels per match      ${(duels / matches).toFixed(2)}`);
   console.log(`actions per match    ${(commands / matches).toFixed(1)}`);
-  console.log(`turns per match      ${(turns / matches).toFixed(1)} of ${TOTAL_TURNS}`);
+  const end = totalTurns(reports[0]!.state.rules);
+  console.log(`turns per match      ${(turns / matches).toFixed(1)} of ${end}`);
   console.log(`home win rate        ${pct(homeWins, matches)}`);
 
   console.log(`\ngoals in a match`);
@@ -318,7 +353,7 @@ function main(): void {
   if (MATCHES === 1) {
     console.log(`\nGaffer — match playthrough`);
     console.log(
-      `seed ${SEED} · ${LEVELS.home} v ${LEVELS.away} · keeper DEF ${KEEPER_DEF}` +
+      `seed ${SEED} · ${FORMAT} · ${LEVELS.home} v ${LEVELS.away} · keeper DEF ${KEEPER_DEF}` +
         `${KEEPER_DEF === ROLE_PROFILES.goalkeeper.stats.def ? "" : "  (overridden for this run)"}\n`,
     );
     reportOne(playMatch(SEED));
@@ -327,7 +362,7 @@ function main(): void {
 
   console.log(`\nGaffer — balance run`);
   console.log(
-    `seeds ${SEED}..${SEED + MATCHES - 1} · keeper DEF ${KEEPER_DEF}` +
+    `seeds ${SEED}..${SEED + MATCHES - 1} · ${FORMAT} · keeper DEF ${KEEPER_DEF}` +
       `${KEEPER_DEF === ROLE_PROFILES.goalkeeper.stats.def ? "" : "  (overridden for this run)"}`,
   );
 

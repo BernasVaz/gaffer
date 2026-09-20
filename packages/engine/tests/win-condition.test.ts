@@ -1,11 +1,10 @@
 import {
-  EXTRA_TIME_TURNS,
+  FORMAT_PROFILES,
+  totalTurns,
   MatchStateSchema,
   parseSeed,
   SHOOTOUT_KICKS,
   SHOOTOUT_SUDDEN_DEATH_ROUNDS,
-  TOTAL_TURNS,
-  TURN_CAP,
   type MatchState,
   type Team,
 } from "@gaffer/shared";
@@ -13,6 +12,14 @@ import { describe, expect, it } from "vitest";
 
 import { applyAction, createInitialState, createRng } from "../src/index.js";
 import { makeState, scriptedRng } from "./helpers.js";
+
+/* These tests pin the rules, and a rule is best pinned on the smallest board
+   that can express it. The numbers are 5-a-side's; the rules they check are
+   the same at every format. */
+const FIVES = FORMAT_PROFILES["5v5"].rules;
+const TURN_CAP = FIVES.turnCap;
+const EXTRA_TIME_TURNS = FIVES.extraTimeTurns;
+const TOTAL_TURNS = totalTurns(FIVES);
 
 /**
  * Hand the turn back and forth `count` times without doing anything else.
@@ -308,7 +315,7 @@ describe("match statistics", () => {
     const state = createInitialState();
     const moved = applyAction(
       state,
-      { type: "move", playerId: "home-winger", target: { x: 2, y: 1 } },
+      { type: "move", playerId: "home-winger-1", target: { x: 2, y: 1 } },
       scriptedRng([]),
     );
     expect(moved.ok && moved.state.stats).toEqual(state.stats);
@@ -324,7 +331,7 @@ describe("a finished match", () => {
 
     const result = applyAction(
       state,
-      { type: "move", playerId: "home-winger", target: { x: 2, y: 1 } },
+      { type: "move", playerId: "home-winger-1", target: { x: 2, y: 1 } },
       scriptedRng([]),
     );
     expect(result.ok).toBe(false);

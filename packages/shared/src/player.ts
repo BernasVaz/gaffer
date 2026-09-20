@@ -38,12 +38,18 @@ export const PlayerSchema = z.object({
 export type Player = z.infer<typeof PlayerSchema>;
 
 /**
- * The id given to the one player filling `role` for `team`.
+ * The id given to the `index`-th player filling `role` for `team`.
  *
- * v1 fields exactly one of each role per side, so team plus role is already
- * unique and makes a readable id — `home-striker` beats an opaque counter when
- * you are reading a failing test or a replay log.
+ * Readable on purpose — `home-defender-3` beats an opaque counter when you are
+ * reading a failing test or a replay log. The index is 1-based and counts only
+ * within the side and the role, so an 11-a-side back four is `home-defender-1`
+ * through `home-defender-4` and there is exactly one `home-goalkeeper-1`.
+ *
+ * It is present even when a role appears once. 5-a-side fields one of each and
+ * could have managed without it, but an id whose shape depends on the format is
+ * an id nothing can parse — and a match state is meant to be readable without
+ * knowing which game type produced it.
  */
-export function playerIdFor(team: Team, role: Role): PlayerId {
-  return `${team}-${role}`;
+export function playerIdFor(team: Team, role: Role, index = 1): PlayerId {
+  return `${team}-${role}-${index}`;
 }

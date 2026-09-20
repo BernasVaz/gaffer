@@ -14,7 +14,7 @@ import { GoalNet, PitchMarkings } from "../art/PitchMarkings";
 import { GOAL, POP_SPRING, TURN_FLOURISH } from "../feel";
 import { GoalBurst } from "./GoalBurst";
 import { Pieces } from "./Pieces";
-import { SQUADS } from "./squads";
+import { kitFor } from "./squads";
 import { cellKey, isCommandable, type Seat, type Target, type Targets } from "./targets";
 
 /** Spoken form of a role, for accessible names. */
@@ -30,8 +30,8 @@ const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean
 const pct = (chance: number) => `${Math.round(chance * 100)}%`;
 
 /** How a player is described in a sentence: "number 9 Pike". */
-const describe = (player: Player) => {
-  const kit = SQUADS[player.team][player.role];
+const describe = (player: Player, state: MatchState) => {
+  const kit = kitFor(player, state);
   return `number ${kit.number} ${kit.name}`;
 };
 
@@ -47,8 +47,8 @@ function Badge({ chance, tone }: { chance: number; tone: "attack" | "defend" }) 
   return (
     <span
       className={cx(
-        "pointer-events-none absolute -top-px -right-px rounded-sm px-[3px]",
-        "text-[min(1.75vw,0.58rem)] leading-[1.4] font-semibold tabular-nums",
+        "odds-badge pointer-events-none absolute -top-px -right-px rounded-sm px-[3px]",
+        "leading-[1.4] font-semibold tabular-nums",
         tone === "attack" ? "bg-amber-200/90 text-amber-950" : "bg-rose-200/90 text-rose-950",
       )}
     >
@@ -263,7 +263,14 @@ export function Pitch({
 
   return (
     <m.div
-      className="relative rounded-2xl bg-gradient-to-b from-(--color-edge) to-(--color-night) p-[3px] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75)]"
+      /*
+       * A container, so everything drawn on the board can be sized in terms of a
+       * cell rather than in terms of the viewport. A shirt number that is 3% of
+       * the screen is fine on a 7-wide pitch and unreadable on a 13-wide one;
+       * one that is a third of a cell is right on both, at any window size.
+       */
+      className="pitch-board relative rounded-2xl bg-gradient-to-b from-(--color-edge) to-(--color-night) p-[3px] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75)]"
+      style={{ ["--cols" as string]: width, ["--rows" as string]: height }}
       animate={shake}
     >
       <div
@@ -307,7 +314,7 @@ export function Pitch({
                     ? {
                         kind: "commit",
                         target: playerTarget,
-                        label: `${playerTarget.action.type === "tackle" ? "Tackle" : "Pass to"} ${describe(player)}${
+                        label: `${playerTarget.action.type === "tackle" ? "Tackle" : "Pass to"} ${describe(player, state)}${
                           playerTarget.duel ? `, ${pct(playerTarget.duel.winChance)} chance` : ""
                         }`,
                       }
@@ -322,15 +329,15 @@ export function Pitch({
                             kind: "select",
                             playerId: player.id,
                             label: isSelected
-                              ? `Deselect ${describe(player)}`
-                              : `Select ${player.team} ${ROLE_NAME[player.role]}, ${describe(player)}`,
+                              ? `Deselect ${describe(player, state)}`
+                              : `Select ${player.team} ${ROLE_NAME[player.role]}, ${describe(player, state)}`,
                           }
                         : { kind: "clear" };
 
               const actionable = intent.kind !== "clear";
 
               const cellName = player
-                ? `Column ${x}, row ${y}: ${player.team} ${ROLE_NAME[player.role]}, ${describe(player)}${
+                ? `Column ${x}, row ${y}: ${player.team} ${ROLE_NAME[player.role]}, ${describe(player, state)}${
                     hasBall ? ", with the ball" : ""
                   }`
                 : `Column ${x}, row ${y}: empty`;
@@ -441,7 +448,7 @@ export function Pitch({
                     {isMouth && y === mouthCentre && targets.shot?.duel && (
                       <span
                         aria-hidden
-                        className="pointer-events-none absolute rounded-md bg-(--color-gold) px-[4px] text-[min(2.1vw,0.7rem)] leading-tight font-extrabold text-amber-950 tabular-nums shadow"
+                        className="odds-badge pointer-events-none absolute rounded-md bg-(--color-gold) px-[4px] leading-tight font-extrabold text-amber-950 tabular-nums shadow"
                       >
                         {pct(targets.shot.duel.winChance)}
                       </span>

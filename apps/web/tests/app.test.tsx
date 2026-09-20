@@ -1,11 +1,10 @@
 import { createInitialState, legalActions, previewDuel } from "@gaffer/engine";
-import { DEFAULT_BOARD, DEFAULT_SETUP, ROLES, TOTAL_TURNS } from "@gaffer/shared";
+import { DEFAULT_BOARD, DEFAULT_SETUP, FORMAT_PROFILES, ROLES, totalTurns } from "@gaffer/shared";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { Match } from "../src/match/Match";
-import { SQUADS } from "../src/board/squads";
 
 /**
  * A hotseat match, rendered directly.
@@ -15,7 +14,7 @@ import { SQUADS } from "../src/board/squads";
  * standing up a URL and clicking through a setup screen before every assertion.
  */
 const hotseat = () => (
-  <Match setup={{ ...DEFAULT_SETUP, mode: "hotseat", seed: 1 }} onLeave={() => {}} />
+  <Match setup={{ ...DEFAULT_SETUP, play: "hotseat", seed: 1 }} onLeave={() => {}} />
 );
 
 /** The accessible name of every cell, in row-major order. */
@@ -110,7 +109,7 @@ describe("the odds on the board", () => {
     // the board agrees — rather than guessing, which got this wrong once: the
     // kickoff pass back to the defender IS covered, by the opposing striker.
     const state = createInitialState();
-    const mine = legalActions(state).filter((a) => a.playerId === "home-striker");
+    const mine = legalActions(state).filter((a) => a.playerId === "home-striker-1");
     const contested = mine.filter((a) => previewDuel(state, a) !== null).length;
     const free = mine.length - contested;
 
@@ -213,17 +212,21 @@ describe("hotseat", () => {
     await user.click(screen.getByRole("button", { name: "End turn" }));
 
     expect(screen.getByText(/away to play/)).toBeInTheDocument();
-    expect(screen.getByText(`Turn 2 of ${TOTAL_TURNS}`)).toBeInTheDocument();
+    expect(
+      screen.getByText(`Turn 2 of ${totalTurns(FORMAT_PROFILES["5v5"].rules)}`),
+    ).toBeInTheDocument();
   });
 });
 
 describe("the team sheet", () => {
-  it("pairs the home and away names for each role", () => {
+  it("lists every role the game type actually fields", () => {
     render(hotseat());
+    const sheet = screen.getByLabelText("Team sheet");
+
+    // 5-a-side fields one of each, so all five appear and none is doubled up.
     for (const role of ROLES) {
-      expect(
-        screen.getByText(`${SQUADS.home[role].name} / ${SQUADS.away[role].name}`),
-      ).toBeInTheDocument();
+      expect(within(sheet).getByText(role)).toBeInTheDocument();
     }
+    expect(within(sheet).queryByText(/×\d/)).not.toBeInTheDocument();
   });
 });

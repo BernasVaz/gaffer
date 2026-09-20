@@ -31,7 +31,10 @@ honours them.
   only from explicit inputs. This is what makes replays and cheat-proof multiplayer
   possible.
 - `packages/shared` — Zod schemas, shared types and constants. Imported by everything;
-  imports nothing from `engine` or `apps/`.
+  imports nothing from `engine` or `apps/`. Also holds `FORMAT_PROFILES`: the game types
+  (5v5, 7v7, 11v11) as data — a board, a line-up, and the numbers that scale with them.
+  **No rule reads a format**; `createInitialState({ format })` is the only thing that
+  does, and the scale-sensitive numbers travel on `state.rules` (ADR 0012).
 - `packages/ai` — the solo opponent. A **consumer** of the engine, not part of it: it may
   read `legalActions`/`previewDuel` and advance boards through `applyAction`, and may not
   contain a rule of its own. It explores outcomes with a rigged scratch `Rng` so it never
@@ -160,4 +163,7 @@ Use **pnpm** — never `npm` or `yarn`. Node comes from fnm; the version is pinn
   The client has a setup screen and plays both hotseat and solo, with the whole
   setup carried in the URL so a link _is_ a match. `pnpm dev` serves the client;
   `pnpm play` watches one match; `pnpm play -- --matches 150` is the balance run.
-  M3 is complete. Next is M4: a Colyseus server running the same engine as referee.
+  M3 is complete, and a multi-format alpha ships on top of it: three game types, chosen
+  before kickoff and carried in the link, with 7v7 and 11v11 marked alpha (ADR 0013).
+  `pnpm play -- --format 11v11 --matches 50` is the balance run for one.
+  Next is M4: a Colyseus server running the same engine as referee.

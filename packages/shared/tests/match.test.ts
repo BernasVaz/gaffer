@@ -1,20 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  ACTIONS_PER_TURN,
   DEFAULT_BOARD,
+  FORMAT_PROFILES,
   MatchStateSchema,
   type MatchState,
   ROLE_PROFILES,
 } from "../src/index.js";
 
+const FIVES = FORMAT_PROFILES["5v5"].rules;
+
 /** A minimal but valid two-player state, used as a base for the rejection cases. */
 function baseState(): MatchState {
   return {
+    format: "5v5",
+    rules: FIVES,
     board: DEFAULT_BOARD,
     players: [
       {
-        id: "home-striker",
+        id: "home-striker-1",
         team: "home",
         role: "striker",
         position: { x: 3, y: 2 },
@@ -22,7 +26,7 @@ function baseState(): MatchState {
         moveRange: ROLE_PROFILES.striker.moveRange,
       },
       {
-        id: "away-goalkeeper",
+        id: "away-goalkeeper-1",
         team: "away",
         role: "goalkeeper",
         position: { x: 6, y: 2 },
@@ -30,11 +34,11 @@ function baseState(): MatchState {
         moveRange: ROLE_PROFILES.goalkeeper.moveRange,
       },
     ],
-    ball: { position: { x: 3, y: 2 }, carrierId: "home-striker" },
+    ball: { position: { x: 3, y: 2 }, carrierId: "home-striker-1" },
     possession: "home",
     turn: 1,
     activeTeam: "home",
-    actionsRemaining: ACTIONS_PER_TURN,
+    actionsRemaining: FIVES.actionsPerTurn,
     score: { home: 0, away: 0 },
     kickedOff: "home",
     stats: {
@@ -44,12 +48,6 @@ function baseState(): MatchState {
     result: null,
   };
 }
-
-describe("ACTIONS_PER_TURN", () => {
-  it("is 2, per GDD §13", () => {
-    expect(ACTIONS_PER_TURN).toBe(2);
-  });
-});
 
 describe("MatchStateSchema", () => {
   it("accepts a well-formed state", () => {
@@ -107,7 +105,7 @@ describe("MatchStateSchema", () => {
 
   it("rejects more actions remaining than a turn allows", () => {
     const s = baseState();
-    s.actionsRemaining = ACTIONS_PER_TURN + 1;
+    s.actionsRemaining = FIVES.actionsPerTurn + 1;
     expect(MatchStateSchema.safeParse(s).success).toBe(false);
   });
 

@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { Football } from "../art/Football";
 import { Footballer, type Gaze } from "../art/Footballer";
 import { BALL_ARC, BALL_SPRING, IDLE, INSTANT, PIECE_SPRING, SQUASH } from "../feel";
-import { SQUADS } from "./squads";
+import { kitFor } from "./squads";
 
 const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(" ");
 
@@ -101,7 +101,7 @@ function Shirt({
   ready: boolean;
   dimmed: boolean;
 }) {
-  const kit = SQUADS[player.team][player.role];
+  const kit = kitFor(player, state);
 
   return (
     <>
@@ -119,7 +119,8 @@ function Shirt({
           hasBall={state.ball.carrierId === player.id}
         />
       </span>
-      <span className="-mt-[10%] max-w-full truncate rounded-full bg-black/50 px-[9%] text-[min(1.75vw,0.6rem)] leading-[1.7] font-semibold text-white/90">
+      {/* Dropped once a cell is too small to read it — see `.piece-name`. */}
+      <span className="piece-name -mt-[10%] max-w-full truncate rounded-full bg-black/50 px-[9%] leading-[1.7] font-semibold text-white/90">
         {kit.name}
       </span>
     </>
@@ -152,7 +153,14 @@ function Piece({
       initial={false}
       animate={atCell(player.position)}
       transition={still ? INSTANT : PIECE_SPRING}
-      className="absolute top-0 left-0"
+      /*
+       * Each piece is its own container, and it is exactly one cell wide. That
+       * is what lets everything drawn on it size itself against a cell without
+       * knowing how many cells the pitch has — a name is 19% of a cell at every
+       * format and every window size, and disappears when a cell gets too small
+       * to read one.
+       */
+      className="piece absolute top-0 left-0"
     >
       {/* Idle breath. Its own layer so it never fights the travel transform. */}
       <div

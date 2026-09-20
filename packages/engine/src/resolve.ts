@@ -75,7 +75,7 @@ function giveBallTo(state: MatchState, playerId: string): MatchState {
  */
 function afterGoal(state: MatchState, scoringTeam: Team): MatchState {
   const conceding = opponentOf(scoringTeam);
-  const kickoff = createInitialState({ kickingOff: conceding });
+  const kickoff = createInitialState({ format: state.format, kickingOff: conceding });
 
   return {
     ...kickoff,
@@ -87,6 +87,9 @@ function afterGoal(state: MatchState, scoringTeam: Team): MatchState {
     activeTeam: state.activeTeam,
     actionsRemaining: state.actionsRemaining,
     // createInitialState builds a brand-new match; these belong to this one.
+    // `rules` included: the format table is content and may be retuned, but a
+    // match in progress keeps the numbers it kicked off under.
+    rules: state.rules,
     kickedOff: state.kickedOff,
     stats: state.stats,
     result: state.result,

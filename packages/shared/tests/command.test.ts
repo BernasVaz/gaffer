@@ -1,41 +1,38 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  ACTIONS_PER_TURN,
   EndTurnCommandSchema,
+  FORMAT_PROFILES,
+  FORMATS,
   isRegulationOver,
   MatchCommandSchema,
   REJECTION_REASONS,
   RejectionReasonSchema,
-  TURN_CAP,
   turnsRemaining,
+  type MatchFormat,
 } from "../src/index.js";
 
-describe("TURN_CAP", () => {
-  it("is 24 turns — 12 a side, per GDD §10", () => {
-    expect(TURN_CAP).toBe(24);
-    expect(TURN_CAP % 2).toBe(0); // must split evenly, or one side gets more
-  });
-});
+/* Run the clock against every format's numbers, not just 5-a-side's. The cap is
+   per-match now, and a helper that only works at one scale is worse than none. */
+describe.each([...FORMATS])("the clock at %s", (format: MatchFormat) => {
+  const { rules } = FORMAT_PROFILES[format];
+  const cap = rules.turnCap;
 
-describe("turnsRemaining", () => {
   it("counts the turn in progress", () => {
-    expect(turnsRemaining(1)).toBe(TURN_CAP);
-    expect(turnsRemaining(2)).toBe(TURN_CAP - 1);
-    expect(turnsRemaining(TURN_CAP)).toBe(1);
+    expect(turnsRemaining(1, rules)).toBe(cap);
+    expect(turnsRemaining(2, rules)).toBe(cap - 1);
+    expect(turnsRemaining(cap, rules)).toBe(1);
   });
 
   it("never goes negative once regulation is over", () => {
-    expect(turnsRemaining(TURN_CAP + 1)).toBe(0);
-    expect(turnsRemaining(TURN_CAP + 50)).toBe(0);
+    expect(turnsRemaining(cap + 1, rules)).toBe(0);
+    expect(turnsRemaining(cap + 50, rules)).toBe(0);
   });
-});
 
-describe("isRegulationOver", () => {
-  it("is false while turns remain and true once they do not", () => {
-    expect(isRegulationOver(1)).toBe(false);
-    expect(isRegulationOver(TURN_CAP)).toBe(false); // the last turn is still live
-    expect(isRegulationOver(TURN_CAP + 1)).toBe(true);
+  it("calls regulation over only once the last turn has been played", () => {
+    expect(isRegulationOver(1, rules)).toBe(false);
+    expect(isRegulationOver(cap, rules)).toBe(false); // the last turn is still live
+    expect(isRegulationOver(cap + 1, rules)).toBe(true);
   });
 });
 
@@ -52,11 +49,11 @@ describe("EndTurnCommandSchema", () => {
 describe("MatchCommandSchema", () => {
   it("accepts all five gameplay verbs", () => {
     const commands = [
-      { type: "move", playerId: "home-winger", target: { x: 2, y: 3 } },
-      { type: "dribble", playerId: "home-striker", target: { x: 4, y: 2 } },
-      { type: "pass", playerId: "home-striker", target: "home-winger" },
-      { type: "tackle", playerId: "away-defender", target: "home-striker" },
-      { type: "shoot", playerId: "home-striker", target: null },
+      { type: "move", playerId: "home-winger-1", target: { x: 2, y: 3 } },
+      { type: "dribble", playerId: "home-striker-1", target: { x: 4, y: 2 } },
+      { type: "pass", playerId: "home-striker-1", target: "home-winger-1" },
+      { type: "tackle", playerId: "away-defender-1", target: "home-striker-1" },
+      { type: "shoot", playerId: "home-striker-1", target: null },
     ];
     for (const command of commands) {
       expect(MatchCommandSchema.safeParse(command).success).toBe(true);
@@ -73,7 +70,8 @@ describe("MatchCommandSchema", () => {
 
   it("still rejects a verb with the wrong kind of target", () => {
     expect(
-      MatchCommandSchema.safeParse({ type: "move", playerId: "x", target: "home-winger" }).success,
+      MatchCommandSchema.safeParse({ type: "move", playerId: "x", target: "home-winger-1" })
+        .success,
     ).toBe(false);
   });
 });
@@ -95,8 +93,14 @@ describe("RejectionReasonSchema", () => {
   });
 });
 
-describe("ACTIONS_PER_TURN", () => {
-  it("is still 2 — the turn economy does not change it", () => {
-    expect(ACTIONS_PER_TURN).toBe(2);
+describe("actions per turn", () => {
+  it("is 2 at 5-a-side — the turn economy of GDD §13", () => {
+    expect(FORMAT_PROFILES["5v5"].rules.actionsPerTurn).toBe(2);
+  });
+
+  it("never drops below one, whatever the format", () => {
+    for (const format of FORMATS) {
+      expect(FORMAT_PROFILES[format].rules.actionsPerTurn).toBeGreaterThanOrEqual(1);
+    }
   });
 });

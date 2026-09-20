@@ -1,30 +1,20 @@
 import { z } from "zod";
 
+import type { MatchRules } from "./format.js";
 import { TeamSchema } from "./team.js";
-
-/**
- * Turns a match runs for before the score decides it (GDD §10, §13).
- *
- * Counted across both sides — 24 turns is 12 each — which is why it must stay
- * even, or one side would get an extra go. Tuned so a match lands in the 3–5
- * minute target of GDD §11.
- *
- * Raised from 20 in v1.6. An attack needs three or four actions to work the ball
- * into range and finish, and possession changes hands roughly every two and a
- * half, so at 20 turns a good share of matches simply ran out of pitch before
- * anyone completed one. The extra four turns are worth about 15% more goals and
- * cut goalless matches from 12% to 7% without touching a single duel.
- */
-export const TURN_CAP = 24;
 
 /**
  * Turns left in regulation, counting the one in progress.
  *
  * Zero once the cap has passed. Whether that ends the match is the win
  * condition's business, not this function's.
+ *
+ * The cap comes from the match's own rules rather than from a constant, because
+ * it scales with the pitch: an attack on an 11-a-side board needs more actions
+ * to arrive, so a cap that suited 5-a-side would end bigger matches mid-attack.
  */
-export function turnsRemaining(turn: number): number {
-  return Math.max(0, TURN_CAP - turn + 1);
+export function turnsRemaining(turn: number, rules: MatchRules): number {
+  return Math.max(0, rules.turnCap - turn + 1);
 }
 
 /**
@@ -33,27 +23,9 @@ export function turnsRemaining(turn: number): number {
  * Reports only. It does not stop play — GDD §10 sends a level match to golden
  * goal rather than ending it, and deciding that is the win condition's job.
  */
-export function isRegulationOver(turn: number): boolean {
-  return turn > TURN_CAP;
+export function isRegulationOver(turn: number, rules: MatchRules): boolean {
+  return turn > rules.turnCap;
 }
-
-/**
- * Sudden-death turns played when regulation ends level (GDD §10).
- *
- * Raised from 4 to 8 in v1.7, reversing the reasoning that set it at 4. That
- * reasoning was "because goals are scarce a longer extra time mostly delays the
- * shootout rather than avoiding it" — true when a match produced 0.6 goals, and
- * false now that it produces 1.5. Golden goal actually fires: doubling extra
- * time turns roughly a third of the remaining shootouts into goals, and costs
- * about one turn on the average match, because only the matches that are level
- * at the cap ever see it.
- *
- * Must stay even so both sides get the same number of turns.
- */
-export const EXTRA_TIME_TURNS = 8;
-
-/** Every turn a match can run before a tiebreaker is required. */
-export const TOTAL_TURNS = TURN_CAP + EXTRA_TIME_TURNS;
 
 /** Penalties each side takes before the shootout goes to sudden death. */
 export const SHOOTOUT_KICKS = 3;
@@ -69,9 +41,14 @@ export const SHOOTOUT_KICKS = 3;
  */
 export const SHOOTOUT_SUDDEN_DEATH_ROUNDS = 10;
 
+/** Every turn a match can run before a tiebreaker is required. */
+export function totalTurns(rules: MatchRules): number {
+  return rules.turnCap + rules.extraTimeTurns;
+}
+
 /** Whether `turn` falls in extra time — past the cap, but not past the end. */
-export function isExtraTime(turn: number): boolean {
-  return turn > TURN_CAP && turn <= TOTAL_TURNS;
+export function isExtraTime(turn: number, rules: MatchRules): boolean {
+  return turn > rules.turnCap && turn <= totalTurns(rules);
 }
 
 /**
