@@ -13,6 +13,8 @@ import { Scoreboard } from "../board/Scoreboard";
 import { SQUADS } from "../board/squads";
 import { StatusBar } from "../board/StatusBar";
 import { isCommandable, NO_TARGETS, targetsFor, type Seat, type Target } from "../board/targets";
+import { Button } from "../ui/Button";
+import { Wordmark } from "../ui/Wordmark";
 import { useGoalMoment } from "./useGoalMoment";
 import { useMatch, type PlayOutcome } from "./useMatch";
 import { useOpponent } from "./useOpponent";
@@ -20,7 +22,7 @@ import { useOpponent } from "./useOpponent";
 /** Who wears which number, and what the shirt is worth in a duel. */
 function TeamSheet() {
   return (
-    <dl className="grid gap-x-6 gap-y-1.5 text-xs text-emerald-100/70 sm:grid-cols-2">
+    <dl className="grid gap-x-6 gap-y-1.5 text-xs text-white/65 sm:grid-cols-2">
       {ROLES.map((role) => {
         const { stats, moveRange } = ROLE_PROFILES[role];
         return (
@@ -30,7 +32,7 @@ function TeamSheet() {
             </span>
             <dt className="capitalize">{role}</dt>
             <dd className="ml-auto flex items-center gap-3 tabular-nums">
-              <span className="text-emerald-100/50">
+              <span className="text-white/40">
                 {SQUADS.home[role].name} / {SQUADS.away[role].name}
               </span>
               <span>
@@ -126,12 +128,14 @@ export function Match({ setup, onLeave }: MatchProps) {
   const opponentName = opponentTeam ? SQUADS[opponentTeam].striker.name : "";
 
   return (
-    <main className="min-h-dvh bg-gradient-to-b from-emerald-950 to-emerald-900 px-4 py-8 text-white">
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-        <header className="flex items-end justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">Gaffer</h1>
-            <p className="text-sm text-emerald-200/70">
+    <main className="min-h-dvh bg-(--color-night) bg-[radial-gradient(120%_80%_at_50%_0%,var(--color-night-soft),var(--color-night))] px-4 py-6 text-white">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-3">
+        <header className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl leading-none">
+              <Wordmark />
+            </h1>
+            <p className="mt-1 truncate text-xs text-white/55">
               {solo ? (
                 <>
                   You are {setup.side} &middot; {setup.difficulty} opponent
@@ -142,7 +146,7 @@ export function Match({ setup, onLeave }: MatchProps) {
               &middot; seed {setup.seed}
             </p>
           </div>
-          <p className="text-right text-xs text-emerald-200/50">
+          <p className="shrink-0 text-right text-[0.7rem] leading-tight text-white/40">
             Home attacks &rarr;
             <br />
             Away attacks &larr;
@@ -152,12 +156,14 @@ export function Match({ setup, onLeave }: MatchProps) {
         <Scoreboard state={state} scoredBy={moment?.team ?? null} />
 
         {over && state.result && (
-          <p className="rounded-xl bg-amber-300/15 px-5 py-3 text-sm ring-1 ring-amber-300/40">
-            <span className="font-bold text-amber-200 capitalize">{state.result.winner} win</span>
-            <span className="mx-2 text-amber-200/40">|</span>
-            <span className="text-amber-100/80">decided by {state.result.decidedBy}</span>
+          <p className="rounded-2xl bg-gradient-to-b from-(--color-gold)/25 to-(--color-gold)/10 px-5 py-3 text-sm ring-1 ring-(--color-gold)/45">
+            <span className="text-base font-extrabold text-(--color-gold) capitalize">
+              {state.result.winner} win
+            </span>
+            <span className="mx-2 text-white/25">|</span>
+            <span className="text-white/75">decided by {state.result.decidedBy}</span>
             {state.result.shootout && (
-              <span className="text-amber-100/80">
+              <span className="text-white/75">
                 {" "}
                 &middot; penalties {state.result.shootout.home}&ndash;{state.result.shootout.away}
               </span>
@@ -185,38 +191,35 @@ export function Match({ setup, onLeave }: MatchProps) {
           thinking={thinking ? opponentName : null}
         />
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button
+            tone="primary"
             onClick={() => send({ type: "endTurn", team: state.activeTeam })}
             disabled={!yourMove}
-            className="cursor-pointer rounded-lg bg-emerald-800 px-4 py-2 text-sm font-medium ring-1 ring-emerald-300/25 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
             End turn
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            tone="quiet"
             disabled={moment !== null}
             onClick={() => {
               restart();
               setSelectedId(null);
               setFocused(null);
             }}
-            className="cursor-pointer rounded-lg bg-emerald-950/60 px-4 py-2 text-sm font-medium text-emerald-100/80 ring-1 ring-emerald-300/15 hover:bg-emerald-950"
           >
             Replay this match
-          </button>
-          <button
-            type="button"
-            onClick={onLeave}
-            className="ml-auto cursor-pointer rounded-lg bg-emerald-950/60 px-4 py-2 text-sm font-medium text-emerald-100/80 ring-1 ring-emerald-300/15 hover:bg-emerald-950"
-          >
+          </Button>
+          <Button tone="quiet" className="ml-auto" onClick={onLeave}>
             New match
-          </button>
+          </Button>
         </div>
 
-        <section aria-label="Team sheet" className="rounded-xl bg-emerald-950/40 px-5 py-4">
-          <h2 className="mb-3 text-[0.65rem] tracking-widest text-emerald-200/70 uppercase">
+        <section
+          aria-label="Team sheet"
+          className="rounded-2xl bg-(--color-panel) px-5 py-4 ring-1 ring-(--color-edge)/30"
+        >
+          <h2 className="mb-3 text-[0.65rem] tracking-widest text-white/50 uppercase">
             Team sheet &middot; home / away &middot; ATK/DEF/PAS &middot; move
           </h2>
           <TeamSheet />
