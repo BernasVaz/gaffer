@@ -56,3 +56,47 @@ jobs:
       # Fails on an exported symbol with no TSDoc comment, or a broken {@link}.
       - name: Doc coverage
         run: pnpm run docs
+
+  # A real browser against the real build. Kept as its own job rather than folded
+  # into `pnpm check`: it needs a browser download, and a failure here should say
+  # "the app is broken" rather than hiding among unit tests. It does not depend on
+  # `quality`, so both run at once and a broken build is reported either way.
+  e2e:
+    name: end-to-end (Playwright)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Enable corepack (provides pnpm)
+        run: corepack enable
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The client imports the other packages from their `dist`, so they have to
+      # exist before Playwright's own `vite build` step can resolve them.
+      - name: Build the workspace
+        run: pnpm build
+
+      - name: Install Chromium
+        run: pnpm --filter @gaffer/web test:e2e:install
+
+      - name: Play a match in a browser
+        run: pnpm --filter @gaffer/web test:e2e
+
+      # Only on failure: a trace is large, and a green run has nothing to look at.
+      - name: Keep the report when something broke
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7

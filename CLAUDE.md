@@ -77,7 +77,9 @@ Four layers, per the Master Plan §7:
    naming a winner, and everything `legalActions` offers being accepted. See
    `packages/engine/tests/properties.test.ts`.
 3. **Component (Testing Library)** — React UI, from M3.
-4. **E2E (Playwright)** — real browser against the deployed app, from M3.
+4. **E2E (Playwright)** — a real browser against the **built** app (`apps/web/e2e/`,
+   `pnpm --filter @gaffer/web test:e2e`). Its own CI job. Locate by role and accessible
+   name only, and never assert on a transient state — assert what it did.
 
 Rules:
 
