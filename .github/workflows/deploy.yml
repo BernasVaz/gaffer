@@ -1,0 +1,77 @@
+name: Deploy
+
+# Every green push to main becomes the live site. There is no manual step and no
+# separate "release" — Master Plan M3 is "anyone with the link plays a full
+# match", and a link that lags main by a deploy someone forgot to run is a link
+# that misrepresents the game.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# The minimum Pages needs: read the code, write the site, and prove who we are.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, and never cancel one in flight — a half-published site
+# is worse than a slightly stale one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build the client
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Enable corepack (provides pnpm)
+        run: corepack enable
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Builds the engine, shared and ai first — the client imports them from
+      # their `dist`, so `--filter=@gaffer/web...` pulls the whole chain in.
+      - name: Build
+        run: pnpm build --filter=@gaffer/web...
+
+      # Pages serves 404.html for any path it does not have a file for. The app
+      # keeps its whole state in the query string and never uses the path, so
+      # this is only here to catch a link a chat client has mangled — it loads
+      # the same app, which then reads the seed it was given.
+      - name: Fall back to the app for unknown paths
+        run: cp apps/web/dist/index.html apps/web/dist/404.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: apps/web/dist
+
+  deploy:
+    name: publish
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

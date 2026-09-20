@@ -160,4 +160,4 @@ Use **pnpm** — never `npm` or `yarn`. Node comes from fnm; the version is pinn
   The client has a setup screen and plays both hotseat and solo, with the whole
   setup carried in the URL so a link _is_ a match. `pnpm dev` serves the client;
   `pnpm play` watches one match; `pnpm play -- --matches 150` is the balance run.
-  Next: the visual theme, a Playwright pass, and the Vercel deploy that closes M3.
+  M3 is complete. Next is M4: a Colyseus server running the same engine as referee.

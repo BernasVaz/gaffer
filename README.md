@@ -1,15 +1,36 @@
 # Gaffer
 
 [![CI](https://github.com/BernasVaz/gaffer/actions/workflows/ci.yml/badge.svg)](https://github.com/BernasVaz/gaffer/actions/workflows/ci.yml)
+[![Deploy](https://github.com/BernasVaz/gaffer/actions/workflows/deploy.yml/badge.svg)](https://github.com/BernasVaz/gaffer/actions/workflows/deploy.yml)
 
 A turn-based, web-first football game built on a pure, deterministic TypeScript engine.
+
+### ▶ [Play it](https://bernasvaz.github.io/gaffer/)
+
+Solo against the machine, or hotseat with someone next to you. Every match is a link:
+`?seed=1234` gives you and your opponent the identical match, dice and all.
 
 > `gaffer` is a codename — a stable handle for the repo and packages until the real
 > name is chosen. Renaming later is a short job, so it is not blocking anything.
 
-**Status:** **M2 complete, M3 started.** The engine plays a full match end to end; the
-web client renders the starting position. Run it with `pnpm dev`, or watch a whole match
-in the terminal with `pnpm play`.
+**Status:** **M3 — the shareable prototype.** The engine plays a full match; the client
+is playable solo or hotseat, with a setup screen, a designed look and a solo opponent.
+Run it with `pnpm dev`, watch a match in the terminal with `pnpm play`, or run a few
+hundred and look at the balance with `pnpm play -- --matches 150`.
+
+## How it plays
+
+Five a side on a 7 × 5 grid. **Two actions a turn**, spent however you like across your
+players. Everything is visible — there is no fog and no hidden state — and every
+contested action shows you its exact odds _before_ you commit, because a loss should be
+"I took a 62% chance and it didn't land" rather than something that happened to you.
+
+The keeper is the only player allowed to stand in a goal, and it only defends a shot
+while it is standing in one. Drawing it off its line is a way to score. So is working
+the ball to the right player: a clean striker beats a keeper four times in five, a
+winger does it about three times in five, and a midfielder rather less.
+
+Full rules in [`docs/GDD.md`](docs/GDD.md).
 
 ## What's here
 
@@ -17,6 +38,7 @@ in the terminal with `pnpm play`.
 | ------------------------------------ | ----------------------------------------------------------- |
 | [`packages/engine`](packages/engine) | The rules of the game. Pure, deterministic, framework-free. |
 | [`packages/shared`](packages/shared) | Zod schemas, shared types and constants.                    |
+| [`packages/ai`](packages/ai)         | The solo opponent. Reads the engine; holds no rules.        |
 | [`apps/web`](apps/web)               | Vite + React + Tailwind client. Draws the engine.           |
 | `apps/server`                        | Colyseus multiplayer server — arrives in M4.                |
 | [`tools/play`](tools/play)           | Dev-only match viewer. Never shipped.                       |

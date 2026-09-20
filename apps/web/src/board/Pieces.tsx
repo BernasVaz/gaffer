@@ -1,5 +1,5 @@
 import type { Board, MatchState, Player, Position } from "@gaffer/shared";
-import { motion, useAnimationControls, useReducedMotion } from "motion/react";
+import { m, useAnimationControls, useReducedMotion } from "motion/react";
 import { useEffect, useRef } from "react";
 
 import { Football } from "../art/Football";
@@ -145,7 +145,7 @@ function Piece({
   const squash = useSquashOnMove(player.position, still);
 
   return (
-    <motion.div
+    <m.div
       data-player={player.id}
       data-cell={`${player.position.x},${player.position.y}`}
       style={sizeOf(board)}
@@ -162,14 +162,11 @@ function Piece({
         )}
         style={{ animationDelay: `${-index * IDLE.stagger}s` }}
       >
-        <motion.div
-          animate={squash}
-          className="flex h-full w-full flex-col items-center justify-center"
-        >
+        <m.div animate={squash} className="flex h-full w-full flex-col items-center justify-center">
           <Shirt player={player} state={state} ready={ready} dimmed={dimmed} />
-        </motion.div>
+        </m.div>
       </div>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -216,7 +213,7 @@ function Ball({ state, still }: { state: MatchState; still: boolean }) {
   }, [x, y, arc, spin, still]);
 
   return (
-    <motion.div
+    <m.div
       data-ball
       data-cell={`${position.x},${position.y}`}
       style={sizeOf(state.board)}
@@ -225,22 +222,22 @@ function Ball({ state, still }: { state: MatchState; still: boolean }) {
       transition={still ? INSTANT : BALL_SPRING}
       className="absolute top-0 left-0"
     >
-      <motion.div animate={arc} className="flex h-full w-full items-center justify-center">
+      <m.div animate={arc} className="flex h-full w-full items-center justify-center">
         <div
           className={cx(
             "flex h-full w-full items-center justify-center transition-transform duration-200",
             carried && "translate-x-[19%] -translate-y-[23%]",
           )}
         >
-          <motion.div
+          <m.div
             animate={spin}
             className="h-[30%] w-[30%] drop-shadow-[0_2px_4px_rgba(0,0,0,0.45)]"
           >
             <Football />
-          </motion.div>
+          </m.div>
         </div>
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   );
 }
 
