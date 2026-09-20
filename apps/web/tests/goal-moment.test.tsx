@@ -14,13 +14,13 @@ function openGoal(): MatchState {
   return {
     ...base,
     players: base.players.map((player) =>
-      player.id === "home-striker"
+      player.id === "home-striker-1"
         ? { ...player, position: { x: 4, y: 2 } }
-        : player.id === "away-goalkeeper"
+        : player.id === "away-goalkeeper-1"
           ? { ...player, position: { x: 5, y: 0 } }
           : player,
     ),
-    ball: { position: { x: 4, y: 2 }, carrierId: "home-striker" },
+    ball: { position: { x: 4, y: 2 }, carrierId: "home-striker-1" },
     possession: "home",
   };
 }
@@ -92,7 +92,7 @@ describe("the engine is never waiting for the celebration", () => {
 
     expect(after.state.score).toEqual({ home: 1, away: 0 });
     // Already home, before a single frame is drawn.
-    expect(after.state.players.find((p) => p.id === "home-striker")?.position).not.toEqual({
+    expect(after.state.players.find((p) => p.id === "home-striker-1")?.position).not.toEqual({
       x: 4,
       y: 2,
     });

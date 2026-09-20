@@ -11,7 +11,7 @@ test.describe("arriving", () => {
   });
 
   test("a link with a seed starts that match straight away", async ({ page }) => {
-    await page.goto("./?seed=4242&mode=hotseat");
+    await page.goto("./?seed=4242&play=hotseat");
 
     await expect(page.getByRole("grid")).toBeVisible();
     await expect(page.getByText(/seed 4242/)).toBeVisible();
@@ -31,13 +31,13 @@ test.describe("arriving", () => {
   });
 
   test("a mangled link is still a match", async ({ page }) => {
-    await page.goto("./?seed=banana&mode=chess&side=middle");
+    await page.goto("./?seed=banana&mode=chess&play=alone&side=middle");
     await expect(page.getByRole("grid")).toBeVisible();
   });
 });
 
 test.describe("the board", () => {
-  test.beforeEach(async ({ page }) => page.goto("./?seed=1&mode=hotseat"));
+  test.beforeEach(async ({ page }) => page.goto("./?seed=1&play=hotseat"));
 
   test("offers nothing until a player is chosen, then lights every legal option", async ({
     page,
@@ -77,7 +77,7 @@ test.describe("a whole match", () => {
       if (message.type() === "error") refusals.push(message.text());
     });
 
-    await page.goto("./?seed=12&mode=hotseat");
+    await page.goto("./?seed=12&play=hotseat");
 
     const steps = await playToTheEnd(page);
 
@@ -94,7 +94,7 @@ test.describe("a whole match", () => {
   });
 
   test("lets a solo player take a turn and the opponent answer", async ({ page }) => {
-    await page.goto("./?seed=5&mode=solo&side=home&level=pro");
+    await page.goto("./?seed=5&play=solo&side=home&level=pro");
 
     // Everything offered is ours; the opponent's players are never on the menu.
     const names = await selectable(page).evaluateAll((nodes) =>
@@ -147,12 +147,12 @@ test.describe("the seed in the link", () => {
   };
 
   test("plays out the same way twice", async ({ page }) => {
-    await page.goto("./?seed=777&mode=hotseat");
+    await page.goto("./?seed=777&play=hotseat");
     const first = await endEveryTurn(page);
     await expect(result(page)).toBeVisible();
     const firstResult = await result(page).textContent();
 
-    await page.goto("./?seed=777&mode=hotseat");
+    await page.goto("./?seed=777&play=hotseat");
     const second = await endEveryTurn(page);
     const secondResult = await result(page).textContent();
 
@@ -162,11 +162,11 @@ test.describe("the seed in the link", () => {
 
   test("plays out differently under a different seed", async ({ page }) => {
     // Otherwise the first test would pass on an engine that ignored the seed.
-    await page.goto("./?seed=777&mode=hotseat");
+    await page.goto("./?seed=777&play=hotseat");
     await endEveryTurn(page);
     const seven = await result(page).textContent();
 
-    await page.goto("./?seed=31337&mode=hotseat");
+    await page.goto("./?seed=31337&play=hotseat");
     await endEveryTurn(page);
     const other = await result(page).textContent();
 
@@ -174,5 +174,92 @@ test.describe("the seed in the link", () => {
     // end level, so what separates them is the shootout the seed decides.
     expect(seven).toMatch(/decided by/);
     expect(other).toMatch(/decided by/);
+  });
+});
+
+test.describe("game types", () => {
+  test("offers all three, and flags the provisional ones", async ({ page }) => {
+    await page.goto("./");
+
+    await expect(page.getByRole("button", { name: /5v5/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: /7v7/ })).toContainText("Alpha");
+    await expect(page.getByRole("button", { name: /11v11/ })).toContainText("Alpha");
+    await expect(page.getByRole("button", { name: /5v5/ })).not.toContainText("Alpha");
+  });
+
+  test("carries the chosen one into the link", async ({ page }) => {
+    await page.goto("./");
+
+    await page.getByRole("button", { name: /11v11/ }).click();
+    await page.getByRole("button", { name: /Kick off/ }).click();
+
+    await expect(page.getByRole("grid")).toBeVisible();
+    expect(page.url()).toContain("mode=11v11");
+  });
+
+  test("draws the pitch a link asks for", async ({ page }) => {
+    await page.goto("./?seed=3&mode=11v11&play=hotseat");
+
+    // 13 × 9, from the format table — and no horizontal scroll to reach it.
+    await expect(page.getByRole("gridcell")).toHaveCount(117);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    );
+    expect(overflow).toBe(false);
+  });
+
+  test("still understands a link written before game types existed", async ({ page }) => {
+    // `?mode=hotseat` used to mean the play mode. Those links are out there.
+    await page.goto("./?seed=42&mode=hotseat");
+
+    await expect(page.getByRole("grid")).toBeVisible();
+    await expect(page.getByText(/Hotseat/)).toBeVisible();
+    await expect(page.getByRole("gridcell")).toHaveCount(35);
+  });
+
+  test("says a provisional game type is provisional, in the match itself", async ({ page }) => {
+    await page.goto("./?seed=3&mode=7v7&play=hotseat");
+    await expect(page.getByText("Alpha").first()).toBeVisible();
+  });
+
+  test("stays inside a phone without scrolling sideways", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+
+    for (const mode of ["5v5", "7v7", "11v11"]) {
+      await page.goto(`./?seed=3&mode=${mode}&play=hotseat`);
+      await expect(page.getByRole("grid")).toBeVisible();
+
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      );
+      expect(overflow, `${mode} scrolls sideways on a phone`).toBe(false);
+
+      // And the board actually fills the width it has, rather than shrinking
+      // into a corner to avoid overflowing.
+      const width = await page.getByRole("grid").evaluate((node) => node.clientWidth);
+      expect(width, mode).toBeGreaterThan(300);
+    }
+  });
+});
+
+test.describe("playing at a bigger game type", () => {
+  test.setTimeout(180_000);
+
+  test("takes a stretch of an 11-a-side match with no rule bugs", async ({ page }) => {
+    /*
+     * A whole 11-a-side match is a couple of hundred commands, and the engine
+     * and opponent suites already play those to a finish at every format. What
+     * only a browser can tell you is whether a 13 × 9 board is *clickable* — so
+     * this plays a real stretch of one through the interface.
+     */
+    await page.goto("./?seed=8&mode=11v11&play=hotseat");
+
+    for (let taken = 0; taken < 40; taken += 1) {
+      const outcome = await step(page);
+      if (outcome === "over") break;
+    }
+
+    await expectNoRuleBug(page);
+    await expect(page.getByLabel("Scoreboard")).not.toContainText("Turn 1 of");
   });
 });

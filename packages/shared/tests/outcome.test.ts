@@ -3,39 +3,43 @@ import { describe, expect, it } from "vitest";
 import {
   DECISION_METHODS,
   DecisionMethodSchema,
-  EXTRA_TIME_TURNS,
+  FORMAT_PROFILES,
+  FORMATS,
   isExtraTime,
   isRegulationOver,
   MatchResultSchema,
   SHOOTOUT_KICKS,
   SHOOTOUT_SUDDEN_DEATH_ROUNDS,
-  TURN_CAP,
-  TOTAL_TURNS,
+  totalTurns,
+  type MatchFormat,
 } from "../src/index.js";
 
-describe("extra time", () => {
+describe("extra time at 5-a-side", () => {
   it("is 8 turns — 4 a side, per GDD §10", () => {
-    expect(EXTRA_TIME_TURNS).toBe(8);
-    expect(EXTRA_TIME_TURNS % 2).toBe(0); // must split evenly
+    const { rules } = FORMAT_PROFILES["5v5"];
+    expect(rules.extraTimeTurns).toBe(8);
+    expect(rules.turnCap).toBe(24);
   });
 
   it("brings the whole match to 32 turns", () => {
-    expect(TOTAL_TURNS).toBe(TURN_CAP + EXTRA_TIME_TURNS);
-    expect(TOTAL_TURNS).toBe(32);
+    expect(totalTurns(FORMAT_PROFILES["5v5"].rules)).toBe(32);
   });
 });
 
-describe("isExtraTime", () => {
+describe.each([...FORMATS])("extra time at %s", (format: MatchFormat) => {
+  const { rules } = FORMAT_PROFILES[format];
+  const end = totalTurns(rules);
+
   it("covers exactly the turns after the cap and up to the end", () => {
-    expect(isExtraTime(TURN_CAP)).toBe(false); // last regulation turn
-    expect(isExtraTime(TURN_CAP + 1)).toBe(true); // first extra-time turn
-    expect(isExtraTime(TOTAL_TURNS)).toBe(true); // last extra-time turn
-    expect(isExtraTime(TOTAL_TURNS + 1)).toBe(false); // match is over
+    expect(isExtraTime(rules.turnCap, rules)).toBe(false); // last regulation turn
+    expect(isExtraTime(rules.turnCap + 1, rules)).toBe(true); // first extra-time turn
+    expect(isExtraTime(end, rules)).toBe(true); // last extra-time turn
+    expect(isExtraTime(end + 1, rules)).toBe(false); // match is over
   });
 
   it("agrees with isRegulationOver at the boundary", () => {
-    expect(isRegulationOver(TURN_CAP)).toBe(false);
-    expect(isRegulationOver(TURN_CAP + 1)).toBe(true);
+    expect(isRegulationOver(rules.turnCap, rules)).toBe(false);
+    expect(isRegulationOver(rules.turnCap + 1, rules)).toBe(true);
   });
 });
 

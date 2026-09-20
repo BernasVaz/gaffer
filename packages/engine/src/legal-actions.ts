@@ -5,7 +5,6 @@ import {
   DIRECTIONS,
   goalMouthOwner,
   isWithinBoard,
-  SHOT_RANGE,
   type Action,
   type MatchState,
   type Player,
@@ -97,10 +96,17 @@ function isContested(cell: Position, team: Player["team"], state: MatchState): b
   return state.players.some((other) => other.team !== team && areAdjacent(cell, other.position));
 }
 
-/** Whether a carrier is close enough to the goal it attacks to shoot (GDD §7). */
+/**
+ * Whether a carrier is close enough to the goal it attacks to shoot (GDD §7).
+ *
+ * The range comes from the match's own rules, because it scales with the pitch:
+ * two cells is deep in the box on a 5-a-side board and barely past halfway on
+ * an 11-a-side one. What does not change is the property GDD v1.2 fixed it for
+ * — every format keeps the kickoff spot outside shooting range.
+ */
 function canShoot(carrier: Player, state: MatchState): boolean {
   return attackingGoalMouth(carrier.team, state.board).some(
-    (cell) => chebyshevDistance(carrier.position, cell) <= SHOT_RANGE,
+    (cell) => chebyshevDistance(carrier.position, cell) <= state.rules.shotRange,
   );
 }
 

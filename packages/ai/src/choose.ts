@@ -51,6 +51,36 @@ void _everyDifficultyHasAProfile;
 const REPLY_BREADTH = 6;
 
 /**
+ * The board the search's breadth numbers were chosen against.
+ *
+ * 5-a-side: 35 cells, ten players, about thirty legal actions a turn. Every
+ * profile below is tuned for that, and {@link breadthFor} scales away from it.
+ */
+const TUNED_CELLS = 35;
+
+/**
+ * How wide to search on this board, given a profile tuned for 5-a-side.
+ *
+ * Branching grows fast with the pitch — about 30 legal actions a turn at
+ * 5-a-side, 60 at 7-a-side and 110 at 11-a-side — and the search cost grows
+ * with the *square* of that, because every candidate kept at the first ply is
+ * re-expanded against the whole list at the second. Left alone, `elite` on an
+ * 11-a-side board took 360ms for a single decision, which is long enough to
+ * drop frames on the board it is playing on.
+ *
+ * Scaling the breadth by the square root of the area keeps the amount of work
+ * roughly level across formats. The honest cost is that the opponent searches
+ * *less widely* on a bigger pitch, so it plays a little worse there — which is
+ * the right trade of the two available, since the alternative is an opponent
+ * that plays well and stutters while it does it.
+ */
+function breadthFor(profile: OpponentProfile, state: MatchState): number {
+  const cells = state.board.width * state.board.height;
+  if (cells <= TUNED_CELLS) return profile.breadth;
+  return Math.max(3, Math.round(profile.breadth * Math.sqrt(TUNED_CELLS / cells)));
+}
+
+/**
  * How far variety is allowed to move a command's value.
  *
  * Small on purpose. The evaluation separates genuinely different options by tens
@@ -317,7 +347,14 @@ export function chooseCommand(state: MatchState, options: ChooseOptions = {}): M
   const profile = PROFILES[options.difficulty ?? "pro"];
   const team = state.activeTeam;
 
-  const rated = rateAll(state, team, profile.lookahead, profile.breadth, profile, options.variety);
+  const rated = rateAll(
+    state,
+    team,
+    profile.lookahead,
+    breadthFor(profile, state),
+    profile,
+    options.variety,
+  );
   const best = rated[0];
 
   return best?.command ?? { type: "endTurn", team };

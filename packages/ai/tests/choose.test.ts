@@ -4,7 +4,7 @@ import {
   DIFFICULTIES,
   parseSeed,
   TEAMS,
-  TOTAL_TURNS,
+  totalTurns,
   type Difficulty,
   type MatchCommand,
   type MatchState,
@@ -155,18 +155,18 @@ describe("chooseCommand", () => {
     state = {
       ...state,
       players: state.players.map((player) => {
-        if (player.id === "home-striker") return { ...player, position: { x: 4, y: 2 } };
+        if (player.id === "home-striker-1") return { ...player, position: { x: 4, y: 2 } };
         if (player.id === away("goalkeeper")) return { ...player, position: { x: 4, y: 0 } };
         if (player.id === away("defender")) return { ...player, position: { x: 6, y: 0 } };
         return player;
       }),
-      ball: { position: { x: 4, y: 2 }, carrierId: "home-striker" },
+      ball: { position: { x: 4, y: 2 }, carrierId: "home-striker-1" },
       actionsRemaining: 1,
     };
 
     expect(chooseCommand(state)).toEqual({
       type: "shoot",
-      playerId: "home-striker",
+      playerId: "home-striker-1",
       target: null,
     });
   });
@@ -201,7 +201,7 @@ describe("the opponent across a match", () => {
     for (const seed of [2, 88]) {
       const { state } = playMatch(seed);
       expect(state.result).not.toBeNull();
-      expect(state.turn).toBeLessThanOrEqual(TOTAL_TURNS);
+      expect(state.turn).toBeLessThanOrEqual(totalTurns(state.rules));
     }
   });
 

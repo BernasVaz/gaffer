@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { DEFAULT_FORMAT, MatchFormatSchema } from "./format.js";
 import { SeedSchema, type Seed } from "./seed.js";
 import { TeamSchema, type Team } from "./team.js";
 
@@ -20,25 +21,35 @@ export const DifficultySchema = z.enum(DIFFICULTIES);
 export type Difficulty = z.infer<typeof DifficultySchema>;
 
 /** Who is playing: two people at one screen, or one against the machine. */
-export const MATCH_MODES = ["solo", "hotseat"] as const;
+export const PLAY_MODES = ["solo", "hotseat"] as const;
 
-/** A validated mode. See {@link MATCH_MODES}. */
-export const MatchModeSchema = z.enum(MATCH_MODES);
+/** A validated play mode. See {@link PLAY_MODES}. */
+export const PlayModeSchema = z.enum(PLAY_MODES);
 
-/** A validated mode. See {@link MatchModeSchema}. */
-export type MatchMode = z.infer<typeof MatchModeSchema>;
+/** A validated play mode. See {@link PlayModeSchema}. */
+export type PlayMode = z.infer<typeof PlayModeSchema>;
 
 /**
  * Everything chosen before kickoff, and everything a link needs to carry.
  *
- * A match is fully determined by this: the seed fixes the dice, the mode and
- * side fix who commands whom, and the difficulty fixes the opponent — which is
- * itself deterministic. Two people opening the same link and playing the same
- * moves therefore see the same match, which is the whole point of sharing one.
+ * A match is fully determined by this: the game type fixes the pitch, the squad
+ * and the numbers; the seed fixes the dice; the play mode and side fix who
+ * commands whom; and the difficulty fixes the opponent, which is itself
+ * deterministic. Two people opening the same link and playing the same moves
+ * therefore see the same match, which is the whole point of sharing one.
+ *
+ * **On the two things both called "mode".** A player says "mode" about the game
+ * type — 5v5, 7v7, 11v11 — so that is what `mode` means here and in a link.
+ * Whether the other side is a person or the machine is `play`. The two were the
+ * other way round before game types existed, so {@link parseSetup} still reads a
+ * legacy `?mode=solo` correctly; it can tell them apart by value, since no game
+ * type is called "solo" and no play mode is called "5v5".
  */
 export const MatchSetupSchema = z.object({
+  /** The game type: which pitch, which squad, which numbers. */
+  mode: MatchFormatSchema,
   /** Two people at one screen, or one against the opponent. */
-  mode: MatchModeSchema,
+  play: PlayModeSchema,
   /** The side the person at the keyboard commands. Ignored in hotseat. */
   side: TeamSchema,
   /** How hard the opponent tries. Ignored in hotseat. */
@@ -53,11 +64,13 @@ export type MatchSetup = z.infer<typeof MatchSetupSchema>;
 /**
  * What you get if you ask for nothing.
  *
- * Solo, because the first thing anyone does with a link is play it alone, and
- * `pro`, because that is the setting the balance was tuned against.
+ * 5-a-side, because it is the only game type whose balance is settled. Solo,
+ * because the first thing anyone does with a link is play it alone. And `pro`,
+ * because that is the setting the balance was tuned against.
  */
 export const DEFAULT_SETUP: MatchSetup = {
-  mode: "solo",
+  mode: DEFAULT_FORMAT,
+  play: "solo",
   side: "home",
   difficulty: "pro",
   seed: 1,
@@ -126,7 +139,8 @@ function readQuery(search: string): Map<string, string> {
  *
  * @example
  * ```ts
- * parseSetup("?seed=42&mode=hotseat");   // { mode: "hotseat", side: "home", … }
+ * parseSetup("?seed=42&mode=11v11");     // { mode: "11v11", play: "solo", … }
+ * parseSetup("?seed=42&mode=hotseat");   // a link from before game types existed
  * parseSetup("?seed=banana");            // falls back to the default seed
  * ```
  */
@@ -139,9 +153,22 @@ export function parseSetup(search: string): MatchSetup {
   };
 
   const rawSeed = params.get("seed");
+  const rawMode = params.get("mode");
+
+  /*
+   * `mode` used to mean solo-or-hotseat and now means the game type. A link
+   * shared before game types existed still says `?mode=solo`, and the two
+   * vocabularies do not overlap — so the old spelling is recognised by value
+   * rather than being left to fall back to a default and quietly change what
+   * somebody sent.
+   */
+  const legacyPlay = PlayModeSchema.safeParse(rawMode);
 
   return {
-    mode: pick(MatchModeSchema, params.get("mode"), DEFAULT_SETUP.mode),
+    mode: pick(MatchFormatSchema, rawMode, DEFAULT_SETUP.mode),
+    play: legacyPlay.success
+      ? legacyPlay.data
+      : pick(PlayModeSchema, params.get("play"), DEFAULT_SETUP.play),
     side: pick(TeamSchema, params.get("side"), DEFAULT_SETUP.side),
     difficulty: pick(DifficultySchema, params.get("level"), DEFAULT_SETUP.difficulty),
     seed: pick(SeedSchema, rawSeed === undefined ? null : Number(rawSeed), DEFAULT_SETUP.seed),
@@ -155,10 +182,10 @@ export function parseSetup(search: string): MatchSetup {
  * produces gives back the setup it was given.
  */
 export function setupToQuery(setup: MatchSetup): string {
-  const pairs: string[] = [`seed=${setup.seed}`, `mode=${setup.mode}`];
+  const pairs: string[] = [`seed=${setup.seed}`, `mode=${setup.mode}`, `play=${setup.play}`];
 
   // Side and difficulty describe the opponent, which hotseat does not have.
-  if (setup.mode === "solo") {
+  if (setup.play === "solo") {
     pairs.push(`side=${setup.side}`, `level=${setup.difficulty}`);
   }
 

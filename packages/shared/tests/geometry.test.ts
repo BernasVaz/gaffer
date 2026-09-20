@@ -7,7 +7,6 @@ import {
   DEFAULT_BOARD,
   DIRECTIONS,
   GOAL_MOUTH_HEIGHT,
-  SHOT_RANGE,
 } from "../src/index.js";
 
 describe("DIRECTIONS", () => {
@@ -55,24 +54,6 @@ describe("areAdjacent", () => {
     expect(areAdjacent({ x: 3, y: 2 }, { x: 3, y: 2 })).toBe(false);
     expect(areAdjacent({ x: 3, y: 2 }, { x: 5, y: 2 })).toBe(false);
     expect(areAdjacent({ x: 3, y: 2 }, { x: 3, y: 0 })).toBe(false);
-  });
-});
-
-describe("SHOT_RANGE", () => {
-  it("is 2 cells, per GDD §13", () => {
-    expect(SHOT_RANGE).toBe(2);
-  });
-
-  it("is short enough that the centre spot is out of range", () => {
-    // The kickoff spot sits 3 steps from the goal mouth. Keeping SHOT_RANGE
-    // below that is the whole reason it is 2 — a match must not be able to open
-    // with a shot at goal.
-    const nearest = Math.min(
-      ...attackingGoalMouth("home", DEFAULT_BOARD).map((cell) =>
-        chebyshevDistance({ x: 3, y: 2 }, cell),
-      ),
-    );
-    expect(nearest).toBeGreaterThan(SHOT_RANGE);
   });
 });
 

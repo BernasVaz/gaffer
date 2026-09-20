@@ -118,14 +118,14 @@ describe("shotThreat", () => {
     // Walk the away keeper out of its goal, clear the one cell on the lane, and
     // bring the home striker into range. An open goal is not a duel (ADR 0004).
     state = place(state, keeperOf(state, "away").id, 4, 0);
-    state = place(state, "away-defender", 6, 0);
-    state = place(state, "home-striker", 4, 2);
+    state = place(state, "away-defender-1", 6, 0);
+    state = place(state, "home-striker-1", 4, 2);
 
     expect(shotThreat(state)).toBe(1);
   });
 
   it("is the duel's own odds when the keeper is home", () => {
-    const state = place(kickoff(), "home-striker", 4, 2);
+    const state = place(kickoff(), "home-striker-1", 4, 2);
     const threat = shotThreat(state);
 
     expect(threat).toBeGreaterThan(0);

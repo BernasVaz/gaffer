@@ -15,12 +15,18 @@ export const PITCH_WIDTH = 7;
 export const PITCH_HEIGHT = 5;
 
 /**
- * The column both halves share.
+ * The column both halves share, for any board.
  *
  * With an odd width there is a true middle column, which acts as the halfway
  * line: it belongs to both halves, and at kickoff only the player taking the
- * kickoff stands on it.
+ * kickoff stands on it. Every format's board is odd in both dimensions for
+ * exactly this reason — see `FORMAT_PROFILES`.
  */
+export function halfwayColumn(board: Board): number {
+  return Math.floor(board.width / 2);
+}
+
+/** The halfway column of the 5-a-side pitch. See {@link halfwayColumn}. */
 export const HALFWAY_COLUMN = Math.floor(PITCH_WIDTH / 2);
 
 /** Dimensions of a pitch. Data, so game modes can vary it without touching rules. */
@@ -54,7 +60,17 @@ export const PositionSchema = z.object({
 /** A validated cell on the pitch. See {@link PositionSchema}. */
 export type Position = z.infer<typeof PositionSchema>;
 
-/** The centre of the pitch, where the ball sits at kickoff (GDD §7). */
+/**
+ * The centre of a pitch, where the ball sits at kickoff (GDD §7).
+ *
+ * The one cell a 180° rotation maps onto itself, which is what makes it both
+ * the natural kickoff spot and the one cell no line-up may place a player on.
+ */
+export function centreSpot(board: Board): Position {
+  return { x: halfwayColumn(board), y: Math.floor(board.height / 2) };
+}
+
+/** The centre spot of the 5-a-side pitch. See {@link centreSpot}. */
 export const CENTRE_SPOT: Position = {
   x: HALFWAY_COLUMN,
   y: Math.floor(PITCH_HEIGHT / 2),
@@ -124,18 +140,17 @@ export function areAdjacent(a: Position, b: Position): boolean {
   return chebyshevDistance(a, b) === 1;
 }
 
-/** How many cells wide each goal mouth is (GDD §5). */
-export const GOAL_MOUTH_HEIGHT = 3;
-
 /**
- * How far from the goal mouth a carrier may shoot, in steps (GDD §13).
+ * How many cells wide each goal mouth is (GDD §5).
  *
- * A tunable: raising it makes long-range efforts viable and shifts the game away
- * from working the ball into the box. Set to 2 rather than 3 precisely so that a
- * shot from the kickoff spot is not legal — the centre spot sits exactly 3 steps
- * from the goal mouth, so 3 would let a match open with a strike at goal.
+ * The same at every format, on purpose. A goal in football is a fixed physical
+ * size and the pitch grows around it — and here that also keeps the keeper
+ * coherent, because 3 is exactly what a keeper standing on its line can cover
+ * with a move range of 1. Widening the mouth on a bigger pitch would either
+ * hand the attacker a goal the keeper cannot defend, or require a faster keeper
+ * and a different game.
  */
-export const SHOT_RANGE = 2;
+export const GOAL_MOUTH_HEIGHT = 3;
 
 /**
  * The cells making up the goal that `team` is attacking.

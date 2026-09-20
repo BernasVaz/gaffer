@@ -1,16 +1,18 @@
 import {
+  FORMAT_PROFILES,
   opponentOf,
   ROLE_PROFILES,
-  ROLES,
   type Action,
   type MatchCommand,
   type MatchSetup,
+  type MatchState,
+  type Role,
 } from "@gaffer/shared";
 import { useCallback, useState } from "react";
 
 import { Pitch } from "../board/Pitch";
 import { Scoreboard } from "../board/Scoreboard";
-import { SQUADS } from "../board/squads";
+import { kitFor } from "../board/squads";
 import { StatusBar } from "../board/StatusBar";
 import { isCommandable, NO_TARGETS, targetsFor, type Seat, type Target } from "../board/targets";
 import { Button } from "../ui/Button";
@@ -19,22 +21,36 @@ import { useGoalMoment } from "./useGoalMoment";
 import { useMatch, type PlayOutcome } from "./useMatch";
 import { useOpponent } from "./useOpponent";
 
-/** Who wears which number, and what the shirt is worth in a duel. */
-function TeamSheet() {
+/**
+ * The squad actually on the pitch, by role.
+ *
+ * Read off the match rather than from a fixed list of five, because a game type
+ * decides who turns up: an 11-a-side side has four defenders and two strikers,
+ * and a sheet that always said "one of each" would be describing a different
+ * match from the one being played.
+ */
+function TeamSheet({ state }: { state: MatchState }) {
+  const home = state.players.filter((player) => player.team === "home");
+  const roles = [...new Set(home.map((player) => player.role))] as Role[];
+
   return (
     <dl className="grid gap-x-6 gap-y-1.5 text-xs text-white/65 sm:grid-cols-2">
-      {ROLES.map((role) => {
+      {roles.map((role) => {
         const { stats, moveRange } = ROLE_PROFILES[role];
+        const count = home.filter((player) => player.role === role).length;
+        const first = home.find((player) => player.role === role)!;
+        const kit = kitFor(first, state);
+
         return (
           <div key={role} className="flex items-center gap-2">
             <span className="w-4 shrink-0 text-right font-semibold text-white tabular-nums">
-              {SQUADS.home[role].number}
+              {kit.number}
             </span>
-            <dt className="capitalize">{role}</dt>
+            <dt className="capitalize">
+              {role}
+              {count > 1 && <span className="ml-1 text-white/40">&times;{count}</span>}
+            </dt>
             <dd className="ml-auto flex items-center gap-3 tabular-nums">
-              <span className="text-white/40">
-                {SQUADS.home[role].name} / {SQUADS.away[role].name}
-              </span>
               <span>
                 {stats.atk}/{stats.def}/{stats.pas} &middot; {moveRange}
               </span>
@@ -43,6 +59,17 @@ function TeamSheet() {
         );
       })}
     </dl>
+  );
+}
+
+/** A quiet flag on anything whose numbers are still moving. */
+export function AlphaTag({ className = "" }: { className?: string }) {
+  return (
+    <span
+      className={`rounded-full bg-(--color-gold)/20 px-2 py-0.5 text-[0.6rem] font-extrabold tracking-[0.18em] text-(--color-gold) uppercase ${className}`}
+    >
+      Alpha
+    </span>
   );
 }
 
@@ -65,13 +92,14 @@ export interface MatchProps {
  * which is the point — the opponent is a player, not a mode.
  */
 export function Match({ setup, onLeave }: MatchProps) {
-  const { state, lastEvent, rejection, play, restart } = useMatch(setup.seed);
+  const { state, lastEvent, rejection, play, restart } = useMatch(setup.seed, setup.mode);
   const { moment, celebrate } = useGoalMoment();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focused, setFocused] = useState<Target | null>(null);
 
-  const solo = setup.mode === "solo";
+  const profile = FORMAT_PROFILES[setup.mode];
+  const solo = setup.play === "solo";
   const seat: Seat = solo ? setup.side : "both";
   const opponentTeam = solo ? opponentOf(setup.side) : null;
 
@@ -125,25 +153,45 @@ export function Match({ setup, onLeave }: MatchProps) {
 
   const commit = (action: Action) => send(action);
 
-  const opponentName = opponentTeam ? SQUADS[opponentTeam].striker.name : "";
+  /* Whoever the opponent is about to move is anyone's guess, so the status line
+     borrows its striker's name — the one player every format fields. */
+  const opponentStriker = opponentTeam
+    ? state.players.find((player) => player.team === opponentTeam && player.role === "striker")
+    : undefined;
+  const opponentName = opponentStriker ? kitFor(opponentStriker, state).name : "";
 
   return (
     <main className="min-h-dvh bg-(--color-night) bg-[radial-gradient(120%_80%_at_50%_0%,var(--color-night-soft),var(--color-night))] px-4 py-6 text-white">
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-3">
+      <div
+        className={`mx-auto flex w-full flex-col gap-3 ${
+          profile.board.width > 9
+            ? "max-w-4xl"
+            : profile.board.width > 7
+              ? "max-w-3xl"
+              : "max-w-2xl"
+        }`}
+      >
         <header className="flex items-end justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-2xl leading-none">
               <Wordmark />
             </h1>
-            <p className="mt-1 truncate text-xs text-white/55">
-              {solo ? (
-                <>
-                  You are {setup.side} &middot; {setup.difficulty} opponent
-                </>
-              ) : (
-                <>Hotseat &middot; two players, one screen</>
-              )}{" "}
-              &middot; seed {setup.seed}
+            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-white/55">
+              <span className="font-bold text-white/75">{profile.label}</span>
+              {profile.status === "alpha" && <AlphaTag />}
+              <span aria-hidden className="text-white/20">
+                |
+              </span>
+              <span className="truncate">
+                {solo ? (
+                  <>
+                    You are {setup.side} &middot; {setup.difficulty} opponent
+                  </>
+                ) : (
+                  <>Hotseat &middot; two players, one screen</>
+                )}{" "}
+                &middot; seed {setup.seed}
+              </span>
             </p>
           </div>
           <p className="shrink-0 text-right text-[0.7rem] leading-tight text-white/40">
@@ -220,9 +268,9 @@ export function Match({ setup, onLeave }: MatchProps) {
           className="rounded-2xl bg-(--color-panel) px-5 py-4 ring-1 ring-(--color-edge)/30"
         >
           <h2 className="mb-3 text-[0.65rem] tracking-widest text-white/50 uppercase">
-            Team sheet &middot; home / away &middot; ATK/DEF/PAS &middot; move
+            Team sheet &middot; {profile.shape} &middot; ATK/DEF/PAS &middot; move
           </h2>
-          <TeamSheet />
+          <TeamSheet state={state} />
         </section>
       </div>
     </main>

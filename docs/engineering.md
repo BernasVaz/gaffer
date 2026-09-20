@@ -27,6 +27,31 @@ the client is — it sits in `packages/` only because self-play needs Node rathe
 browser, and because the balance numbers in ADR 0007 came out of running it a few hundred
 times.
 
+## A game type is data
+
+`5v5`, `7v7` and `11v11` are rows in `FORMAT_PROFILES` (`packages/shared/src/format.ts`):
+a board, a line-up, and the four numbers that scale with them. `createInitialState({
+format })` is the only thing that reads the table — **no rule in the engine knows a
+format exists**, which is what made two extra game types a data change rather than a
+project (ADR 0012).
+
+Two conventions make that safe:
+
+- **The scale-sensitive numbers live on the match**, as `state.rules`, next to the board.
+  Not as module constants — a constant cannot be two values at once, and one page can
+  hold a 5-a-side and an 11-a-side. It is the same reasoning that copies a player's stats
+  onto the player at kickoff: a state has to be self-contained, so it replays identically
+  even if the table underneath is retuned. `afterGoal` preserves them when it rebuilds.
+- **A hand-written formation is checked by machine.** `packages/shared/tests/format.test.ts`
+  runs over the whole catalogue, not a list of three, and asserts squad size, one keeper,
+  no shared cells, nobody on the centre spot, no cell whose mirror is a team-mate, the
+  keeper on its mouth, nobody else in a mouth, both touchlines used, and the kickoff
+  outside shooting range. Adding a format means adding a row; the tests come free.
+
+If you add one, the numbers to think hardest about are **actions per turn** — the one
+that decides whether a format works at all — and then the turn cap. A pitch that takes
+more actions to cross needs more actions per turn, not just more turns.
+
 ## The engine is sacred
 
 `packages/engine` contains the rules and nothing else. It may not import React, the

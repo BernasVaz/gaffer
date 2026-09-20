@@ -50,6 +50,53 @@
 }
 
 /*
+ * The board sizes itself, and everything on it sizes itself from a cell.
+ *
+ * `--cell` is one cell as a share of the board's own width, which is what makes
+ * a 13-column pitch legible on a phone and a 7-column one legible on a desktop
+ * without either being told about the other. Text that used a viewport unit
+ * could not do this: the same `3vw` is a third of a 5-a-side cell and most of an
+ * 11-a-side one.
+ */
+.pitch-board {
+  container-type: inline-size;
+  --cell: calc(100cqw / var(--cols));
+}
+
+.pitch-board .odds-badge {
+  font-size: calc(var(--cell) * 0.22);
+}
+
+/*
+ * A piece is its own container, and it is one cell wide.
+ *
+ * Which means anything inside it can be sized against a *cell* rather than
+ * against the board or the viewport, without being told how many columns the
+ * pitch has. The same rule then works at 5-a-side and 11-a-side, and at any
+ * window size, which a board-relative or viewport-relative one cannot: 19% of a
+ * 7-column board is a comfortable name and 19% of a 13-column one is a smudge.
+ */
+.piece {
+  container-type: inline-size;
+}
+
+.piece .piece-name {
+  font-size: 19cqw;
+}
+
+/*
+ * Below about forty-six pixels a surname is a grey smudge that only makes the
+ * pitch noisier, so it goes. The shirt number stays — it is the thing a player
+ * actually reads — and the name is still in every cell's accessible
+ * description, so nothing is lost to anyone listening rather than looking.
+ */
+@container (max-width: 46px) {
+  .piece-name {
+    display: none;
+  }
+}
+
+/*
  * The chunky-button treatment, in one place.
  *
  * A lit top edge and a hard bottom edge is the whole trick behind a button that

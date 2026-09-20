@@ -460,7 +460,7 @@ describe("resolveAction", () => {
       // Full squads are back in formation, and the conceding side kicks off.
       expect(next.players).toHaveLength(10);
       expect(next.possession).toBe("away");
-      expect(next.ball.carrierId).toBe("away-striker");
+      expect(next.ball.carrierId).toBe("away-striker-1");
       expect(MatchStateSchema.safeParse(next).success).toBe(true);
     });
 

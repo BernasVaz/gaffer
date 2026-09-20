@@ -17,6 +17,7 @@
 export * from "./action.js";
 export * from "./command.js";
 export * from "./duel.js";
+export * from "./format.js";
 export * from "./formation.js";
 export * from "./match.js";
 export * from "./outcome.js";

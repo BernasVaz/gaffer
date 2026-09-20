@@ -15,7 +15,7 @@ import { Match } from "../src/match/Match";
  * standing up a URL and clicking through a setup screen before every assertion.
  */
 const hotseat = () => (
-  <Match setup={{ ...DEFAULT_SETUP, mode: "hotseat", seed: 1 }} onLeave={() => {}} />
+  <Match setup={{ ...DEFAULT_SETUP, play: "hotseat", seed: 1 }} onLeave={() => {}} />
 );
 
 /** The one DOM node representing a given player, wherever it currently is. */
@@ -50,13 +50,13 @@ describe("pieces are drawn as one lasting node each", () => {
     const user = userEvent.setup();
     render(hotseat());
 
-    const before = pieceFor("home-winger");
+    const before = pieceFor("home-winger-1");
     const cellBefore = before?.dataset.cell;
 
     await user.click(buttonFor(/^Select home winger/));
     await user.click(offered(/^Move to/)[0]!);
 
-    const after = pieceFor("home-winger");
+    const after = pieceFor("home-winger-1");
     expect(after).toBe(before); // identity, not just equality
     expect(after?.dataset.cell).not.toBe(cellBefore);
   });
@@ -95,7 +95,7 @@ describe("the ball is its own piece", () => {
     const user = userEvent.setup();
     render(hotseat());
 
-    const striker = pieceFor("home-striker");
+    const striker = pieceFor("home-striker-1");
     const strikerCell = striker?.dataset.cell;
     const from = ball()?.dataset.cell;
 
@@ -105,7 +105,7 @@ describe("the ball is its own piece", () => {
 
     // The ball has gone somewhere else; the passer has not.
     expect(ball()?.dataset.cell).not.toBe(from);
-    expect(pieceFor("home-striker")?.dataset.cell).toBe(strikerCell);
+    expect(pieceFor("home-striker-1")?.dataset.cell).toBe(strikerCell);
     expect(ball()).toBe(document.querySelector("[data-ball]")); // still one node
   });
 

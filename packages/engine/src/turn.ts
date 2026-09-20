@@ -1,5 +1,4 @@
 import {
-  ACTIONS_PER_TURN,
   opponentOf,
   type Action,
   type Duel,
@@ -111,7 +110,7 @@ function endOfTurn(state: MatchState, rng: Rng): MatchState {
     ...state,
     turn: state.turn + 1,
     activeTeam: opponentOf(state.activeTeam),
-    actionsRemaining: ACTIONS_PER_TURN,
+    actionsRemaining: state.rules.actionsPerTurn,
   };
 }
 

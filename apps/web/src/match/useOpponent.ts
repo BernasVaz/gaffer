@@ -1,5 +1,5 @@
 import { chooseCommand } from "@gaffer/ai";
-import { ACTIONS_PER_TURN, type Difficulty, type MatchState, type Team } from "@gaffer/shared";
+import type { Difficulty, MatchState, Team } from "@gaffer/shared";
 import { useEffect } from "react";
 
 import { OPPONENT } from "../feel";
@@ -69,7 +69,9 @@ export function useOpponent({
   // The first action of a turn gets a longer pause: the opponent has just been
   // handed a board it has not seen, and the player has just finished acting.
   const delay =
-    state.actionsRemaining === ACTIONS_PER_TURN ? OPPONENT.firstAction : OPPONENT.nextAction;
+    state.actionsRemaining === state.rules.actionsPerTurn
+      ? OPPONENT.firstAction
+      : OPPONENT.nextAction;
 
   useEffect(() => {
     if (!thinking) return;

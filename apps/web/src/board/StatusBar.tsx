@@ -1,7 +1,7 @@
 import type { MatchState } from "@gaffer/shared";
 
 import type { MatchEvent } from "../match/useMatch";
-import { SQUADS } from "./squads";
+import { kitFor } from "./squads";
 import type { Target } from "./targets";
 
 const pct = (chance: number) => `${Math.round(chance * 100)}%`;
@@ -10,7 +10,7 @@ const pct = (chance: number) => `${Math.round(chance * 100)}%`;
 function nameOf(state: MatchState, playerId: string): string {
   const player = state.players.find((candidate) => candidate.id === playerId);
   if (!player) return playerId;
-  const kit = SQUADS[player.team][player.role];
+  const kit = kitFor(player, state);
   return `${kit.number} ${kit.name}`;
 }
 

@@ -1,12 +1,10 @@
 import { z } from "zod";
 
+import { MatchFormatSchema, MatchRulesSchema } from "./format.js";
 import { BoardSchema, isWithinBoard, PositionSchema } from "./pitch.js";
 import { PlayerIdSchema, PlayerSchema } from "./player.js";
 import { MatchResultSchema } from "./outcome.js";
 import { TeamSchema } from "./team.js";
-
-/** Actions a side may spend per turn (GDD §13). */
-export const ACTIONS_PER_TURN = 2;
 
 /**
  * The single ball.
@@ -79,6 +77,17 @@ export type MatchStats = z.infer<typeof MatchStatsSchema>;
  */
 export const MatchStateSchema = z
   .object({
+    /** Which game type this is. Fixed for the life of the match. */
+    format: MatchFormatSchema,
+    /**
+     * The numbers this match is played by.
+     *
+     * Carried on the state rather than looked up from the format table, so a
+     * saved or transmitted match replays identically even if that table is
+     * later retuned — the same reason a player's stats are copied onto the
+     * player at kickoff rather than read from the role profiles.
+     */
+    rules: MatchRulesSchema,
     /** Pitch dimensions for this match. */
     board: BoardSchema,
     /** Every player from both sides. */
@@ -91,8 +100,8 @@ export const MatchStateSchema = z
     turn: z.number().int().min(1),
     /** Which side is to act. */
     activeTeam: TeamSchema,
-    /** Actions the active side has left this turn. */
-    actionsRemaining: z.number().int().min(0).max(ACTIONS_PER_TURN),
+    /** Actions the active side has left this turn. Never more than the rules allow. */
+    actionsRemaining: z.number().int().min(0),
     /** Current scoreline. */
     score: ScoreSchema,
     /**
@@ -109,6 +118,14 @@ export const MatchStateSchema = z
     result: MatchResultSchema.nullable(),
   })
   .superRefine((state, ctx) => {
+    if (state.actionsRemaining > state.rules.actionsPerTurn) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["actionsRemaining"],
+        message: `A side cannot hold ${state.actionsRemaining} actions when a turn grants ${state.rules.actionsPerTurn}`,
+      });
+    }
+
     const seenIds = new Set<string>();
     const seenCells = new Set<string>();
 

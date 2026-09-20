@@ -1,8 +1,9 @@
 import {
-  ACTIONS_PER_TURN,
-  DEFAULT_BOARD,
+  DEFAULT_FORMAT,
+  FORMAT_PROFILES,
   MatchStateSchema,
   ROLE_PROFILES,
+  type MatchFormat,
   type MatchState,
   type Player,
   type Role,
@@ -32,8 +33,13 @@ export interface Spec {
  */
 export function makeState(
   specs: readonly Spec[],
-  opts: { activeTeam?: Team; actionsRemaining?: number } = {},
+  opts: { activeTeam?: Team; actionsRemaining?: number; format?: MatchFormat } = {},
 ): MatchState {
+  /* Fixtures are 5-a-side unless a test is specifically about another format:
+     the rules are the same at every scale, so a rule is best pinned on the
+     smallest board that can express it. */
+  const format = opts.format ?? DEFAULT_FORMAT;
+  const profile = FORMAT_PROFILES[format];
   const players: Player[] = specs.map((spec, index) => ({
     id: `${spec.team}-${spec.role}-${index}`,
     team: spec.team,
@@ -47,15 +53,17 @@ export function makeState(
   const carrier = carrierIndex >= 0 ? players[carrierIndex] : undefined;
 
   const state: MatchState = {
-    board: { ...DEFAULT_BOARD },
+    format,
+    rules: { ...profile.rules },
+    board: { ...profile.board },
     players,
     ball: carrier
       ? { position: { ...carrier.position }, carrierId: carrier.id }
-      : { position: { x: 0, y: 4 }, carrierId: null },
+      : { position: { x: 0, y: profile.board.height - 1 }, carrierId: null },
     possession: carrier ? carrier.team : null,
     turn: 1,
     activeTeam: opts.activeTeam ?? "home",
-    actionsRemaining: opts.actionsRemaining ?? ACTIONS_PER_TURN,
+    actionsRemaining: opts.actionsRemaining ?? profile.rules.actionsPerTurn,
     score: { home: 0, away: 0 },
     kickedOff: "home",
     stats: {
