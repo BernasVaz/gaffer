@@ -1,5 +1,5 @@
 import type { Team } from "@gaffer/shared";
-import { motion, useReducedMotion } from "motion/react";
+import { m, useReducedMotion } from "motion/react";
 
 import { GOAL, POP_SPRING } from "../feel";
 
@@ -56,7 +56,7 @@ export function GoalBurst({ team }: { team: Team }) {
 
       {/* A ring of light punching outward from the middle. */}
       {!still && (
-        <motion.div
+        <m.div
           className="absolute h-[22%] w-[22%] rounded-full ring-4 ring-amber-200/70"
           initial={{ scale: 0.2, opacity: 0.9 }}
           animate={{ scale: 5.2, opacity: 0 }}
@@ -66,7 +66,7 @@ export function GoalBurst({ team }: { team: Team }) {
 
       {!still &&
         SPARKS.map((spark, index) => (
-          <motion.span
+          <m.span
             key={index}
             className="absolute rounded-full bg-amber-200 shadow-[0_0_10px_rgba(253,230,138,0.9)]"
             style={{ width: spark.size, height: spark.size }}
@@ -87,7 +87,7 @@ export function GoalBurst({ team }: { team: Team }) {
           />
         ))}
 
-      <motion.p
+      <m.p
         className="relative flex flex-col items-center gap-1"
         initial={still ? false : { scale: 0.35, opacity: 0, rotate: -7 }}
         animate={{ scale: 1, opacity: 1, rotate: 0 }}
@@ -110,7 +110,7 @@ export function GoalBurst({ team }: { team: Team }) {
         >
           {team}
         </span>
-      </motion.p>
+      </m.p>
     </div>
   );
 }

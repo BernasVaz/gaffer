@@ -9,6 +9,12 @@
  * readable from the first paint and simply changes shape when the font lands —
  * a game that is unreadable for 200ms is worse than one that reflows.
  *
+ * The URL is **relative**, which matters more than it looks. It puts the file
+ * through the bundler, so it is hashed, cached forever and — crucially —
+ * rewritten to sit under whatever base path the app is deployed at. An absolute
+ * `/fonts/…` works at a domain root and silently 404s under a subpath, which is
+ * exactly where this is going.
+ *
  * SIL Open Font License 1.1; the licence ships beside it in `public/fonts/`.
  */
 @font-face {
@@ -16,7 +22,7 @@
   font-style: normal;
   font-weight: 400 800;
   font-display: swap;
-  src: url("/fonts/baloo2-latin.woff2") format("woff2");
+  src: url("./fonts/baloo2-latin.woff2") format("woff2");
 }
 
 @theme {

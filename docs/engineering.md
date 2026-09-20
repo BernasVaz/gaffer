@@ -293,6 +293,18 @@ doc coverage, each as a named step so a failure identifies itself in the GitHub 
 rather than hiding in one long log. `pnpm install --frozen-lockfile` guarantees CI
 installs exactly what the lockfile pins.
 
+**On merge to `main`** (`.github/workflows/deploy.yml`) — builds the client and publishes
+it to GitHub Pages. There is no manual publish step, because a link that lags `main` by a
+deploy somebody forgot to run is a link that misrepresents the game. See
+[ADR 0009](adr/0009-ship-on-github-pages-and-keep-vercel-one-import-away.md) for why Pages
+rather than Vercel, and how little stands between the two.
+
+The client builds with a **relative base** (`base: "./"` in `vite.config.ts`), which is
+what lets one artifact serve correctly from a project subpath _and_ from a domain root.
+The consequence worth remembering: anything referenced with an absolute `/…` path works at
+a root and silently 404s under a subpath, so assets belong in `src/` where the bundler
+rewrites them, not in `public/` where it does not.
+
 **On release** (Changesets, `.changeset/`) — `pnpm changeset` records an intent to
 version; `pnpm changeset:version` consumes those records into version bumps and
 `CHANGELOG.md`. Because our packages are `private`, `privatePackages.version` is

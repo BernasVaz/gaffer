@@ -1,4 +1,5 @@
 import { parseSetup, setupToQuery, type MatchSetup } from "@gaffer/shared";
+import { domAnimation, LazyMotion } from "motion/react";
 import { useCallback, useState } from "react";
 
 import { Match } from "./match/Match";
@@ -49,7 +50,20 @@ export function App() {
 
   const leave = useCallback(() => setSetup(null), []);
 
-  if (setup === null) return <SetupScreen initial={initial} onStart={start} />;
-
-  return <Match key={setupToQuery(setup)} setup={setup} onLeave={leave} />;
+  return (
+    /*
+     * `strict` is the point of this as much as the size is: it makes the plain
+     * `motion.*` components throw, so there is no way to quietly reintroduce the
+     * full bundle by importing the obvious thing in a new component. `domAnimation`
+     * covers animation, gestures and exit — everything the board uses. Layout
+     * animation and drag are the parts left behind, and nothing here wants them.
+     */
+    <LazyMotion features={domAnimation} strict>
+      {setup === null ? (
+        <SetupScreen initial={initial} onStart={start} />
+      ) : (
+        <Match key={setupToQuery(setup)} setup={setup} onLeave={leave} />
+      )}
+    </LazyMotion>
+  );
 }

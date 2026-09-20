@@ -7,7 +7,7 @@ import {
   type Team,
 } from "@gaffer/shared";
 
-import { motion, useAnimationControls, useReducedMotion } from "motion/react";
+import { m, useAnimationControls, useReducedMotion } from "motion/react";
 import { useEffect, useRef } from "react";
 
 import { GoalNet, PitchMarkings } from "../art/PitchMarkings";
@@ -95,7 +95,7 @@ function ActiveOrPlain({
   }
 
   return (
-    <motion.button
+    <m.button
       type="button"
       aria-label={label}
       onClick={onClick}
@@ -111,7 +111,7 @@ function ActiveOrPlain({
       transition={POP_SPRING}
     >
       {children}
-    </motion.button>
+    </m.button>
   );
 }
 
@@ -140,7 +140,7 @@ function TurnFlourish({ team, still }: { team: Team; still: boolean }) {
   }, [team, controls, still]);
 
   return (
-    <motion.div
+    <m.div
       aria-hidden
       initial={{ opacity: 0 }}
       animate={controls}
@@ -262,7 +262,7 @@ export function Pitch({
   );
 
   return (
-    <motion.div
+    <m.div
       className="relative rounded-2xl bg-gradient-to-b from-(--color-edge) to-(--color-night) p-[3px] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75)]"
       animate={shake}
     >
@@ -378,7 +378,7 @@ export function Pitch({
                   >
                     {/* An empty destination. */}
                     {cellTarget && (
-                      <motion.span
+                      <m.span
                         aria-hidden
                         initial={{ scale: 0.3, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
@@ -408,7 +408,7 @@ export function Pitch({
 
                     {/* Who is selected. */}
                     {isSelected && (
-                      <motion.span
+                      <m.span
                         aria-hidden
                         initial={{ scale: 0.55, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
@@ -419,7 +419,7 @@ export function Pitch({
 
                     {/* A player you can act on: the ring goes round the shirt. */}
                     {playerTarget && (
-                      <motion.span
+                      <m.span
                         aria-hidden
                         initial={{ scale: 0.4, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
@@ -461,6 +461,6 @@ export function Pitch({
       <TurnFlourish team={state.activeTeam} still={still} />
 
       {goalFor && <GoalBurst team={goalFor} />}
-    </motion.div>
+    </m.div>
   );
 }
