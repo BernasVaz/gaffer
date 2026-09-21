@@ -1,4 +1,4 @@
-import { parseSetup, setupToQuery, type MatchSetup } from "@gaffer/shared";
+import { parseReplayTo, parseSetup, setupToQuery, type MatchSetup } from "@gaffer/shared";
 import { domAnimation, LazyMotion } from "motion/react";
 import { useCallback, useState } from "react";
 
@@ -39,6 +39,12 @@ function publish(setup: MatchSetup) {
  */
 export function App() {
   const [initial] = useState<MatchSetup>(() => parseSetup(search()));
+  /*
+   * Read once, from the link this page was opened with. It is a place to stand
+   * inside a match rather than part of which match it is, so it survives
+   * neither a restart nor a new setup — both of which are new matches.
+   */
+  const [replayTo] = useState<number | undefined>(() => parseReplayTo(search()));
   const [setup, setSetup] = useState<MatchSetup | null>(() =>
     wasSentAMatch() ? parseSetup(search()) : null,
   );
@@ -62,7 +68,7 @@ export function App() {
       {setup === null ? (
         <SetupScreen initial={initial} onStart={start} />
       ) : (
-        <Match key={setupToQuery(setup)} setup={setup} onLeave={leave} />
+        <Match key={setupToQuery(setup)} setup={setup} replayTo={replayTo} onLeave={leave} />
       )}
     </LazyMotion>
   );

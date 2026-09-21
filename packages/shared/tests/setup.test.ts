@@ -10,6 +10,7 @@ import {
   MatchSetupSchema,
   MAX_ACTIONS_PER_TURN,
   MIN_ACTIONS_PER_TURN,
+  parseReplayTo,
   parseSetup,
   PLAY_MODES,
   setupToQuery,
@@ -219,5 +220,32 @@ describe("actions per turn in a link", () => {
       expect(theirs).toBeGreaterThanOrEqual(MIN_ACTIONS_PER_TURN);
       expect(theirs).toBeLessThanOrEqual(MAX_ACTIONS_PER_TURN);
     }
+  });
+});
+
+describe("parseReplayTo", () => {
+  it("reads a point inside a match", () => {
+    expect(parseReplayTo("?seed=1&mode=5v5&replayTo=13")).toBe(13);
+    expect(parseReplayTo("?replayTo=0")).toBe(0);
+  });
+
+  it("is absent when the link does not ask for one", () => {
+    expect(parseReplayTo("?seed=1&mode=5v5")).toBeUndefined();
+  });
+
+  it("ignores anything that is not a place in a log", () => {
+    for (const bad of ["-1", "2.5", "banana", ""]) {
+      expect(parseReplayTo(`?replayTo=${bad}`)).toBeUndefined();
+    }
+  });
+
+  it("stays out of the setup, so two views of a match are still one match", () => {
+    // The setup keys the saved feedback and is what a shared link promises. A
+    // place to stand inside a match is not a different match.
+    const withPointer = parseSetup("?seed=1&mode=7v7&play=hotseat&replayTo=9");
+    const without = parseSetup("?seed=1&mode=7v7&play=hotseat");
+
+    expect(withPointer).toEqual(without);
+    expect(setupToQuery(withPointer)).not.toContain("replayTo");
   });
 });

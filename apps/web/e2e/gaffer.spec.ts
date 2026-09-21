@@ -364,3 +364,88 @@ test.describe("actions per turn", () => {
     await expect(page.getByLabel("Scoreboard")).toContainText("Turn 2 of");
   });
 });
+
+test.describe("flagging a moment", () => {
+  test("captures a note, survives a refresh, and comes back to the same board", async ({
+    page,
+  }) => {
+    await page.goto("./?seed=42&mode=5v5&play=hotseat&actions=2");
+
+    // Play a few actions so there is a history to attach.
+    await step(page);
+    await step(page);
+    const turn = await page.getByLabel("Scoreboard").textContent();
+
+    await page.keyboard.press("f");
+    await expect(page.getByRole("dialog", { name: /Flag this moment/ })).toBeVisible();
+
+    await page.getByRole("button", { name: "Confusing" }).click();
+    await page.getByLabel("What happened").fill("could not tell why that pass was not offered");
+    await page.getByRole("button", { name: "Save note" }).click();
+
+    await expect(page.getByRole("button", { name: /Flag moment/ })).toContainText("1");
+
+    // The point of persisting: a refresh keeps the note *and* the match.
+    await page.reload();
+    await expect(page.getByRole("button", { name: /Flag moment/ })).toContainText("1");
+    await expect(page.getByLabel("Scoreboard")).toHaveText(turn ?? "");
+  });
+
+  test("holds the board still while the note is being written", async ({ page }) => {
+    await page.goto("./?seed=42&mode=5v5&play=hotseat");
+    // Wait for the board before typing at it: the hotkey listens on the window,
+    // which does not exist until the match has rendered.
+    await expect(page.getByRole("grid")).toBeVisible();
+
+    await page.keyboard.press("f");
+    await expect(page.getByRole("dialog", { name: /Flag this moment/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "End turn" })).toBeDisabled();
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "End turn" })).toBeEnabled();
+  });
+
+  test("downloads a report that names the match and carries the log", async ({ page }) => {
+    await page.goto("./?seed=42&mode=5v5&play=hotseat&actions=2");
+    await step(page);
+
+    await page.keyboard.press("f");
+    await page.getByLabel("What happened").fill("this is the moment");
+    await page.getByRole("button", { name: "Save note" }).click();
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: /Download feedback/ }).click(),
+    ]);
+
+    expect(download.suggestedFilename()).toBe("gaffer-feedback-5v5-seed42.md");
+
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(chunk as Buffer);
+    const markdown = Buffer.concat(chunks).toString("utf8");
+
+    expect(markdown).toContain("# Gaffer feedback — 5-a-side, seed 42");
+    expect(markdown).toContain("> this is the moment");
+    expect(markdown).toContain("Replay to action");
+    expect(markdown).toContain("replayTo=");
+    expect(markdown).toContain("## The move log");
+
+    // The log in the file is the real thing, not a placeholder.
+    const block = markdown.slice(markdown.indexOf("```json") + 7, markdown.lastIndexOf("```"));
+    expect(JSON.parse(block).length).toBeGreaterThan(0);
+  });
+
+  test("reopens a flagged moment from its own link", async ({ page }) => {
+    await page.goto("./?seed=42&mode=5v5&play=hotseat&actions=2");
+    for (let taken = 0; taken < 6; taken += 1) await step(page);
+
+    await page.keyboard.press("f");
+    await page.getByRole("button", { name: "Save note" }).click();
+
+    await page.goto("./?seed=42&mode=5v5&play=hotseat&actions=2&replayTo=2");
+    await expect(page.getByText(/Wound back to action 2/)).toBeVisible();
+    await expect(page.getByRole("grid")).toBeVisible();
+  });
+});
