@@ -3,9 +3,11 @@ import {
   DEFAULT_SETUP,
   FORMAT_PROFILES,
   FORMATS,
+  MAX_ACTIONS_PER_TURN,
+  MIN_ACTIONS_PER_TURN,
   parseSetup,
 } from "@gaffer/shared";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -58,6 +60,7 @@ describe("the setup screen", () => {
       play: "solo",
       side: "away",
       difficulty: "elite",
+      actions: 2,
       seed: 1,
     });
   });
@@ -65,7 +68,14 @@ describe("the setup screen", () => {
   it("starts from whatever the link said", () => {
     render(
       <SetupScreen
-        initial={{ mode: "7v7", play: "solo", side: "away", difficulty: "casual", seed: 4242 }}
+        initial={{
+          mode: "7v7",
+          play: "solo",
+          side: "away",
+          difficulty: "casual",
+          actions: 3,
+          seed: 4242,
+        }}
         onStart={() => {}}
       />,
     );
@@ -121,6 +131,7 @@ describe("which screen you land on", () => {
       play: "solo",
       side: "away",
       difficulty: "pro",
+      actions: 2,
       seed: 1,
     });
   });
@@ -236,5 +247,82 @@ describe("a match at another game type", () => {
     visit("?seed=3&mode=5v5&play=hotseat");
     render(<App />);
     expect(screen.queryByText(/^Alpha$/)).not.toBeInTheDocument();
+  });
+});
+
+describe("choosing an action economy", () => {
+  const actionTile = (count: number) =>
+    within(screen.getByLabelText("Actions per turn")).getByRole("button", {
+      name: new RegExp(`^${count}`),
+    });
+
+  it("offers the whole range a turn can hold", () => {
+    render(<SetupScreen initial={DEFAULT_SETUP} onStart={() => {}} />);
+    for (let count = MIN_ACTIONS_PER_TURN; count <= MAX_ACTIONS_PER_TURN; count += 1) {
+      expect(actionTile(count)).toBeInTheDocument();
+    }
+    expect(
+      within(screen.getByLabelText("Actions per turn")).queryByRole("button", { name: /^5/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("starts on the game type's own number and marks it as the default", () => {
+    render(<SetupScreen initial={DEFAULT_SETUP} onStart={() => {}} />);
+    const theirs = FORMAT_PROFILES[DEFAULT_SETUP.mode].rules.actionsPerTurn;
+
+    expect(actionTile(theirs)).toHaveAttribute("aria-pressed", "true");
+    expect(actionTile(theirs)).toHaveTextContent("default");
+  });
+
+  it("follows the game type when that changes", async () => {
+    /*
+     * The action economy decides whether a game type works at all (ADR 0012) —
+     * 11-a-side on 5-a-side's two actions produces no goals whatsoever. So a
+     * game type brings its own number rather than inheriting the last one.
+     */
+    const user = userEvent.setup();
+    render(<SetupScreen initial={DEFAULT_SETUP} onStart={() => {}} />);
+
+    expect(actionTile(2)).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: /11v11/ }));
+    expect(actionTile(4)).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keeps a deliberate choice once it is made", async () => {
+    const user = userEvent.setup();
+    let chosen: unknown = null;
+    render(<SetupScreen initial={DEFAULT_SETUP} onStart={(setup) => (chosen = setup)} />);
+
+    await user.click(actionTile(1));
+    await user.click(screen.getByRole("button", { name: /Kick off/ }));
+
+    expect(chosen).toMatchObject({ mode: "5v5", actions: 1 });
+  });
+
+  it("carries it into the link", async () => {
+    const user = userEvent.setup();
+    visit("/");
+    render(<App />);
+
+    await user.click(actionTile(3));
+    await user.click(screen.getByRole("button", { name: /Kick off/ }));
+
+    expect(parseSetup(window.location.search).actions).toBe(3);
+  });
+});
+
+describe("a match played under a chosen economy", () => {
+  it("grants the turn what the link asked for, not what the game type says", () => {
+    visit("?seed=3&mode=5v5&play=hotseat&actions=4");
+    render(<App />);
+
+    expect(screen.getByLabelText("Scoreboard")).toHaveTextContent("4 actions left");
+  });
+
+  it("still grants the game type's own number when the link is silent", () => {
+    visit("?seed=3&mode=11v11&play=hotseat");
+    render(<App />);
+
+    expect(screen.getByLabelText("Scoreboard")).toHaveTextContent("4 actions left");
   });
 });

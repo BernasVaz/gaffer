@@ -2,11 +2,13 @@ import {
   centreSpot,
   DEFAULT_FORMAT,
   FORMAT_PROFILES,
+  MatchRulesSchema,
   mirrorPosition,
   playerIdFor,
   ROLE_PROFILES,
   TEAMS,
   type MatchFormat,
+  type MatchRules,
   type MatchState,
   type Player,
   type Position,
@@ -31,6 +33,19 @@ export interface CreateInitialStateOptions {
    * ball. Defaults to `"home"`.
    */
   kickingOff?: Team;
+  /**
+   * Numbers to play this format under, overriding its own.
+   *
+   * For a match whose setup differs from the format's defaults — a tester
+   * trying 11-a-side with two actions a turn, say. Merged over the format's
+   * rules and validated, so an impossible set (an odd turn cap, which would
+   * hand one side an extra go) throws here rather than producing a match that
+   * is quietly unfair.
+   *
+   * The result is copied onto the state, so the match keeps these numbers for
+   * its whole life — including across the rebuild after a goal.
+   */
+  rules?: Partial<MatchRules>;
 }
 
 /** A player from the line-up, before the kickoff spot is decided. */
@@ -90,12 +105,16 @@ function placeSide(team: Team, format: MatchFormat): Placed[] {
  *
  * createInitialState({ format: "11v11" }).players.length;   // 22
  * createInitialState({ kickingOff: "away" }).activeTeam;    // "away"
+ *
+ * // A format's pitch and squad, played under a different action economy.
+ * createInitialState({ format: "11v11", rules: { actionsPerTurn: 2 } });
  * ```
  */
 export function createInitialState(options: CreateInitialStateOptions = {}): MatchState {
   const format = options.format ?? DEFAULT_FORMAT;
   const kickingOff = options.kickingOff ?? "home";
   const profile = FORMAT_PROFILES[format];
+  const rules = MatchRulesSchema.parse({ ...profile.rules, ...options.rules });
   const spot = centreSpot(profile.board);
 
   /*
@@ -138,7 +157,7 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
 
   return {
     format,
-    rules: { ...profile.rules },
+    rules,
     board: { ...profile.board },
     players,
     ball: {
@@ -148,7 +167,7 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
     possession: kickingOff,
     turn: 1,
     activeTeam: kickingOff,
-    actionsRemaining: profile.rules.actionsPerTurn,
+    actionsRemaining: rules.actionsPerTurn,
     score: { home: 0, away: 0 },
     kickedOff: kickingOff,
     stats: {

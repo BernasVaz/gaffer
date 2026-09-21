@@ -326,3 +326,41 @@ test.describe("name labels", () => {
     });
   }
 });
+
+test.describe("actions per turn", () => {
+  test("is chosen before kickoff and carried in the link", async ({ page }) => {
+    await page.goto("./");
+
+    const economy = page.getByLabel("Actions per turn");
+    await expect(economy.getByRole("button", { name: /^2/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    await economy.getByRole("button", { name: /^4/ }).click();
+    await page.getByRole("button", { name: /Kick off/ }).click();
+
+    expect(page.url()).toContain("actions=4");
+    await expect(page.getByLabel("Scoreboard")).toContainText("4 actions left");
+  });
+
+  test("follows the game type when that changes", async ({ page }) => {
+    await page.goto("./");
+    const economy = page.getByLabel("Actions per turn");
+
+    await page.getByRole("button", { name: /11v11/ }).click();
+    await expect(economy.getByRole("button", { name: /^4/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  test("actually changes how many commands a turn takes", async ({ page }) => {
+    // The setting is only real if the engine honours it, so this spends a turn.
+    await page.goto("./?seed=5&mode=5v5&play=hotseat&actions=1");
+    await expect(page.getByLabel("Scoreboard")).toContainText("1 action left");
+
+    await step(page);
+    await expect(page.getByLabel("Scoreboard")).toContainText("Turn 2 of");
+  });
+});
