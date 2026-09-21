@@ -16,6 +16,7 @@ import { GoalBurst } from "./GoalBurst";
 import { Pieces } from "./Pieces";
 import { kitFor } from "./squads";
 import { cellKey, isCommandable, type Seat, type Target, type Targets } from "./targets";
+import { useBoardDrag } from "./useBoardDrag";
 
 /** Spoken form of a role, for accessible names. */
 const ROLE_NAME: Record<Role, string> = {
@@ -241,6 +242,21 @@ export function Pitch({
   const shake = useAnimationControls();
 
   /*
+   * A second way in, ending at the same `onCommit`. Drag was always the
+   * intended companion to click — Tactikick's validated feel is "pick a player,
+   * drag, choose the action" (GDD §4) — and it only takes over once the pointer
+   * has actually travelled, so the click path below is untouched.
+   */
+  const drag = useBoardDrag({
+    state,
+    seat,
+    selectedId,
+    onSelect,
+    onCommit,
+    enabled: !frozen,
+  });
+
+  /*
    * A jolt when the ball goes in. Applied to the pitch rather than the page —
    * shaking the whole document reads as a fault, shaking the thing that was hit
    * reads as impact. Presentation only: it starts from a goal the engine has
@@ -279,8 +295,9 @@ export function Pitch({
           aria-label={`Pitch, ${width} columns by ${height} rows`}
           aria-rowcount={height}
           aria-colcount={width}
-          className="relative grid w-full overflow-hidden rounded-xl"
+          className="relative grid w-full touch-pan-y overflow-hidden rounded-xl select-none"
           style={{ gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))` }}
+          {...drag.handlers}
         >
           {Array.from({ length: height }, (_unused, y) => (
             <div role="row" aria-rowindex={y + 1} key={y} className="contents">
@@ -344,6 +361,9 @@ export function Pitch({
                   : `Column ${x}, row ${y}: empty`;
 
                 const handleActivate = () => {
+                  /* A drag that has just committed still produces a click, and
+                     that click would be read as selecting whoever it landed on. */
+                  if (drag.swallowNextClick()) return;
                   if (intent.kind === "commit") onCommit(intent.target.action);
                   else if (intent.kind === "select")
                     onSelect(intent.playerId === selectedId ? null : intent.playerId);
@@ -359,8 +379,16 @@ export function Pitch({
                     aria-colindex={x + 1}
                     aria-label={cellName}
                     aria-selected={isSelected || undefined}
+                    /* Only the cells a drag can start from refuse to scroll the
+                       page, so a phone can still scroll from open grass. */
+                    style={selectable ? { touchAction: "none" } : undefined}
                     className={cx(
                       "relative aspect-square",
+                      drag.dragging &&
+                        drag.over === key &&
+                        (drag.overIsTarget
+                          ? "ring-2 ring-(--color-gold) ring-inset"
+                          : "ring-2 ring-white/25 ring-inset"),
                       goalCells.has(key)
                         ? "bg-(--color-mouth)"
                         : x % 2 === 0

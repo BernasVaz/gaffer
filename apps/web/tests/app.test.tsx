@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { Match } from "../src/match/Match";
+import { targetAt, targetsFor } from "../src/board/targets";
 
 /**
  * A hotseat match, rendered directly.
@@ -228,5 +229,58 @@ describe("the team sheet", () => {
       expect(within(sheet).getByText(role)).toBeInTheDocument();
     }
     expect(within(sheet).queryByText(/×\d/)).not.toBeInTheDocument();
+  });
+});
+
+describe("the shared target lookup", () => {
+  /*
+   * Click and drag ask this same question about a cell. If they asked it in two
+   * places they would eventually answer it differently, which is the failure a
+   * second input method invites.
+   */
+  const boardFor = (playerId: string) => {
+    const state = createInitialState();
+    return { state, targets: targetsFor(state, playerId) };
+  };
+
+  it("offers the destination when a cell is empty", () => {
+    const { state, targets } = boardFor("home-striker-1");
+    const destination = [...targets.cells.values()][0]!;
+    const cell = (destination.action as { target: { x: number; y: number } }).target;
+
+    const found = targetAt(state, targets, undefined, cell);
+    expect(found?.action).toEqual(destination.action);
+  });
+
+  it("offers the pass when a team-mate is standing there", () => {
+    const { state, targets } = boardFor("home-striker-1");
+    const [mateId, mateTarget] = [...targets.players.entries()][0]!;
+    const mate = state.players.find((player) => player.id === mateId)!;
+
+    expect(targetAt(state, targets, undefined, mate.position)?.action).toEqual(mateTarget.action);
+  });
+
+  it("prefers a lit destination over the player standing on it", () => {
+    // Clicking a ringed team-mate passes to them rather than switching to them.
+    const { state, targets } = boardFor("home-striker-1");
+    const [mateId] = [...targets.players.entries()][0]!;
+    const mate = state.players.find((player) => player.id === mateId)!;
+
+    const withCell = {
+      ...targets,
+      cells: new Map(targets.cells).set(`${mate.position.x},${mate.position.y}`, {
+        action: { type: "move", playerId: "home-striker-1", target: mate.position },
+        duel: null,
+      } as never),
+    };
+
+    expect(targetAt(state, withCell, undefined, mate.position)?.action.type).toBe("move");
+  });
+
+  it("offers nothing on a cell the rules say nothing about", () => {
+    const { state, targets } = boardFor("home-striker-1");
+    const keeper = state.players.find((player) => player.id === "home-goalkeeper-1")!;
+
+    expect(targetAt(state, targets, undefined, keeper.position)).toBeNull();
   });
 });

@@ -1,5 +1,13 @@
 import { legalActions, previewDuel } from "@gaffer/engine";
-import type { Action, DuelPreview, MatchState, Position, Team } from "@gaffer/shared";
+import {
+  attackingGoalMouth,
+  type Action,
+  type DuelPreview,
+  type MatchState,
+  type Player,
+  type Position,
+  type Team,
+} from "@gaffer/shared";
 
 /** A cell reference that can be used as a map key. */
 export const cellKey = (position: Position) => `${position.x},${position.y}`;
@@ -98,4 +106,42 @@ export function isCommandable(state: MatchState, playerId: string, seat: Seat): 
   if (player.team !== state.activeTeam) return false;
 
   return seat === "both" || player.team === seat;
+}
+
+/**
+ * What committing on a given cell would do, or null for nothing.
+ *
+ * Three kinds of target point at three different things — a move or dribble at
+ * an empty cell, a pass or tackle at a shirt, a shot at the goal mouth — and a
+ * cell can be more than one of them at once. This is the order they resolve in,
+ * in one place, so that clicking a cell and dropping a player on it cannot
+ * come to different conclusions.
+ *
+ * A lit destination wins over the player standing there. Clicking a ringed
+ * team-mate passes to them rather than switching to them, which is why
+ * selecting that player instead means clearing the selection first.
+ */
+export function targetAt(
+  state: MatchState,
+  targets: Targets,
+  selected: Player | undefined,
+  cell: Position,
+): Target | null {
+  const here = targets.cells.get(cellKey(cell));
+  if (here) return here;
+
+  const occupant = state.players.find(
+    (player) => player.position.x === cell.x && player.position.y === cell.y,
+  );
+  const onPlayer = occupant ? targets.players.get(occupant.id) : undefined;
+  if (onPlayer) return onPlayer;
+
+  if (targets.shot && selected) {
+    const mouth = attackingGoalMouth(selected.team, state.board);
+    if (mouth.some((mouthCell) => mouthCell.x === cell.x && mouthCell.y === cell.y)) {
+      return targets.shot;
+    }
+  }
+
+  return null;
 }
