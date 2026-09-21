@@ -1,6 +1,17 @@
 import { expect, test } from "@playwright/test";
 
-import { expectNoRuleBug, playToTheEnd, result, selectable, status, step, targets } from "./match";
+import {
+  cellCentre,
+  dragCell,
+  expectNoRuleBug,
+  firstOpenDestination,
+  playToTheEnd,
+  result,
+  selectable,
+  status,
+  step,
+  targets,
+} from "./match";
 
 test.describe("arriving", () => {
   test("a bare visit asks how you want to play", async ({ page }) => {
@@ -447,5 +458,78 @@ test.describe("flagging a moment", () => {
     await page.goto("./?seed=42&mode=5v5&play=hotseat&actions=2&replayTo=2");
     await expect(page.getByText(/Wound back to action 2/)).toBeVisible();
     await expect(page.getByRole("grid")).toBeVisible();
+test.describe("dragging a player", () => {
+  /** Where the side to move has the ball. */
+  const carrier = async (page: import("@playwright/test").Page) => {
+    const label = await page
+      .getByRole("gridcell", { name: /with the ball/ })
+      .first()
+      .getAttribute("aria-label");
+    const found = /^Column (\d+), row (\d+):/.exec(label ?? "");
+    if (!found) throw new Error(`no carrier in ${label}`);
+    return { x: Number(found[1]), y: Number(found[2]) };
+  };
+
+  test("commits the same action a click would", async ({ page }) => {
+    await page.goto("./?seed=7&mode=5v5&play=hotseat&actions=2");
+    await expect(page.getByLabel("Scoreboard")).toContainText("2 actions left");
+
+    const from = await carrier(page);
+    await page
+      .getByRole("gridcell", { name: new RegExp(`^Column ${from.x}, row ${from.y}:`) })
+      .click();
+    const to = await firstOpenDestination(page);
+
+    // Start over, this time by dragging rather than clicking.
+    await page.reload();
+    await dragCell(page, from, to);
+
+    await expect(page.getByLabel("Scoreboard")).toContainText("1 action left");
+    await expectNoRuleBug(page);
+  });
+
+  test("does nothing when it lands somewhere the rules do not allow", async ({ page }) => {
+    await page.goto("./?seed=7&mode=5v5&play=hotseat&actions=2");
+    const from = await carrier(page);
+
+    // The opposing keeper's goal mouth is never a destination for a carrier
+    // this far out, and dropping there must not half-commit anything.
+    await dragCell(page, from, { x: 0, y: 2 });
+
+    await expect(page.getByLabel("Scoreboard")).toContainText("2 actions left");
+    await expectNoRuleBug(page);
+  });
+
+  test("leaves the click path alone when the pointer barely moves", async ({ page }) => {
+    // Below the threshold the gesture is not a drag at all, so the existing
+    // click-to-select behaviour has to survive a shaky hand untouched.
+    await page.goto("./?seed=7&mode=5v5&play=hotseat&actions=2");
+    const from = await carrier(page);
+    const centre = await cellCentre(page, from.x, from.y);
+
+    await page.mouse.move(centre.x, centre.y);
+    await page.mouse.down();
+    await page.mouse.move(centre.x + 2, centre.y + 1);
+    await page.mouse.up();
+
+    await expect(page.getByLabel("Scoreboard")).toContainText("2 actions left");
+    expect(await targets(page).count()).toBeGreaterThan(0);
+  });
+
+  test("works at the biggest board too", async ({ page }) => {
+    await page.goto("./?seed=7&mode=11v11&play=hotseat");
+    const before = await page.getByLabel("Scoreboard").textContent();
+
+    const from = await carrier(page);
+    await page
+      .getByRole("gridcell", { name: new RegExp(`^Column ${from.x}, row ${from.y}:`) })
+      .click();
+    const to = await firstOpenDestination(page);
+
+    await page.reload();
+    await dragCell(page, from, to);
+
+    await expect(page.getByLabel("Scoreboard")).not.toHaveText(before ?? "");
+    await expectNoRuleBug(page);
   });
 });

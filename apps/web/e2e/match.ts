@@ -89,3 +89,38 @@ export async function playToTheEnd(page: Page, limit = 260): Promise<number> {
 
   return limit;
 }
+
+/** The middle of a given cell, in page coordinates. */
+export async function cellCentre(page: Page, x: number, y: number) {
+  const cell = page.getByRole("gridcell", { name: new RegExp(`^Column ${x}, row ${y}:`) });
+  const box = await cell.boundingBox();
+  if (!box) throw new Error(`cell ${x},${y} is not on screen`);
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/** The first cell the board is currently offering as a destination. */
+export async function firstOpenDestination(page: Page) {
+  const label = await page
+    .getByRole("button", { name: /^(Move to|Dribble to)/ })
+    .first()
+    .getAttribute("aria-label");
+
+  const found = /to column (\d+), row (\d+)/i.exec(label ?? "");
+  if (!found) throw new Error(`no destination in ${label}`);
+  return { x: Number(found[1]), y: Number(found[2]) };
+}
+
+/** Drag from one cell to another, the way a hand would. */
+export async function dragCell(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+) {
+  const start = await cellCentre(page, from.x, from.y);
+  const end = await cellCentre(page, to.x, to.y);
+
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 8 });
+  await page.mouse.up();
+}
