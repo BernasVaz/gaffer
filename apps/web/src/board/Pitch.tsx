@@ -273,197 +273,203 @@ export function Pitch({
       style={{ ["--cols" as string]: width, ["--rows" as string]: height }}
       animate={shake}
     >
-      <div
-        role="grid"
-        aria-label={`Pitch, ${width} columns by ${height} rows`}
-        aria-rowcount={height}
-        aria-colcount={width}
-        className="relative grid w-full overflow-hidden rounded-xl"
-        style={{ gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))` }}
-      >
-        {Array.from({ length: height }, (_unused, y) => (
-          <div role="row" aria-rowindex={y + 1} key={y} className="contents">
-            {Array.from({ length: width }, (_unusedCell, x) => {
-              const key = cellKey({ x, y });
-              const player = byCell.get(key);
-              const hasBall = player !== undefined && state.ball.carrierId === player.id;
+      <div className="relative">
+        <div
+          role="grid"
+          aria-label={`Pitch, ${width} columns by ${height} rows`}
+          aria-rowcount={height}
+          aria-colcount={width}
+          className="relative grid w-full overflow-hidden rounded-xl"
+          style={{ gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))` }}
+        >
+          {Array.from({ length: height }, (_unused, y) => (
+            <div role="row" aria-rowindex={y + 1} key={y} className="contents">
+              {Array.from({ length: width }, (_unusedCell, x) => {
+                const key = cellKey({ x, y });
+                const player = byCell.get(key);
+                const hasBall = player !== undefined && state.ball.carrierId === player.id;
 
-              const cellTarget = targets.cells.get(key);
-              const playerTarget = player ? targets.players.get(player.id) : undefined;
-              const isMouth = mouthCells.has(key);
-              const isSelected = player !== undefined && player.id === selectedId;
-              const selectable = player !== undefined && isCommandable(state, player.id, seat);
+                const cellTarget = targets.cells.get(key);
+                const playerTarget = player ? targets.players.get(player.id) : undefined;
+                const isMouth = mouthCells.has(key);
+                const isSelected = player !== undefined && player.id === selectedId;
+                const selectable = player !== undefined && isCommandable(state, player.id, seat);
 
-              /*
-               * A lit target always wins over selecting whoever is standing there.
-               * Clicking a ringed team-mate passes to them rather than switching
-               * to them — to command that player instead, clear the selection
-               * first by clicking them again or clicking open grass.
-               */
-              const intent: CellIntent = frozen
-                ? { kind: "clear" }
-                : cellTarget
-                  ? {
-                      kind: "commit",
-                      target: cellTarget,
-                      label: `${cellTarget.action.type === "dribble" ? "Dribble" : "Move"} to column ${x}, row ${y}${
-                        cellTarget.duel ? `, ${pct(cellTarget.duel.winChance)} chance` : ""
-                      }`,
-                    }
-                  : playerTarget && player
+                /*
+                 * A lit target always wins over selecting whoever is standing there.
+                 * Clicking a ringed team-mate passes to them rather than switching
+                 * to them — to command that player instead, clear the selection
+                 * first by clicking them again or clicking open grass.
+                 */
+                const intent: CellIntent = frozen
+                  ? { kind: "clear" }
+                  : cellTarget
                     ? {
                         kind: "commit",
-                        target: playerTarget,
-                        label: `${playerTarget.action.type === "tackle" ? "Tackle" : "Pass to"} ${describe(player, state)}${
-                          playerTarget.duel ? `, ${pct(playerTarget.duel.winChance)} chance` : ""
+                        target: cellTarget,
+                        label: `${cellTarget.action.type === "dribble" ? "Dribble" : "Move"} to column ${x}, row ${y}${
+                          cellTarget.duel ? `, ${pct(cellTarget.duel.winChance)} chance` : ""
                         }`,
                       }
-                    : isMouth && targets.shot
+                    : playerTarget && player
                       ? {
                           kind: "commit",
-                          target: targets.shot,
-                          label: `Shoot${targets.shot.duel ? `, ${pct(targets.shot.duel.winChance)} chance` : ""}`,
+                          target: playerTarget,
+                          label: `${playerTarget.action.type === "tackle" ? "Tackle" : "Pass to"} ${describe(player, state)}${
+                            playerTarget.duel ? `, ${pct(playerTarget.duel.winChance)} chance` : ""
+                          }`,
                         }
-                      : selectable && player
+                      : isMouth && targets.shot
                         ? {
-                            kind: "select",
-                            playerId: player.id,
-                            label: isSelected
-                              ? `Deselect ${describe(player, state)}`
-                              : `Select ${player.team} ${ROLE_NAME[player.role]}, ${describe(player, state)}`,
+                            kind: "commit",
+                            target: targets.shot,
+                            label: `Shoot${targets.shot.duel ? `, ${pct(targets.shot.duel.winChance)} chance` : ""}`,
                           }
-                        : { kind: "clear" };
+                        : selectable && player
+                          ? {
+                              kind: "select",
+                              playerId: player.id,
+                              label: isSelected
+                                ? `Deselect ${describe(player, state)}`
+                                : `Select ${player.team} ${ROLE_NAME[player.role]}, ${describe(player, state)}`,
+                            }
+                          : { kind: "clear" };
 
-              const actionable = intent.kind !== "clear";
+                const actionable = intent.kind !== "clear";
 
-              const cellName = player
-                ? `Column ${x}, row ${y}: ${player.team} ${ROLE_NAME[player.role]}, ${describe(player, state)}${
-                    hasBall ? ", with the ball" : ""
-                  }`
-                : `Column ${x}, row ${y}: empty`;
+                const cellName = player
+                  ? `Column ${x}, row ${y}: ${player.team} ${ROLE_NAME[player.role]}, ${describe(player, state)}${
+                      hasBall ? ", with the ball" : ""
+                    }`
+                  : `Column ${x}, row ${y}: empty`;
 
-              const handleActivate = () => {
-                if (intent.kind === "commit") onCommit(intent.target.action);
-                else if (intent.kind === "select")
-                  onSelect(intent.playerId === selectedId ? null : intent.playerId);
-                else onSelect(null);
-              };
+                const handleActivate = () => {
+                  if (intent.kind === "commit") onCommit(intent.target.action);
+                  else if (intent.kind === "select")
+                    onSelect(intent.playerId === selectedId ? null : intent.playerId);
+                  else onSelect(null);
+                };
 
-              const focusTarget = intent.kind === "commit" ? intent.target : null;
+                const focusTarget = intent.kind === "commit" ? intent.target : null;
 
-              return (
-                <div
-                  key={key}
-                  role="gridcell"
-                  aria-colindex={x + 1}
-                  aria-label={cellName}
-                  aria-selected={isSelected || undefined}
-                  className={cx(
-                    "relative aspect-square",
-                    goalCells.has(key)
-                      ? "bg-(--color-mouth)"
-                      : x % 2 === 0
-                        ? "bg-(--color-turf)"
-                        : "bg-(--color-turf-alt)",
-                  )}
-                >
-                  {/* Netting, drawn per cell because a mouth is three cells. */}
-                  {goalCells.has(key) && <GoalNet side={x === 0 ? "left" : "right"} />}
-                  <ActiveOrPlain
-                    actionable={actionable}
-                    label={actionable ? intent.label : undefined}
-                    onClick={handleActivate}
-                    onMouseEnter={() => onFocusTarget(focusTarget)}
-                    onMouseLeave={() => onFocusTarget(null)}
-                    onFocus={() => onFocusTarget(focusTarget)}
-                    onBlur={() => onFocusTarget(null)}
+                return (
+                  <div
+                    key={key}
+                    role="gridcell"
+                    aria-colindex={x + 1}
+                    aria-label={cellName}
+                    aria-selected={isSelected || undefined}
                     className={cx(
-                      "absolute inset-0 flex items-center justify-center",
-                      "focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-inset focus-visible:outline-none",
-                      actionable && "cursor-pointer",
+                      "relative aspect-square",
+                      goalCells.has(key)
+                        ? "bg-(--color-mouth)"
+                        : x % 2 === 0
+                          ? "bg-(--color-turf)"
+                          : "bg-(--color-turf-alt)",
                     )}
                   >
-                    {/* An empty destination. */}
-                    {cellTarget && (
-                      <m.span
-                        aria-hidden
-                        initial={{ scale: 0.3, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={POP_SPRING}
-                        className={cx(
-                          "absolute inset-[16%] rounded-full border-2",
-                          cellTarget.duel
-                            ? "border-amber-300/80 bg-amber-300/15"
-                            : "border-white/60 bg-white/10",
-                        )}
-                      />
-                    )}
+                    {/* Netting, drawn per cell because a mouth is three cells. */}
+                    {goalCells.has(key) && <GoalNet side={x === 0 ? "left" : "right"} />}
+                    <ActiveOrPlain
+                      actionable={actionable}
+                      label={actionable ? intent.label : undefined}
+                      onClick={handleActivate}
+                      onMouseEnter={() => onFocusTarget(focusTarget)}
+                      onMouseLeave={() => onFocusTarget(null)}
+                      onFocus={() => onFocusTarget(focusTarget)}
+                      onBlur={() => onFocusTarget(null)}
+                      className={cx(
+                        "absolute inset-0 flex items-center justify-center",
+                        "focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-inset focus-visible:outline-none",
+                        actionable && "cursor-pointer",
+                      )}
+                    >
+                      {/* An empty destination. */}
+                      {cellTarget && (
+                        <m.span
+                          aria-hidden
+                          initial={{ scale: 0.3, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={POP_SPRING}
+                          className={cx(
+                            "absolute inset-[16%] rounded-full border-2",
+                            cellTarget.duel
+                              ? "border-amber-300/80 bg-amber-300/15"
+                              : "border-white/60 bg-white/10",
+                          )}
+                        />
+                      )}
 
-                    {/* The goal mouth, lit as one target across its three cells. */}
-                    {isMouth && (
-                      <>
+                      {/* The goal mouth, lit as one target across its three cells. */}
+                      {isMouth && (
+                        <>
+                          <span
+                            aria-hidden
+                            className="mouth-glow absolute inset-0 bg-(--color-gold)/35"
+                          />
+                          <span
+                            aria-hidden
+                            className="absolute inset-0 ring-2 ring-(--color-gold) ring-inset"
+                          />
+                        </>
+                      )}
+
+                      {/* Who is selected. */}
+                      {isSelected && (
+                        <m.span
+                          aria-hidden
+                          initial={{ scale: 0.55, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={POP_SPRING}
+                          className="absolute inset-[5%] rounded-lg ring-2 ring-emerald-200 ring-offset-1 ring-offset-emerald-900"
+                        />
+                      )}
+
+                      {/* A player you can act on: the ring goes round the shirt. */}
+                      {playerTarget && (
+                        <m.span
+                          aria-hidden
+                          initial={{ scale: 0.4, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={POP_SPRING}
+                          className={cx(
+                            "absolute inset-[8%] rounded-full ring-[3px]",
+                            playerTarget.action.type === "tackle"
+                              ? "ring-rose-300"
+                              : "ring-sky-200",
+                          )}
+                        />
+                      )}
+
+                      {cellTarget?.duel && (
+                        <Badge chance={cellTarget.duel.winChance} tone="attack" />
+                      )}
+                      {playerTarget?.duel && (
+                        <Badge
+                          chance={playerTarget.duel.winChance}
+                          tone={playerTarget.action.type === "tackle" ? "defend" : "attack"}
+                        />
+                      )}
+                      {isMouth && y === mouthCentre && targets.shot?.duel && (
                         <span
                           aria-hidden
-                          className="mouth-glow absolute inset-0 bg-(--color-gold)/35"
-                        />
-                        <span
-                          aria-hidden
-                          className="absolute inset-0 ring-2 ring-(--color-gold) ring-inset"
-                        />
-                      </>
-                    )}
+                          className="odds-badge pointer-events-none absolute rounded-md bg-(--color-gold) px-[4px] leading-tight font-extrabold text-amber-950 tabular-nums shadow"
+                        >
+                          {pct(targets.shot.duel.winChance)}
+                        </span>
+                      )}
+                    </ActiveOrPlain>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
 
-                    {/* Who is selected. */}
-                    {isSelected && (
-                      <m.span
-                        aria-hidden
-                        initial={{ scale: 0.55, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={POP_SPRING}
-                        className="absolute inset-[5%] rounded-lg ring-2 ring-emerald-200 ring-offset-1 ring-offset-emerald-900"
-                      />
-                    )}
+        <PitchMarkings board={state.board} />
 
-                    {/* A player you can act on: the ring goes round the shirt. */}
-                    {playerTarget && (
-                      <m.span
-                        aria-hidden
-                        initial={{ scale: 0.4, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={POP_SPRING}
-                        className={cx(
-                          "absolute inset-[8%] rounded-full ring-[3px]",
-                          playerTarget.action.type === "tackle" ? "ring-rose-300" : "ring-sky-200",
-                        )}
-                      />
-                    )}
-
-                    {cellTarget?.duel && <Badge chance={cellTarget.duel.winChance} tone="attack" />}
-                    {playerTarget?.duel && (
-                      <Badge
-                        chance={playerTarget.duel.winChance}
-                        tone={playerTarget.action.type === "tackle" ? "defend" : "attack"}
-                      />
-                    )}
-                    {isMouth && y === mouthCentre && targets.shot?.duel && (
-                      <span
-                        aria-hidden
-                        className="odds-badge pointer-events-none absolute rounded-md bg-(--color-gold) px-[4px] leading-tight font-extrabold text-amber-950 tabular-nums shadow"
-                      >
-                        {pct(targets.shot.duel.winChance)}
-                      </span>
-                    )}
-                  </ActiveOrPlain>
-                </div>
-              );
-            })}
-          </div>
-        ))}
+        <Pieces state={state} readyIds={readyIds} />
       </div>
-
-      <PitchMarkings board={state.board} />
-
-      <Pieces state={state} readyIds={readyIds} />
 
       <TurnFlourish team={state.activeTeam} still={still} />
 
