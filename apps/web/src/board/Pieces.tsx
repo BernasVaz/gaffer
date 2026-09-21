@@ -103,8 +103,21 @@ function Shirt({
 }) {
   const kit = kitFor(player, state);
 
+  /*
+   * The name is taken out of the flow rather than stacked under the player.
+   *
+   * Stacked, the two of them came to more than a cell — and a flex column that
+   * overflows does not overflow, it *shrinks*: the label was squashed from its
+   * 28px line box down to 15px and then cropped by its own `truncate`. Every
+   * name on the board was cut in half, most visibly on the top and bottom rows
+   * where the remains sat against the pitch edge.
+   *
+   * Laying it over the boots costs nothing — that quarter of the drawing is a
+   * shadow and two feet — and it means the label can never push the player
+   * around, at any format or any width.
+   */
   return (
-    <>
+    <span className="relative flex h-full w-full items-center justify-center">
       <span className={cx("relative block h-[92%] w-[92%]", dimmed && "opacity-65")}>
         {/* A player who can be commanded quietly says so. */}
         {ready && (
@@ -120,10 +133,10 @@ function Shirt({
         />
       </span>
       {/* Dropped once a cell is too small to read it — see `.piece-name`. */}
-      <span className="piece-name -mt-[10%] max-w-full truncate rounded-full bg-black/50 px-[9%] leading-[1.7] font-semibold text-white/90">
+      <span className="piece-name absolute bottom-[1%] left-1/2 max-w-[118%] -translate-x-1/2 truncate rounded-full bg-black/60 px-[7%] font-semibold text-white/90">
         {kit.name}
       </span>
-    </>
+    </span>
   );
 }
 

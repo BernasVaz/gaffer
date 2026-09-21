@@ -263,3 +263,66 @@ test.describe("playing at a bigger game type", () => {
     await expect(page.getByLabel("Scoreboard")).not.toContainText("Turn 1 of");
   });
 });
+
+test.describe("name labels", () => {
+  /**
+   * Every name that is shown is shown *whole*.
+   *
+   * The bug this guards against did not look like a layout bug. The label sat
+   * in a flex column with the player, the two came to more than a cell, and a
+   * flex column that overflows does not overflow — it shrinks. Every name on
+   * the board was cropped to about half its line box by its own `truncate`,
+   * which reads as "the pitch edge cut it off" on the rows where the remains
+   * sat against the border.
+   */
+  const unreadable = async (page: import("@playwright/test").Page) =>
+    page.evaluate(() => {
+      const board = document.querySelector(".pitch-board")!.getBoundingClientRect();
+      const labels = [...document.querySelectorAll(".piece-name")];
+      const shown = labels.filter((node) => getComputedStyle(node).display !== "none");
+
+      const broken = shown
+        .filter((node) => {
+          const box = node.getBoundingClientRect();
+          // One pixel of slack: the font size is fractional, and scrollHeight
+          // is an integer, so a 22.9px box honestly reports 24.
+          const cropped =
+            node.scrollHeight - Math.ceil(box.height) > 1 ||
+            node.scrollWidth - Math.ceil(box.width) > 1;
+          const escaped =
+            box.bottom > board.bottom + 1 ||
+            box.top < board.top - 1 ||
+            box.left < board.left - 1 ||
+            box.right > board.right + 1;
+          return cropped || escaped;
+        })
+        .map((node) => node.textContent);
+
+      return { shown: shown.length, hidden: labels.length - shown.length, broken };
+    });
+
+  for (const mode of ["5v5", "7v7", "11v11"]) {
+    test(`are whole and inside the pitch at ${mode}, on a desktop`, async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto(`./?seed=7&mode=${mode}&play=hotseat`);
+      await expect(page.getByRole("grid")).toBeVisible();
+
+      const { shown, broken } = await unreadable(page);
+      // At desktop width every cell is big enough, so every name is on show.
+      expect(shown).toBeGreaterThan(0);
+      expect(broken, `cropped or escaping at ${mode}`).toEqual([]);
+    });
+
+    test(`are whole or absent at ${mode}, on a phone`, async ({ page }) => {
+      await page.setViewportSize({ width: 375, height: 812 });
+      await page.goto(`./?seed=7&mode=${mode}&play=hotseat`);
+      await expect(page.getByRole("grid")).toBeVisible();
+
+      // A name is either fully readable or deliberately dropped, never a
+      // half-drawn smudge. Dropping is fine — the name is still in the cell's
+      // accessible description.
+      const { broken } = await unreadable(page);
+      expect(broken, `cropped or escaping at ${mode} on a phone`).toEqual([]);
+    });
+  }
+});

@@ -81,7 +81,10 @@
 }
 
 .piece .piece-name {
-  font-size: 19cqw;
+  font-size: 18cqw;
+  /* Room for descenders. The label is absolutely placed, so a generous line box
+     costs no layout — it cannot push the player it belongs to. */
+  line-height: 1.5;
 }
 
 /*

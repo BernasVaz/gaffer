@@ -175,7 +175,21 @@ describe("a board that has to fit a phone", () => {
     // Which is what lets a name be sized against a *cell* without any component
     // knowing how many columns the pitch has.
     expect(stylesheet).toMatch(/\.piece\s*\{[^}]*container-type:\s*inline-size/);
-    expect(stylesheet).toMatch(/\.piece\s+\.piece-name\s*\{[^}]*font-size:\s*19cqw/);
+    expect(stylesheet).toMatch(/\.piece\s+\.piece-name\s*\{[^}]*font-size:\s*18cqw/);
+  });
+
+  it("keeps the surname out of the player's way, so it cannot squash it", () => {
+    /*
+     * The label used to sit under the player in a flex column. The two came to
+     * more than a cell, and a flex column that overflows does not overflow — it
+     * shrinks — so every name on the board was cropped to half its line box.
+     * Taking it out of the flow is what makes that unrepresentable.
+     */
+    const state = createInitialState();
+    const { container } = render(<Pieces state={state} />);
+    const label = container.querySelector(".piece-name")!;
+
+    expect(label.className).toContain("absolute");
   });
 
   it("drops the surname once a cell is too small to read one", () => {
