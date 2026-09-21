@@ -162,24 +162,6 @@ function describeCommand(command: MatchCommand): string {
 
 // ----------------------------------------------------------------- the match
 
-/**
- * Apply the rule overrides, which touch this run's state and nothing else.
- *
- * The numbers live on the match state, so a balance question can be asked by
- * handing the engine a different state rather than by editing the format table
- * and rebuilding. That matters more than the convenience: a sweep that edits
- * source has to remember to put it back, and one that forgets quietly measures
- * the wrong thing for the rest of the session.
- */
-function withRules(state: MatchState): MatchState {
-  const rules = { ...state.rules };
-  if (ACTIONS > 0) rules.actionsPerTurn = ACTIONS;
-  if (SHOT_RANGE > 0) rules.shotRange = SHOT_RANGE;
-  if (TURN_CAP > 0) rules.turnCap = TURN_CAP;
-  if (EXTRA_TIME > 0) rules.extraTimeTurns = EXTRA_TIME;
-  return { ...state, rules, actionsRemaining: rules.actionsPerTurn };
-}
-
 /** Apply the keeper-DEF override, which touches this run's state and nothing else. */
 function withKeeperDef(state: MatchState, def: number): MatchState {
   if (def === ROLE_PROFILES.goalkeeper.stats.def) return state;
@@ -208,8 +190,24 @@ interface MatchReport {
 /** Play one match to its result, narrating unless asked not to. */
 function playMatch(seed: number): MatchReport {
   const rng = createRng(parseSeed(seed));
-  let state = withRules(
-    withKeeperDef(createInitialState({ format: FORMAT, kickingOff: KICKOFF }), KEEPER_DEF),
+  /*
+   * The rule overrides go through the engine rather than being patched onto the
+   * state afterwards: `createInitialState` validates the result, so an
+   * impossible set — an odd turn cap, which hands one side an extra go — is
+   * refused here rather than quietly measured for the rest of the session.
+   */
+  let state = withKeeperDef(
+    createInitialState({
+      format: FORMAT,
+      kickingOff: KICKOFF,
+      rules: {
+        ...(ACTIONS > 0 ? { actionsPerTurn: ACTIONS } : {}),
+        ...(SHOT_RANGE > 0 ? { shotRange: SHOT_RANGE } : {}),
+        ...(TURN_CAP > 0 ? { turnCap: TURN_CAP } : {}),
+        ...(EXTRA_TIME > 0 ? { extraTimeTurns: EXTRA_TIME } : {}),
+      },
+    }),
+    KEEPER_DEF,
   );
 
   const say = (line = "") => {

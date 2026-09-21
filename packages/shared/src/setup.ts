@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { DEFAULT_FORMAT, MatchFormatSchema } from "./format.js";
+import { DEFAULT_FORMAT, FORMAT_PROFILES, MatchFormatSchema } from "./format.js";
 import { SeedSchema, type Seed } from "./seed.js";
 import { TeamSchema, type Team } from "./team.js";
 
@@ -30,6 +30,29 @@ export const PlayModeSchema = z.enum(PLAY_MODES);
 export type PlayMode = z.infer<typeof PlayModeSchema>;
 
 /**
+ * The fewest actions a turn can grant, and the most.
+ *
+ * One is the smallest turn that is still a turn. Four is where the top of the
+ * range sits because it is what 11-a-side needs, and because past it a turn
+ * stops being a decision and becomes a shopping list — the whole tension of
+ * GDD §8 is that two actions is *not enough* to do everything you want.
+ *
+ * The range is deliberately small. This is a knob for a tester to feel the
+ * difference with, not a slider to get lost in.
+ */
+export const MIN_ACTIONS_PER_TURN = 1;
+
+/** The most actions a turn can grant. See {@link MIN_ACTIONS_PER_TURN}. */
+export const MAX_ACTIONS_PER_TURN = 4;
+
+/** A validated actions-per-turn choice. */
+export const ActionsPerTurnSchema = z
+  .number()
+  .int()
+  .min(MIN_ACTIONS_PER_TURN)
+  .max(MAX_ACTIONS_PER_TURN);
+
+/**
  * Everything chosen before kickoff, and everything a link needs to carry.
  *
  * A match is fully determined by this: the game type fixes the pitch, the squad
@@ -54,6 +77,15 @@ export const MatchSetupSchema = z.object({
   side: TeamSchema,
   /** How hard the opponent tries. Ignored in hotseat. */
   difficulty: DifficultySchema,
+  /**
+   * Actions a turn grants, overriding the game type's own number.
+   *
+   * Always concrete rather than optional, so a setup means one thing and a link
+   * carries what it is actually playing. {@link parseSetup} fills it from the
+   * game type when a link does not say, which is what keeps `?mode=11v11` on
+   * its own correct rather than quietly 5-a-side's two.
+   */
+  actions: ActionsPerTurnSchema,
   /** The match seed. Every die in the match comes from it. */
   seed: SeedSchema,
 });
@@ -71,6 +103,7 @@ export type MatchSetup = z.infer<typeof MatchSetupSchema>;
 export const DEFAULT_SETUP: MatchSetup = {
   mode: DEFAULT_FORMAT,
   play: "solo",
+  actions: FORMAT_PROFILES[DEFAULT_FORMAT].rules.actionsPerTurn,
   side: "home",
   difficulty: "pro",
   seed: 1,
@@ -154,6 +187,7 @@ export function parseSetup(search: string): MatchSetup {
 
   const rawSeed = params.get("seed");
   const rawMode = params.get("mode");
+  const rawActions = params.get("actions");
 
   /*
    * `mode` used to mean solo-or-hotseat and now means the game type. A link
@@ -164,13 +198,23 @@ export function parseSetup(search: string): MatchSetup {
    */
   const legacyPlay = PlayModeSchema.safeParse(rawMode);
 
+  const mode = pick(MatchFormatSchema, rawMode, DEFAULT_SETUP.mode);
+
   return {
-    mode: pick(MatchFormatSchema, rawMode, DEFAULT_SETUP.mode),
+    mode,
     play: legacyPlay.success
       ? legacyPlay.data
       : pick(PlayModeSchema, params.get("play"), DEFAULT_SETUP.play),
     side: pick(TeamSchema, params.get("side"), DEFAULT_SETUP.side),
     difficulty: pick(DifficultySchema, params.get("level"), DEFAULT_SETUP.difficulty),
+    /* A link that says nothing about actions means the game type's own number,
+       not 5-a-side's — otherwise `?mode=11v11` would silently be a different
+       game from the one the selector produces. */
+    actions: pick(
+      ActionsPerTurnSchema,
+      rawActions === undefined ? null : Number(rawActions),
+      FORMAT_PROFILES[mode].rules.actionsPerTurn,
+    ),
     seed: pick(SeedSchema, rawSeed === undefined ? null : Number(rawSeed), DEFAULT_SETUP.seed),
   };
 }
@@ -182,7 +226,12 @@ export function parseSetup(search: string): MatchSetup {
  * produces gives back the setup it was given.
  */
 export function setupToQuery(setup: MatchSetup): string {
-  const pairs: string[] = [`seed=${setup.seed}`, `mode=${setup.mode}`, `play=${setup.play}`];
+  const pairs: string[] = [
+    `seed=${setup.seed}`,
+    `mode=${setup.mode}`,
+    `play=${setup.play}`,
+    `actions=${setup.actions}`,
+  ];
 
   // Side and difficulty describe the opponent, which hotseat does not have.
   if (setup.play === "solo") {

@@ -3,7 +3,9 @@ import {
   FORMAT_PROFILES,
   FORMATS,
   KICKING_OFF,
+  MAX_ACTIONS_PER_TURN,
   MAX_SEED,
+  MIN_ACTIONS_PER_TURN,
   PLAY_MODES,
   squadSize,
   TEAMS,
@@ -133,6 +135,7 @@ export interface SetupScreenProps {
 export function SetupScreen({ initial, onStart }: SetupScreenProps) {
   const [mode, setMode] = useState<MatchFormat>(initial.mode);
   const [play, setPlay] = useState<PlayMode>(initial.play);
+  const [actions, setActions] = useState<number>(initial.actions);
   const [side, setSide] = useState<Team>(initial.side);
   const [difficulty, setDifficulty] = useState<Difficulty>(initial.difficulty);
   const [seed, setSeed] = useState<number>(initial.seed);
@@ -169,7 +172,15 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
                 <Choice
                   key={option}
                   selected={mode === option}
-                  onClick={() => setMode(option)}
+                  onClick={() => {
+                    setMode(option);
+                    /* The action economy is the number that decides whether a
+                       game type works at all (ADR 0012), so switching type
+                       brings its own along rather than carrying the last one
+                       over — 11-a-side on two actions is a different game, and
+                       not a good one. Change it again afterwards if you like. */
+                    setActions(FORMAT_PROFILES[option].rules.actionsPerTurn);
+                  }}
                   title={option}
                   blurb={`${profile.shape} · ${profile.board.width}×${profile.board.height}`}
                   tag={profile.status === "alpha" ? "Alpha" : undefined}
@@ -274,6 +285,36 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
         )}
 
         <section
+          aria-labelledby="actions-heading"
+          className="rounded-2xl bg-(--color-panel) p-4 ring-1 ring-(--color-edge)/30"
+        >
+          <h2
+            id="actions-heading"
+            className="mb-2 text-[0.65rem] font-bold tracking-widest text-white/45 uppercase"
+          >
+            Actions per turn
+          </h2>
+          <div className="flex gap-2">
+            {Array.from(
+              { length: MAX_ACTIONS_PER_TURN - MIN_ACTIONS_PER_TURN + 1 },
+              (_unused, offset) => MIN_ACTIONS_PER_TURN + offset,
+            ).map((count) => (
+              <Choice
+                key={count}
+                selected={actions === count}
+                onClick={() => setActions(count)}
+                title={String(count)}
+                blurb={count === chosen.rules.actionsPerTurn ? "default" : undefined}
+              />
+            ))}
+          </div>
+          <p className="mt-2 text-[0.68rem] leading-snug text-white/40">
+            How much you get done before the turn passes — the number that decides whether a game
+            type works at all. Fewer is a tighter, more deliberate match; more lets an attack
+            actually arrive on a big pitch.
+          </p>
+        </section>
+        <section
           aria-labelledby="seed-heading"
           className="rounded-2xl bg-(--color-panel) p-4 ring-1 ring-(--color-edge)/30"
         >
@@ -308,7 +349,7 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
 
         <Button
           tone="primary"
-          onClick={() => onStart({ mode, play, side, difficulty, seed })}
+          onClick={() => onStart({ mode, play, side, difficulty, actions, seed })}
           className="mt-1 py-4 text-lg"
         >
           Kick off

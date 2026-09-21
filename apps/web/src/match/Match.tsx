@@ -92,7 +92,11 @@ export interface MatchProps {
  * which is the point — the opponent is a player, not a mode.
  */
 export function Match({ setup, onLeave }: MatchProps) {
-  const { state, lastEvent, rejection, play, restart } = useMatch(setup.seed, setup.mode);
+  const { state, lastEvent, rejection, play, restart } = useMatch(
+    setup.seed,
+    setup.mode,
+    setup.actions,
+  );
   const { moment, celebrate } = useGoalMoment();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);

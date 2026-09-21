@@ -73,8 +73,12 @@ export interface MatchController {
  * Both sides are played from this one controller: hotseat, so whoever is to move
  * is whoever the person at the keyboard is currently commanding.
  */
-export function useMatch(seed: number, format: MatchFormat): MatchController {
-  const initial = () => createInitialState({ format });
+export function useMatch(
+  seed: number,
+  format: MatchFormat,
+  actionsPerTurn: number,
+): MatchController {
+  const initial = () => createInitialState({ format, rules: { actionsPerTurn } });
 
   const [state, setState] = useState<MatchState>(initial);
   const [lastEvent, setLastEvent] = useState<MatchEvent | null>(null);
@@ -114,13 +118,13 @@ export function useMatch(seed: number, format: MatchFormat): MatchController {
   }, []);
 
   const restart = useCallback(() => {
-    const fresh = createInitialState({ format });
+    const fresh = createInitialState({ format, rules: { actionsPerTurn } });
     rngRef.current = createRng(parseSeed(seed));
     stateRef.current = fresh;
     setState(fresh);
     setLastEvent(null);
     setRejection(null);
-  }, [seed, format]);
+  }, [seed, format, actionsPerTurn]);
 
   return { state, lastEvent, rejection, play, restart };
 }

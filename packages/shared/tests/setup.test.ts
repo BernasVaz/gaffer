@@ -4,9 +4,12 @@ import {
   DEFAULT_FORMAT,
   DEFAULT_SETUP,
   DIFFICULTIES,
+  FORMAT_PROFILES,
   FORMATS,
   KICKING_OFF,
   MatchSetupSchema,
+  MAX_ACTIONS_PER_TURN,
+  MIN_ACTIONS_PER_TURN,
   parseSetup,
   PLAY_MODES,
   setupToQuery,
@@ -38,12 +41,13 @@ describe("the setup contract", () => {
 
 describe("parseSetup", () => {
   it("reads a complete link", () => {
-    expect(parseSetup("?seed=42&mode=5v5&play=solo&side=away&level=elite")).toEqual({
+    expect(parseSetup("?seed=42&mode=5v5&play=solo&side=away&level=elite&actions=3")).toEqual({
       seed: 42,
       mode: "5v5",
       play: "solo",
       side: "away",
       difficulty: "elite",
+      actions: 3,
     });
   });
 
@@ -91,7 +95,14 @@ describe("setupToQuery", () => {
     for (const play of PLAY_MODES) {
       for (const side of ["home", "away"] as const) {
         for (const difficulty of DIFFICULTIES) {
-          const setup: MatchSetup = { mode: "5v5", play, side, difficulty, seed: 1234 };
+          const setup: MatchSetup = {
+            mode: "5v5",
+            play,
+            side,
+            difficulty,
+            actions: 2,
+            seed: 1234,
+          };
           const back = parseSetup(setupToQuery(setup));
 
           // Hotseat has no opponent, so it carries neither side nor difficulty
@@ -128,6 +139,7 @@ describe("the game type in a link", () => {
       play: "solo",
       side: "away",
       difficulty: "elite",
+      actions: 4,
       seed: 909,
     };
     expect(parseSetup(setupToQuery(setup))).toEqual(setup);
@@ -153,6 +165,7 @@ describe("the game type in a link", () => {
       play: "solo",
       side: "away",
       difficulty: "casual",
+      actions: FORMAT_PROFILES[DEFAULT_FORMAT].rules.actionsPerTurn,
       seed: 42,
     });
   });
@@ -162,5 +175,49 @@ describe("the game type in a link", () => {
       mode: "7v7",
       play: "hotseat",
     });
+  });
+});
+
+describe("actions per turn in a link", () => {
+  it("defaults to the game type's own number, not the last one seen", () => {
+    // `?mode=11v11` on its own has to mean 11-a-side's four. Falling back to
+    // 5-a-side's two would make a bare link a different — and much worse —
+    // game than the selector produces (ADR 0012).
+    for (const mode of FORMATS) {
+      expect(parseSetup(`?seed=1&mode=${mode}`).actions).toBe(
+        FORMAT_PROFILES[mode].rules.actionsPerTurn,
+      );
+    }
+  });
+
+  it("honours an explicit choice over the default", () => {
+    expect(parseSetup("?seed=1&mode=11v11&actions=2").actions).toBe(2);
+    expect(parseSetup("?seed=1&mode=5v5&actions=4").actions).toBe(4);
+  });
+
+  it("refuses a number outside the range a turn can hold", () => {
+    for (const bad of ["0", "-2", "5", "99", "banana", "2.5"]) {
+      expect(parseSetup(`?seed=1&mode=5v5&actions=${bad}`).actions).toBe(
+        FORMAT_PROFILES["5v5"].rules.actionsPerTurn,
+      );
+    }
+  });
+
+  it("is carried by every link, so a shared match plays the same economy", () => {
+    for (let count = MIN_ACTIONS_PER_TURN; count <= MAX_ACTIONS_PER_TURN; count += 1) {
+      const query = setupToQuery({ ...DEFAULT_SETUP, actions: count });
+      expect(query).toContain(`actions=${count}`);
+      expect(parseSetup(query).actions).toBe(count);
+    }
+  });
+
+  it("keeps the range small enough to be a knob rather than a slider", () => {
+    expect(MIN_ACTIONS_PER_TURN).toBe(1);
+    expect(MAX_ACTIONS_PER_TURN).toBe(4);
+    for (const mode of FORMATS) {
+      const theirs = FORMAT_PROFILES[mode].rules.actionsPerTurn;
+      expect(theirs).toBeGreaterThanOrEqual(MIN_ACTIONS_PER_TURN);
+      expect(theirs).toBeLessThanOrEqual(MAX_ACTIONS_PER_TURN);
+    }
   });
 });
