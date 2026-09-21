@@ -458,6 +458,9 @@ test.describe("flagging a moment", () => {
     await page.goto("./?seed=42&mode=5v5&play=hotseat&actions=2&replayTo=2");
     await expect(page.getByText(/Wound back to action 2/)).toBeVisible();
     await expect(page.getByRole("grid")).toBeVisible();
+  });
+});
+
 test.describe("dragging a player", () => {
   /** Where the side to move has the ball. */
   const carrier = async (page: import("@playwright/test").Page) => {
