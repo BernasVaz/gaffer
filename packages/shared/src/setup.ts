@@ -241,5 +241,28 @@ export function setupToQuery(setup: MatchSetup): string {
   return `?${pairs.join("&")}`;
 }
 
+/**
+ * How far into a match's move log to wind before handing it over, if a link says.
+ *
+ * Deliberately **not** part of {@link MatchSetup}. A setup is what match this
+ * *is* — it keys the saved feedback and it is what a shared link promises —
+ * whereas this is a place to stand inside that match. Folding it in would make
+ * two views of one match look like two different matches.
+ *
+ * Returns undefined for anything that is not a plain non-negative whole number,
+ * on the same principle as the rest of this file: a mangled link should open a
+ * playable match rather than nothing at all.
+ */
+export function parseReplayTo(search: string): number | undefined {
+  const raw = readQuery(search).get("replayTo");
+  /* An empty value means the key was typed and left blank, which is a request
+     for nothing — and `Number("")` is 0, which would silently be a request to
+     wind all the way back to kickoff. */
+  if (raw === undefined || raw.trim() === "") return undefined;
+
+  const parsed = z.number().int().min(0).safeParse(Number(raw));
+  return parsed.success ? parsed.data : undefined;
+}
+
 /** The largest seed a match can have, so a picker can offer the whole range. */
 export const MAX_SEED: Seed = 0xffffffff;

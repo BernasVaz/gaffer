@@ -17,6 +17,10 @@ import { StatusBar } from "../board/StatusBar";
 import { isCommandable, NO_TARGETS, targetsFor, type Seat, type Target } from "../board/targets";
 import { Button } from "../ui/Button";
 import { Wordmark } from "../ui/Wordmark";
+import { DownloadReport } from "../feedback/DownloadReport";
+import { FlagMoment } from "../feedback/FlagMoment";
+import { loadFeedback } from "../feedback/notes";
+import { useFeedback } from "../feedback/useFeedback";
 import { useGoalMoment } from "./useGoalMoment";
 import { useMatch, type PlayOutcome } from "./useMatch";
 import { useOpponent } from "./useOpponent";
@@ -76,6 +80,14 @@ export function AlphaTag({ className = "" }: { className?: string }) {
 export interface MatchProps {
   /** Everything chosen before kickoff. Fixed for the life of this match. */
   setup: MatchSetup;
+  /**
+   * Wind the match to this point in its own log before handing it over.
+   *
+   * How a flagged moment is reopened. The log comes from this browser's saved
+   * feedback, so a link carrying a pointer only lands somewhere on the machine
+   * that took the note — the report carries the log for everybody else.
+   */
+  replayTo?: number;
   /** Called when the player wants to go back and set up a different match. */
   onLeave: () => void;
 }
@@ -91,13 +103,30 @@ export interface MatchProps {
  * driving the other side. The rest of the screen cannot tell the difference,
  * which is the point — the opponent is a player, not a mode.
  */
-export function Match({ setup, onLeave }: MatchProps) {
-  const { state, lastEvent, rejection, play, restart } = useMatch(
-    setup.seed,
-    setup.mode,
-    setup.actions,
-  );
+export function Match({ setup, replayTo, onLeave }: MatchProps) {
+  /*
+   * A match that has flagged moments against it has to come back as *that*
+   * match after a refresh, or every note's action index points at a board that
+   * never existed. `restored` is the log from last time; replaying it puts the
+   * board exactly where it was, which the engine gives for nothing.
+   */
+  const rewound = replayTo !== undefined;
+
+  const [replay] = useState<readonly MatchCommand[]>(() => {
+    const kept = (loadFeedback(setup)?.log ?? []).map((event) => event.command);
+    return rewound ? kept.slice(0, replayTo) : kept;
+  });
+
+  const { state, log, lastEvent, rejection, play, restart } = useMatch({
+    seed: setup.seed,
+    format: setup.mode,
+    actionsPerTurn: setup.actions,
+    replay,
+  });
+
   const { moment, celebrate } = useGoalMoment();
+  const feedback = useFeedback({ setup, state, log, persist: !rewound });
+  const [flagging, setFlagging] = useState(false);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focused, setFocused] = useState<Target | null>(null);
@@ -119,7 +148,9 @@ export function Match({ setup, onLeave }: MatchProps) {
     team: opponentTeam,
     difficulty: setup.difficulty,
     seed: setup.seed,
-    paused: moment !== null,
+    /* The opponent holds still while a moment is being written up, so the board
+       a note describes is the board still on screen when it is saved. */
+    paused: moment !== null || flagging,
     play,
     onPlayed: celebrateOutcome,
   });
@@ -145,7 +176,8 @@ export function Match({ setup, onLeave }: MatchProps) {
   const targets = moment ? NO_TARGETS : targetsFor(state, selection);
 
   /** Whether the person at the keyboard may act at all right now. */
-  const yourMove = !over && moment === null && (seat === "both" || state.activeTeam === seat);
+  const yourMove =
+    !over && moment === null && !flagging && (seat === "both" || state.activeTeam === seat);
 
   /** Every command clears the selection: whoever it named has now acted. */
   const send = (command: MatchCommand) => {
@@ -256,16 +288,41 @@ export function Match({ setup, onLeave }: MatchProps) {
             disabled={moment !== null}
             onClick={() => {
               restart();
+              feedback.reset();
               setSelectedId(null);
               setFocused(null);
             }}
           >
             Replay this match
           </Button>
+          <FlagMoment
+            capture={feedback.capture}
+            commit={feedback.commit}
+            count={feedback.notes.length}
+            onOpenChange={setFlagging}
+          />
+
+          {(over || feedback.notes.length > 0) && (
+            <DownloadReport
+              setup={setup}
+              state={state}
+              log={log}
+              notes={feedback.notes}
+              tone={over ? "primary" : "quiet"}
+            />
+          )}
+
           <Button tone="quiet" className="ml-auto" onClick={onLeave}>
             New match
           </Button>
         </div>
+
+        {rewound && (
+          <p className="rounded-xl bg-(--color-gold)/15 px-4 py-2 text-xs text-(--color-gold) ring-1 ring-(--color-gold)/30">
+            Wound back to action {replayTo} of this match&apos;s saved log. Nothing played from here
+            is saved over the notes that produced it.
+          </p>
+        )}
 
         <section
           aria-label="Team sheet"
