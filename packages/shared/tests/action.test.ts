@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { ActionSchema, ACTION_TYPES, ActionTypeSchema } from "../src/index.js";
 
 describe("ACTION_TYPES", () => {
-  it("is the five verbs from GDD §7", () => {
-    expect(ACTION_TYPES).toEqual(["move", "pass", "dribble", "tackle", "shoot"]);
+  it("is the six verbs from GDD §7", () => {
+    expect(ACTION_TYPES).toEqual(["move", "pass", "launch", "dribble", "tackle", "shoot"]);
   });
 
   it("agrees with ActionTypeSchema", () => {
@@ -29,6 +29,16 @@ describe("ActionSchema", () => {
   it("accepts a pass at a team-mate", () => {
     const action = { type: "pass", playerId: "home-striker-1", target: "home-winger-1" };
     expect(ActionSchema.safeParse(action).success).toBe(true);
+  });
+
+  it("accepts a launch at a distant team-mate", () => {
+    const action = { type: "launch", playerId: "home-goalkeeper-1", target: "home-striker-1" };
+    expect(ActionSchema.safeParse(action).success).toBe(true);
+  });
+
+  it("rejects a launch aimed at a cell — it names a team-mate, like a pass", () => {
+    const action = { type: "launch", playerId: "home-goalkeeper-1", target: { x: 4, y: 2 } };
+    expect(ActionSchema.safeParse(action).success).toBe(false);
   });
 
   it("accepts a tackle on the carrier", () => {

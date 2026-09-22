@@ -49,6 +49,7 @@ function actionKey(action: Action): string {
     case "dribble":
       return `${action.type}|${action.playerId}|${action.target.x},${action.target.y}`;
     case "pass":
+    case "launch":
     case "tackle":
       return `${action.type}|${action.playerId}|${action.target}`;
     case "shoot":
@@ -169,7 +170,7 @@ export function applyAction(state: MatchState, command: MatchCommand, rng: Rng):
   if (actor.team !== state.activeTeam) return { ok: false, reason: "not-your-turn" };
   if (state.actionsRemaining <= 0) return { ok: false, reason: "no-actions-left" };
 
-  if (command.type === "pass" || command.type === "tackle") {
+  if (command.type === "pass" || command.type === "launch" || command.type === "tackle") {
     const target = state.players.find((player) => player.id === command.target);
     if (!target) return { ok: false, reason: "unknown-target" };
   }

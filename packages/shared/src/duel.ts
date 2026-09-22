@@ -35,6 +35,22 @@ export const COVERING_DEFENDER_BONUS = 2;
 export const SHOOT_COVERING_BONUS = 1;
 
 /**
+ * What a goalkeeper's launch hands the side trying to read it (GDD §7, ADR 0015).
+ *
+ * The price of the range. A launch is in the air far longer than a five-yard
+ * ball, and a defender who can see it coming has time to get under it — so the
+ * same lane, the same defender and the same passer are worse odds for a launch
+ * than for a pass.
+ *
+ * One, not the covering rate of two. On a d4 with single-digit stats a +2 turns
+ * every contested launch into a certainty for the defence, which does not make
+ * the verb risky, it deletes it. At +1 a launch past a winger is a gamble and a
+ * launch past a centre-half is a mistake, which is the shape it should have —
+ * the mechanic's skill is finding the lane that is genuinely clear.
+ */
+export const LAUNCH_INTERCEPT_BONUS = 1;
+
+/**
  * The exact probability the attacker wins a duel, from the two scores.
  *
  * A "score" is a stat plus any modifiers, before the die. Both sides roll a d3

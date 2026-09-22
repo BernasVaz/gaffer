@@ -69,6 +69,7 @@ export function targetsFor(state: MatchState, playerId: string | null): Targets 
         cells.set(cellKey(action.target), target);
         break;
       case "pass":
+      case "launch":
       case "tackle":
         players.set(action.target, target);
         break;

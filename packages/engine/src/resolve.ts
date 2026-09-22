@@ -111,6 +111,7 @@ function afterGoal(state: MatchState, scoringTeam: Team): MatchState {
  * | Move | relocates, carrying the ball if it has it | — |
  * | Dribble | advances with the ball | turnover: the defender takes the ball where it stands, and the carrier does not advance |
  * | Pass | the receiver collects it | the interceptor collects it |
+ * | Launch | the receiver collects it | the interceptor collects it |
  * | Tackle | the tackler wins the ball | the carrier keeps it |
  * | Shot | goal, and the pitch resets for a kickoff to the conceding side | the keeper gathers it |
  *
@@ -155,7 +156,10 @@ export function resolveAction(state: MatchState, action: Action, rng: Rng): Reso
       return { state: giveBallTo(state, duel!.defender.playerId), duel };
     }
 
-    case "pass": {
+    case "pass":
+    case "launch": {
+      // One outcome for both: whoever ends up with it, ends up with it. The
+      // difference between the two verbs is entirely in the odds above.
       const collector = attackerWon ? action.target : duel!.defender.playerId;
       return { state: giveBallTo(state, collector), duel };
     }

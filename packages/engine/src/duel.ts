@@ -5,6 +5,7 @@ import {
   COVERING_DEFENDER_BONUS,
   defendingGoalMouth,
   duelWinChance,
+  LAUNCH_INTERCEPT_BONUS,
   SHOOT_COVERING_BONUS,
   type Action,
   type DuelPreview,
@@ -127,6 +128,8 @@ function preview(attacker: DuelSide, defender: DuelSide, covering: Player[]): Du
  * - **Shot** — shooter ATK against the keeper's DEF, with opponents standing in
  *   the lane to the goal mouth covering the keeper.
  * - **Pass** — passer PAS against the strongest opponent beside the lane.
+ * - **Launch** — the same duel, with {@link LAUNCH_INTERCEPT_BONUS} added to the
+ *   defence: a longer ball is a readable one.
  *
  * @param state - The board to read. Not modified.
  * @param action - The action being considered. Assumed legal; see `legalActions`.
@@ -215,7 +218,8 @@ export function previewDuel(state: MatchState, action: Action): DuelPreview | nu
       );
     }
 
-    case "pass": {
+    case "pass":
+    case "launch": {
       const receiver = findPlayer(state, action.target);
       if (!receiver) return null;
 
@@ -223,17 +227,24 @@ export function previewDuel(state: MatchState, action: Action): DuelPreview | nu
       if (!lane || lane.length === 0) return null;
 
       const candidates = opponentsBeside(state, actor.team, lane);
+      /*
+       * Nobody within reach of the flight: no duel, for a launch as much as for
+       * a pass. That is deliberate and is the whole point of the verb — a
+       * genuinely clear lane out of your own half is free, and the difficulty is
+       * that a long lane is rarely clear.
+       */
       if (candidates.length === 0) return null;
 
       const primary = primaryDefender(candidates);
       const covering = candidates.filter((player) => player.id !== primary.id);
+      const airborne = action.type === "launch" ? LAUNCH_INTERCEPT_BONUS : 0;
 
       return preview(
         { playerId: actor.id, stat: actor.stats.pas, modifier: 0 },
         {
           playerId: primary.id,
           stat: primary.stats.def,
-          modifier: COVERING_DEFENDER_BONUS * covering.length,
+          modifier: COVERING_DEFENDER_BONUS * covering.length + airborne,
         },
         covering,
       );

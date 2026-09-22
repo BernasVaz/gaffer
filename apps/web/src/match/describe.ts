@@ -25,6 +25,8 @@ export function describeCommand(command: MatchCommand, state: MatchState): strin
       return `${who} dribbled to (${command.target.x}, ${command.target.y})`;
     case "pass":
       return `${who} passed to ${playerName(state, command.target)}`;
+    case "launch":
+      return `${who} launched it upfield to ${playerName(state, command.target)}`;
     case "tackle":
       return `${who} tackled ${playerName(state, command.target)}`;
     case "shoot":

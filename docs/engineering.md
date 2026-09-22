@@ -280,6 +280,25 @@ How to build one of these without putting a timer in the rules:
   and returns a command; it has no clock, so _when_ it is asked cannot change _what_ it
   answers.
 
+## A new verb touches seven places
+
+Adding `launch` (ADR 0015) was a one-rule change with a long tail, and the tail is the
+part worth writing down. A sixth action type needs:
+
+1. its schema in `shared/action.ts`, plus `ACTION_TYPES` and `ActionTypeSchema`;
+2. `MatchCommandSchema` in `shared/command.ts` — the engine validates against _that_, not
+   against `ActionSchema`, so a verb missing here is refused at the door;
+3. enumeration in `engine/legal-actions.ts`;
+4. odds in `engine/duel.ts` and an outcome in `engine/resolve.ts`;
+5. `actionKey` in `engine/turn.ts`, or every instance is refused as illegal;
+6. `commandKey` in `ai/choose.ts`, which must stay team-neutral (ADR 0008);
+7. the client's `targets.ts`, `describe.ts` and the board's label and ring.
+
+Most of those are exhaustive `switch`es, so TypeScript finds them — but only once
+`@gaffer/shared` has been **rebuilt**, because the other packages read its emitted types.
+`pnpm --filter @gaffer/shared build` first, then typecheck, or the errors point at the
+wrong file.
+
 ## Which way round the board is, is the view's business
 
 The pitch draws horizontally on a wide screen and vertically on a tall one (ADR 0014),

@@ -29,6 +29,19 @@ const ROLE_NAME: Record<Role, string> = {
 };
 
 const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(" ");
+
+/**
+ * How a target standing on a player is announced.
+ *
+ * A launch is named rather than folded into "Pass to", because it is a
+ * different thing with different odds — and the ring around the shirt is gold
+ * rather than blue for the same reason.
+ */
+const PLAYER_TARGET_VERB: Partial<Record<Action["type"], string>> = {
+  pass: "Pass to",
+  launch: "Launch to",
+  tackle: "Tackle",
+};
 const pct = (chance: number) => `${Math.round(chance * 100)}%`;
 
 /** How a player is described in a sentence: "number 9 Pike". */
@@ -371,7 +384,7 @@ export function Pitch({
                       ? {
                           kind: "commit",
                           target: playerTarget,
-                          label: `${playerTarget.action.type === "tackle" ? "Tackle" : "Pass to"} ${describe(player, state)}${
+                          label: `${PLAYER_TARGET_VERB[playerTarget.action.type] ?? "Pass to"} ${describe(player, state)}${
                             playerTarget.duel ? `, ${pct(playerTarget.duel.winChance)} chance` : ""
                           }`,
                         }
@@ -515,7 +528,9 @@ export function Pitch({
                             "absolute inset-[8%] rounded-full ring-[3px]",
                             playerTarget.action.type === "tackle"
                               ? "ring-rose-300"
-                              : "ring-sky-200",
+                              : playerTarget.action.type === "launch"
+                                ? "ring-(--color-gold)"
+                                : "ring-sky-200",
                           )}
                         />
                       )}
