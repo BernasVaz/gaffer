@@ -59,7 +59,10 @@ with the verb on and off:
 | ------ | -------------------- | ---------------------- | -------------- |
 | 5v5    | 1.65 → 1.65          | 55.0% → 53.3%          | 0.05           |
 | 7v7    | 1.47 → 1.45          | 61.7% → 61.7%          | 0.03           |
-| 11v11  | 1.22 → —             | 40.0% → —              | 0.03           |
+| 11v11  | 1.22 → 1.22          | 40.0% → 41.7%          | 0.08           |
+
+Every win-rate move above is one match in sixty — noise at this sample size, not a
+signal. Goals per match is unchanged to two decimal places at all three formats.
 
 Three hundred matches at 5-a-side agree: 0.04 launches a match, every one of them down a
 clear lane, none intercepted. So the +1 above is a designed number that self-play has not
