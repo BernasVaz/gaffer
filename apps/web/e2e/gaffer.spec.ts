@@ -536,3 +536,88 @@ test.describe("dragging a player", () => {
     await expectNoRuleBug(page);
   });
 });
+
+/**
+ * A phone held upright.
+ *
+ * The testers are on phones, so this is the shape the game is actually played
+ * in. Everything here is about the *drawing*: the same seed, the same commands
+ * and the same engine, turned a quarter turn. The cells keep their names in the
+ * engine's coordinates throughout, which is what lets every helper above work
+ * unchanged at either orientation — and is also the assertion, since a cell
+ * whose name depended on how you were holding your phone would break replay.
+ */
+test.describe("on a phone, upright", () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  /** The middle of a cell, without caring which way round the board is. */
+  const centreOf = async (page: import("@playwright/test").Page, x: number, y: number) =>
+    cellCentre(page, x, y);
+
+  for (const mode of ["5v5", "7v7", "11v11"] as const) {
+    test(`${mode} runs up and down the screen, and never sideways off it`, async ({ page }) => {
+      await page.goto(`./?seed=5&mode=${mode}&play=hotseat`);
+      await expect(page.getByRole("grid")).toBeVisible();
+
+      const board = await page.getByRole("grid").evaluate((grid) => ({
+        cols: Number(grid.getAttribute("aria-colcount")),
+        rows: Number(grid.getAttribute("aria-rowcount")),
+      }));
+
+      // Turned: the long axis of the pitch is down the screen.
+      expect(board.rows).toBeGreaterThan(board.cols);
+
+      // Home defends its goal at the foot of the screen, away at the head.
+      const home = await centreOf(page, 0, 1);
+      const away = await centreOf(page, board.rows - 1, 1);
+      expect(home.y).toBeGreaterThan(away.y);
+
+      // The whole point of turning it: it fits.
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth,
+      );
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+
+    test(`${mode} is playable upright`, async ({ page }) => {
+      await page.goto(`./?seed=5&mode=${mode}&play=hotseat`);
+
+      const before = await page.getByLabel("Scoreboard").textContent();
+      expect(await step(page)).toBe("acted");
+
+      await expect(page.getByLabel("Scoreboard")).not.toHaveText(before ?? "");
+      await expectNoRuleBug(page);
+    });
+  }
+
+  test("a drag lands on the cell it was dropped on, not a quarter turn away", async ({ page }) => {
+    await page.goto("./?seed=7&mode=5v5&play=hotseat&actions=2");
+
+    const label = await page
+      .getByRole("gridcell", { name: /with the ball/ })
+      .getAttribute("aria-label");
+    const found = /^Column (\d+), row (\d+):/.exec(label ?? "");
+    const from = { x: Number(found![1]), y: Number(found![2]) };
+
+    await page
+      .getByRole("gridcell", { name: new RegExp(`^Column ${from.x}, row ${from.y}:`) })
+      .click();
+    const to = await firstOpenDestination(page);
+
+    await page.reload();
+    await dragCell(page, from, to);
+
+    await expect(page.getByLabel("Scoreboard")).toContainText("1 action left");
+    await expectNoRuleBug(page);
+  });
+
+  test("plays a whole match through without the board and the engine falling out", async ({
+    page,
+  }) => {
+    test.slow();
+    await page.goto("./?seed=21&mode=5v5&play=hotseat&actions=2");
+
+    await playToTheEnd(page);
+    await expect(result(page)).toBeVisible();
+  });
+});

@@ -1,5 +1,7 @@
-import type { Action, MatchState, Position } from "@gaffer/shared";
+import type { Action, MatchState } from "@gaffer/shared";
 import { useCallback, useRef, useState } from "react";
+
+import type { BoardLayout } from "./orientation";
 
 import {
   cellKey,
@@ -24,6 +26,8 @@ const DRAG_THRESHOLD_PX = 6;
 export interface BoardDragOptions {
   /** The board being drawn. */
   state: MatchState;
+  /** Where each cell is drawn, so a pointer can be turned back into a cell. */
+  layout: BoardLayout;
   /** Which side or sides the person at the keyboard commands. */
   seat: Seat;
   /** The player currently selected, if any. */
@@ -64,16 +68,22 @@ export interface BoardDrag {
   swallowNextClick: () => boolean;
 }
 
-/** Which cell a point falls in, or null if it falls outside the grid. */
-function cellUnder(grid: HTMLElement, state: MatchState, clientX: number, clientY: number) {
+/**
+ * Which cell a point falls in, or null if it falls outside the grid.
+ *
+ * It measures the grid and then asks the layout, rather than dividing by the
+ * board's own width and height — on a portrait board those are the wrong way
+ * round, and a drag would land a quarter turn away from the finger holding it.
+ */
+function cellUnder(grid: HTMLElement, layout: BoardLayout, clientX: number, clientY: number) {
   const box = grid.getBoundingClientRect();
   if (box.width === 0 || box.height === 0) return null;
 
-  const x = Math.floor(((clientX - box.left) / box.width) * state.board.width);
-  const y = Math.floor(((clientY - box.top) / box.height) * state.board.height);
+  const col = Math.floor(((clientX - box.left) / box.width) * layout.cols);
+  const row = Math.floor(((clientY - box.top) / box.height) * layout.rows);
 
-  if (x < 0 || y < 0 || x >= state.board.width || y >= state.board.height) return null;
-  return { x, y } satisfies Position;
+  if (col < 0 || row < 0 || col >= layout.cols || row >= layout.rows) return null;
+  return layout.toBoard(col, row);
 }
 
 /**
@@ -98,6 +108,7 @@ function cellUnder(grid: HTMLElement, state: MatchState, clientX: number, client
  */
 export function useBoardDrag({
   state,
+  layout,
   seat,
   selectedId,
   onSelect,
@@ -139,7 +150,7 @@ export function useBoardDrag({
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (!enabled || event.button !== 0) return;
 
-      const cell = cellUnder(event.currentTarget, state, event.clientX, event.clientY);
+      const cell = cellUnder(event.currentTarget, layout, event.clientX, event.clientY);
       if (!cell) return;
 
       const player = state.players.find(
@@ -158,7 +169,7 @@ export function useBoardDrag({
        */
       startRef.current = { x: event.clientX, y: event.clientY, playerId: player.id };
     },
-    [enabled, state, seat],
+    [enabled, state, layout, seat],
   );
 
   const onPointerMove = useCallback(
@@ -188,7 +199,7 @@ export function useBoardDrag({
         }
       }
 
-      const cell = cellUnder(event.currentTarget, state, event.clientX, event.clientY);
+      const cell = cellUnder(event.currentTarget, layout, event.clientX, event.clientY);
       const dragged = state.players.find((player) => player.id === start.playerId);
 
       setOver(
@@ -200,7 +211,7 @@ export function useBoardDrag({
             },
       );
     },
-    [state, selectedId, onSelect],
+    [state, layout, selectedId, onSelect],
   );
 
   const onPointerUp = useCallback(
@@ -215,7 +226,7 @@ export function useBoardDrag({
       }
 
       const dragged = state.players.find((player) => player.id === start.playerId);
-      const cell = cellUnder(event.currentTarget, state, event.clientX, event.clientY);
+      const cell = cellUnder(event.currentTarget, layout, event.clientX, event.clientY);
       const landed = cell ? targetAt(state, dragTargetsRef.current, dragged, cell) : null;
 
       if (landed) onCommit(landed.action);
@@ -225,7 +236,7 @@ export function useBoardDrag({
       swallowRef.current = true;
       finish();
     },
-    [state, onCommit, finish],
+    [state, layout, onCommit, finish],
   );
 
   const swallowNextClick = useCallback(() => {

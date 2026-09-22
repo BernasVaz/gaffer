@@ -1,23 +1,27 @@
-import type { Board, MatchState, Player, Position } from "@gaffer/shared";
+import type { MatchState, Player } from "@gaffer/shared";
 import { m, useAnimationControls, useReducedMotion } from "motion/react";
 import { useEffect, useRef } from "react";
 
 import { Football } from "../art/Football";
 import { Footballer, type Gaze } from "../art/Footballer";
 import { BALL_ARC, BALL_SPRING, IDLE, INSTANT, PIECE_SPRING, SQUASH } from "../feel";
+import type { BoardLayout } from "./orientation";
 import { kitFor } from "./squads";
 
 const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(" ");
 
+/** Where a piece sits on screen: its drawn column and row. */
+type Screen = { col: number; row: number };
+
 /** One cell, as a percentage of a piece's own size — so `x: "300%"` is column 3. */
-const atCell = (position: Position) => ({
-  x: `${position.x * 100}%`,
-  y: `${position.y * 100}%`,
+const atCell = ({ col, row }: Screen) => ({
+  x: `${col * 100}%`,
+  y: `${row * 100}%`,
 });
 
-const sizeOf = (board: Board) => ({
-  width: `${100 / board.width}%`,
-  height: `${100 / board.height}%`,
+const sizeOf = (layout: BoardLayout) => ({
+  width: `${100 / layout.cols}%`,
+  height: `${100 / layout.rows}%`,
 });
 
 /**
@@ -30,20 +34,23 @@ const sizeOf = (board: Board) => ({
  * Driven by animation controls rather than by state, so a move triggers an
  * animation without triggering a render.
  */
-function useSquashOnMove(position: Position, still: boolean) {
+function useSquashOnMove(screen: Screen, still: boolean) {
   const controls = useAnimationControls();
-  const previous = useRef(position);
+  const previous = useRef(screen);
 
   // Depend on the coordinates rather than the object: what matters is that the
   // piece changed cell, not that React handed us a new wrapper for the same one.
-  const { x, y } = position;
+  // They are the *drawn* coordinates, because a stretch has to run the way the
+  // piece appears to travel — on a portrait board a run up the pitch is a run
+  // up the screen, and stretching it sideways would read as a skid.
+  const { col: x, row: y } = screen;
 
   useEffect(() => {
     const from = previous.current;
-    previous.current = { x, y };
+    previous.current = { col: x, row: y };
 
-    const dx = x - from.x;
-    const dy = y - from.y;
+    const dx = x - from.col;
+    const dy = y - from.row;
     if (still || (dx === 0 && dy === 0)) return;
 
     // Stretch along the way it is going, thin across it, then invert on landing.
@@ -78,26 +85,31 @@ function useSquashOnMove(position: Position, still: boolean) {
  * more natural and quietly useful: ten heads turned the same way is the
  * direction of play, legible before you have read anything.
  */
-function gazeFor(player: Player, state: MatchState): Gaze {
+function gazeFor(player: Player, state: MatchState, layout: BoardLayout): Gaze {
+  /* Worked out on the pitch and then turned, because where a player is looking
+     is a fact about the match — at the ball, or upfield — and only the drawing
+     of it depends on which way round the board is. */
   if (state.ball.carrierId === player.id) {
-    return { x: player.team === "home" ? 1 : -1, y: 0 };
+    return layout.rotate({ x: player.team === "home" ? 1 : -1, y: 0 });
   }
 
   const ball = state.ball.position;
-  return {
+  return layout.rotate({
     x: (ball.x - player.position.x) / 2.5,
     y: (ball.y - player.position.y) / 2,
-  };
+  });
 }
 
 function Shirt({
   player,
   state,
+  layout,
   ready,
   dimmed,
 }: {
   player: Player;
   state: MatchState;
+  layout: BoardLayout;
   ready: boolean;
   dimmed: boolean;
 }) {
@@ -128,7 +140,7 @@ function Shirt({
           team={player.team}
           role={player.role}
           number={kit.number}
-          gaze={gazeFor(player, state)}
+          gaze={gazeFor(player, state, layout)}
           hasBall={state.ball.carrierId === player.id}
         />
       </span>
@@ -143,6 +155,7 @@ function Shirt({
 function Piece({
   player,
   state,
+  layout,
   index,
   ready,
   dimmed,
@@ -150,21 +163,22 @@ function Piece({
 }: {
   player: Player;
   state: MatchState;
+  layout: BoardLayout;
   index: number;
   ready: boolean;
   dimmed: boolean;
   still: boolean;
 }) {
-  const board = state.board;
-  const squash = useSquashOnMove(player.position, still);
+  const screen = layout.toScreen(player.position);
+  const squash = useSquashOnMove(screen, still);
 
   return (
     <m.div
       data-player={player.id}
       data-cell={`${player.position.x},${player.position.y}`}
-      style={sizeOf(board)}
+      style={sizeOf(layout)}
       initial={false}
-      animate={atCell(player.position)}
+      animate={atCell(screen)}
       transition={still ? INSTANT : PIECE_SPRING}
       /*
        * Each piece is its own container, and it is exactly one cell wide. That
@@ -184,7 +198,7 @@ function Piece({
         style={{ animationDelay: `${-index * IDLE.stagger}s` }}
       >
         <m.div animate={squash} className="flex h-full w-full flex-col items-center justify-center">
-          <Shirt player={player} state={state} ready={ready} dimmed={dimmed} />
+          <Shirt player={player} state={state} layout={layout} ready={ready} dimmed={dimmed} />
         </m.div>
       </div>
     </m.div>
@@ -200,7 +214,15 @@ function Piece({
  * anything about *how far* it went — a pass across the pitch spins further than
  * a step.
  */
-function Ball({ state, still }: { state: MatchState; still: boolean }) {
+function Ball({
+  state,
+  layout,
+  still,
+}: {
+  state: MatchState;
+  layout: BoardLayout;
+  still: boolean;
+}) {
   const position = state.ball.position;
   const carried = state.ball.carrierId !== null;
 
@@ -237,9 +259,9 @@ function Ball({ state, still }: { state: MatchState; still: boolean }) {
     <m.div
       data-ball
       data-cell={`${position.x},${position.y}`}
-      style={sizeOf(state.board)}
+      style={sizeOf(layout)}
       initial={false}
-      animate={atCell(position)}
+      animate={atCell(layout.toScreen(position))}
       transition={still ? INSTANT : BALL_SPRING}
       className="absolute top-0 left-0"
     >
@@ -280,9 +302,12 @@ function Ball({ state, still }: { state: MatchState; still: boolean }) {
  */
 export function Pieces({
   state,
+  layout,
   readyIds,
 }: {
   state: MatchState;
+  /** Where each cell is drawn. The pieces float above the grid, so they need it too. */
+  layout: BoardLayout;
   /** Players that can be commanded right now, drawn as ready. */
   readyIds?: ReadonlySet<string>;
 }) {
@@ -295,6 +320,7 @@ export function Pieces({
           key={player.id}
           player={player}
           state={state}
+          layout={layout}
           index={index}
           ready={readyIds?.has(player.id) ?? false}
           dimmed={state.result !== null}
@@ -302,7 +328,7 @@ export function Pieces({
         />
       ))}
 
-      <Ball state={state} still={still} />
+      <Ball state={state} layout={layout} still={still} />
     </div>
   );
 }

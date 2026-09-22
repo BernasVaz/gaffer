@@ -63,6 +63,30 @@
   --cell: calc(100cqw / var(--cols));
 }
 
+/*
+ * A board turned on its side is limited by the height it has, not only the width.
+ *
+ * In portrait the long axis of the pitch runs down the screen, so filling the
+ * width can put the far goal below the fold — and a board you have to scroll to
+ * see the other end of is worse than a slightly smaller one you can take in at a
+ * glance. `--cols` and `--rows` are the *drawn* grid, so this one rule holds at
+ * every format without knowing which is being played.
+ *
+ * The floor stops a short window shrinking it to a postage stamp; below that it
+ * is better to scroll. Width still wins whenever it is the tighter of the two,
+ * which is the phone case, and is why there is never a horizontal scrollbar.
+ */
+@media (orientation: portrait) {
+  .pitch-board {
+    /* Explicit, because `margin-inline: auto` on a flex item stops it
+       stretching — and a board that sizes to its contents is a board whose
+       contents are sized from the board: zero, both ways round. */
+    width: 100%;
+    max-width: max(16rem, calc((100dvh - var(--pitch-chrome, 19rem)) * var(--cols) / var(--rows)));
+    margin-inline: auto;
+  }
+}
+
 .pitch-board .odds-badge {
   font-size: calc(var(--cell) * 0.22);
 }
