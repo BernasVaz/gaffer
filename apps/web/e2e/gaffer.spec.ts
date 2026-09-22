@@ -621,3 +621,68 @@ test.describe("on a phone, upright", () => {
     await expect(result(page)).toBeVisible();
   });
 });
+
+/**
+ * Notes outliving the match that produced them.
+ *
+ * The gap this closes is not that feedback was unsaved — it was always on
+ * disk — but that nothing outside the match it belonged to could reach it.
+ * These drive the real thing: flag a moment, walk away, and go and find it.
+ */
+test.describe("the feedback archive", () => {
+  test("finds a note taken in a match you have since left", async ({ page }) => {
+    await page.goto("./?seed=1234&mode=5v5&play=hotseat");
+
+    await page.getByRole("button", { name: /Flag moment/ }).click();
+    await page.getByRole("textbox").fill("the keeper is standing in the wrong place");
+    await page.getByRole("button", { name: /^Save/ }).click();
+
+    // Walk away, exactly as somebody who never finishes a match would.
+    await page.getByRole("button", { name: "New match" }).click();
+    await expect(page.getByRole("button", { name: /Kick off/ })).toBeVisible();
+
+    await page.getByRole("button", { name: "My feedback" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "My feedback" });
+    await expect(dialog).toContainText("the keeper is standing in the wrong place");
+    await expect(dialog).toContainText("seed 1234");
+  });
+
+  test("hands the whole lot over as one file", async ({ page }) => {
+    await page.goto("./?seed=4321&mode=5v5&play=hotseat");
+
+    await page.getByRole("button", { name: /Flag moment/ }).click();
+    await page.getByRole("textbox").fill("offside was never called");
+    await page.getByRole("button", { name: /^Save/ }).click();
+    await page.getByRole("button", { name: "New match" }).click();
+
+    await page.getByRole("button", { name: "My feedback" }).click();
+
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download everything" }).click();
+
+    const file = await download;
+    expect(file.suggestedFilename()).toMatch(/^gaffer-feedback-all-\d{4}-\d{2}-\d{2}\.md$/);
+
+    const stream = await file.createReadStream();
+    const text = await new Promise<string>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      stream.on("data", (chunk: Buffer) => chunks.push(chunk));
+      stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+      stream.on("error", reject);
+    });
+
+    expect(text).toContain("offside was never called");
+    expect(text).toContain("Seed `4321`");
+    expect(text).toContain("replayTo=");
+  });
+
+  test("says where the notes live when there are none", async ({ page }) => {
+    await page.goto("./");
+    await page.getByRole("button", { name: "My feedback" }).click();
+
+    await expect(page.getByRole("dialog", { name: "My feedback" })).toContainText(
+      "Nothing saved yet",
+    );
+  });
+});

@@ -3,6 +3,7 @@ import type { MatchSetup, MatchState } from "@gaffer/shared";
 import type { RecordedEvent } from "../match/useMatch";
 import { Button } from "../ui/Button";
 import type { FeedbackNote } from "./notes";
+import { downloadFile, pageOrigin } from "./download";
 import { buildReport, reportFilename } from "./report";
 
 export interface DownloadReportProps {
@@ -27,24 +28,12 @@ export interface DownloadReportProps {
  * Nothing about a match leaves the machine unless somebody chooses to send it.
  */
 export function DownloadReport({ setup, state, log, notes, tone = "quiet" }: DownloadReportProps) {
-  const download = () => {
-    const origin =
-      typeof window === "undefined" ? "" : `${window.location.origin}${window.location.pathname}`;
-
-    const markdown = buildReport({ setup, state, log, notes, origin });
-    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = reportFilename(setup);
-    document.body.append(link);
-    link.click();
-    link.remove();
-
-    /* The object URL pins the blob in memory until it is let go. */
-    URL.revokeObjectURL(url);
-  };
+  const download = () =>
+    downloadFile(
+      reportFilename(setup),
+      buildReport({ setup, state, log, notes, origin: pageOrigin() }),
+      "text/markdown;charset=utf-8",
+    );
 
   return (
     <Button tone={tone} onClick={download}>
