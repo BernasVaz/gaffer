@@ -112,6 +112,20 @@ export const MatchStateSchema = z
      * that did *not* start with the ball takes a tie nothing else could settle.
      */
     kickedOff: TeamSchema,
+    /**
+     * The side that still owes a kickoff pass, or null when none is due.
+     *
+     * A kickoff is a pass in football, and it was not one here: a match opened
+     * with whatever the kicking side fancied, usually a dribble into the
+     * opponent standing next to it. Set at kickoff and after every goal, and
+     * cleared by the first action that side takes (GDD §7, ADR 0018).
+     *
+     * On the state rather than derived, because "is this a kickoff" cannot be
+     * read off a board — the formation reset after a goal produces the same
+     * arrangement a restart does, and a side that has already played its pass
+     * still stands mostly in shape.
+     */
+    kickoffPending: TeamSchema.nullable(),
     /** Running totals the tiebreaker compares. */
     stats: MatchStatsSchema,
     /** How the match ended, or null while it is still being played. */

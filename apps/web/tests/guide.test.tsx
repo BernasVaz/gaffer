@@ -295,7 +295,7 @@ describe("walking through it, upright", () => {
       expect(heading()).toMatch(/Tap one of your players/);
     }
 
-    await user.click(screen.getByRole("button", { name: /^Select home midfielder/ }));
+    await user.click(screen.getByRole("button", { name: /^Select home winger/ }));
     expect(heading()).toMatch(/lights up at once/);
   });
 
@@ -304,7 +304,7 @@ describe("walking through it, upright", () => {
     await user.click(within(card()).getByRole("button", { name: "Next" }));
     await user.click(within(card()).getByRole("button", { name: "Next" }));
     await user.click(screen.getByRole("button", { name: "Kick off" }));
-    await user.click(screen.getByRole("button", { name: /^Select home midfielder/ }));
+    await user.click(screen.getByRole("button", { name: /^Select home winger/ }));
     await user.click(within(card()).getByRole("button", { name: "Next" }));
 
     expect(heading()).toMatch(/Take the safe one/);
@@ -326,7 +326,7 @@ describe("walking through it, upright", () => {
     await user.click(within(card()).getByRole("button", { name: "Next" }));
     await user.click(within(card()).getByRole("button", { name: "Next" }));
     await user.click(screen.getByRole("button", { name: "Kick off" }));
-    await user.click(screen.getByRole("button", { name: /^Select home midfielder/ }));
+    await user.click(screen.getByRole("button", { name: /^Select home winger/ }));
     await user.click(within(card()).getByRole("button", { name: "Next" }));
     await user.click(screen.getByRole("button", { name: safePassLabel() }));
 
@@ -350,7 +350,7 @@ describe("walking through it, upright", () => {
     await user.click(within(card()).getByRole("button", { name: "Next" }));
     await user.click(within(card()).getByRole("button", { name: "Next" }));
     await user.click(screen.getByRole("button", { name: "Kick off" }));
-    await user.click(screen.getByRole("button", { name: /^Select home midfielder/ }));
+    await user.click(screen.getByRole("button", { name: /^Select home winger/ }));
     await user.click(within(card()).getByRole("button", { name: "Next" }));
     await user.click(screen.getByRole("button", { name: safePassLabel() }));
     await user.click(within(card()).getByRole("button", { name: "Play for real" }));

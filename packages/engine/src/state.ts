@@ -170,6 +170,8 @@ export function createInitialState(options: CreateInitialStateOptions = {}): Mat
     actionsRemaining: rules.actionsPerTurn,
     score: { home: 0, away: 0 },
     kickedOff: kickingOff,
+    // Every kickoff is a pass, including the ones after a goal (GDD §7).
+    kickoffPending: kickingOff,
     stats: {
       shotsAttempted: { home: 0, away: 0 },
       duelsWon: { home: 0, away: 0 },

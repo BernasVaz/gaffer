@@ -128,13 +128,21 @@ export function Spotlight({ anchors, cardTop, generation }: SpotlightProps) {
   if (rect === null) {
     // Nothing to point at — dim the page anyway, so the card still reads as
     // an overlay rather than as a panel that has appeared in the layout.
-    return <div aria-hidden className="fixed inset-0 z-40 bg-black/70" />;
+    return <div aria-hidden className="pointer-events-none fixed inset-0 z-40 bg-black/70" />;
   }
 
   return (
     <div
       aria-hidden
-      className="guide-spotlight fixed z-40 rounded-xl"
+      /*
+       * Inert to the mouse, or it swallows the click it is asking for. The
+       * element is only the size of the hole and paints the dimming with an
+       * outward shadow, so without this the one control a step wants pressed
+       * is the one control covered by the thing pointing at it. Found by an
+       * end-to-end test; every unit test passed, because jsdom does no
+       * hit-testing at all.
+       */
+      className="guide-spotlight pointer-events-none fixed z-40 rounded-xl"
       style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }}
     />
   );

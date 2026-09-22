@@ -24,8 +24,10 @@ function apply(state: MatchState, command: MatchCommand, rng = scriptedRng([3, 1
   return result;
 }
 
-const firstMove = (state: MatchState): MatchCommand =>
-  legalActions(state).find((action) => action.type === "move")!;
+/* Whatever the board is offering. These tests are about what an action *costs*,
+   not about which verb it was — and at a kickoff the only verb on is the pass
+   (ADR 0018), so insisting on a move here would be testing the wrong thing. */
+const firstMove = (state: MatchState): MatchCommand => legalActions(state)[0]!;
 
 describe("spending actions", () => {
   it("costs one action per gameplay verb", () => {

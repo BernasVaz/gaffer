@@ -1,7 +1,7 @@
 import { ActionSchema, DEFAULT_BOARD, type Action, type Team } from "@gaffer/shared";
 import { describe, expect, it } from "vitest";
 
-import { createInitialState, legalActions } from "../src/index.js";
+import { applyAction, createInitialState, createRng, legalActions } from "../src/index.js";
 import { makeState } from "./helpers.js";
 
 const only = (actions: readonly Action[], type: Action["type"]) =>
@@ -381,16 +381,29 @@ describe("legalActions", () => {
       expect(only(legalActions(createInitialState()), "tackle")).toHaveLength(0);
     });
 
-    it("makes every one of the kickoff taker's moves a Dribble", () => {
-      // The two strikers start adjacent, so the carrier is pressed at its
-      // origin and cannot step anywhere uncontested. Flagged for review: it
-      // means the side kicking off must pass, shoot, or accept a duel.
+    it("offers the kicking side nothing but the pass", () => {
+      /* A kickoff is a pass (ADR 0018). This replaces a test that asserted the
+         opposite and carried a note flagging it for review: before the rule,
+         the two strikers starting adjacent meant the carrier was pressed at
+         its origin, so a match opened with a dribble straight into the
+         opponent standing next to it. */
       const state = createInitialState();
       const actions = legalActions(state);
-      const striker = state.players.find((p) => p.id === "home-striker-1")!;
 
-      expect(cellsOf(actions, "move", striker.id).size).toBe(0);
-      expect(cellsOf(actions, "dribble", striker.id).size).toBeGreaterThan(0);
+      expect(actions.length).toBeGreaterThan(0);
+      expect(actions.every((action) => action.type === "pass")).toBe(true);
+    });
+
+    it("lets go of the restriction as soon as the kickoff has been taken", () => {
+      const state = createInitialState();
+      const kickoff = legalActions(state)[0]!;
+      const after = applyAction(state, kickoff, createRng(1));
+
+      expect(after.ok).toBe(true);
+      if (!after.ok) return;
+
+      expect(after.state.kickoffPending).toBeNull();
+      expect(legalActions(after.state).some((action) => action.type !== "pass")).toBe(true);
     });
 
     it("offers two passes from the kickoff", () => {

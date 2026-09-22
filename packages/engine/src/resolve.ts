@@ -91,6 +91,11 @@ function afterGoal(state: MatchState, scoringTeam: Team): MatchState {
     // match in progress keeps the numbers it kicked off under.
     rules: state.rules,
     kickedOff: state.kickedOff,
+    /* `createInitialState` already set this to the conceding side, which is
+       exactly right — a kickoff after a goal is still a kickoff. Spelled out
+       so the next person reading this list does not "restore" it from the
+       old state along with everything else around it. */
+    kickoffPending: kickoff.kickoffPending,
     stats: state.stats,
     result: state.result,
   };

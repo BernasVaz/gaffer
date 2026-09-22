@@ -22,6 +22,9 @@ function openGoal(): MatchState {
     ),
     ball: { position: { x: 4, y: 2 }, carrierId: "home-striker-1" },
     possession: "home",
+    /* Explicitly not a kickoff. A kickoff offers only the pass (ADR 0018), and
+       this fixture exists to have a shot on it. */
+    kickoffPending: null,
   };
 }
 

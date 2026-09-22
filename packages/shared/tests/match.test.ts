@@ -41,6 +41,7 @@ function baseState(): MatchState {
     actionsRemaining: FIVES.actionsPerTurn,
     score: { home: 0, away: 0 },
     kickedOff: "home",
+    kickoffPending: null,
     stats: {
       shotsAttempted: { home: 0, away: 0 },
       duelsWon: { home: 0, away: 0 },
