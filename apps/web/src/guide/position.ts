@@ -1,0 +1,87 @@
+import type { MatchCommand } from "@gaffer/shared";
+
+import { buildMatch, type Built } from "../match/replay";
+
+/** The game type the guide teaches on. */
+export const GUIDE_FORMAT = "5v5" as const;
+
+/** Actions a turn on that board — 5-a-side's own default. */
+export const GUIDE_ACTIONS = 2;
+
+/**
+ * The seed the practice position is built from.
+ *
+ * It does not actually matter, and a test says so: every command below is a
+ * move or an uncontested pass, so the replay rolls no dice at all and reaches
+ * the same board from any seed. It is pinned anyway, because a position that
+ * silently depended on a seed later would be a horrible thing to debug.
+ */
+export const GUIDE_SEED = 1624;
+
+/**
+ * How the practice position is reached from a kickoff.
+ *
+ * Content, not code. Found by search (see ADR 0017) against everything the
+ * guide has to be able to show in one position, and then pinned:
+ *
+ * - the carrier is up the pitch and **pressed**, so its options carry odds;
+ * - those odds are worth reading — a shot at 38%, dribbles at 0–6%;
+ * - there is an **uncontested** pass, the one action a beginner can be asked
+ *   to take because it cannot go wrong;
+ * - and the team-mate it goes to can shoot at **63%**, so the lesson of the
+ *   whole game — move the ball to where the number is better — happens in one
+ *   move rather than being described.
+ *
+ * Every entry is a `move` or an uncontested `pass`, which the engine resolves
+ * without touching the generator. So this is a fixed board rather than a
+ * sequence that might come out differently, and `tests/guide.test.tsx` fails
+ * if that ever stops being true.
+ */
+export const GUIDE_COMMANDS: readonly MatchCommand[] = [
+  { type: "move", playerId: "home-defender-1", target: { x: 3, y: 0 } },
+  { type: "move", playerId: "home-defender-1", target: { x: 5, y: 0 } },
+  { type: "move", playerId: "away-defender-1", target: { x: 4, y: 3 } },
+  { type: "move", playerId: "away-defender-1", target: { x: 4, y: 2 } },
+  { type: "move", playerId: "home-winger-1", target: { x: 4, y: 0 } },
+  { type: "move", playerId: "home-midfielder-1", target: { x: 3, y: 4 } },
+  { type: "move", playerId: "away-defender-1", target: { x: 3, y: 1 } },
+  { type: "move", playerId: "away-defender-1", target: { x: 4, y: 2 } },
+  { type: "move", playerId: "home-midfielder-1", target: { x: 4, y: 3 } },
+  { type: "move", playerId: "home-defender-1", target: { x: 6, y: 0 } },
+  { type: "move", playerId: "away-winger-1", target: { x: 5, y: 4 } },
+  { type: "move", playerId: "away-midfielder-1", target: { x: 3, y: 1 } },
+  { type: "move", playerId: "home-midfielder-1", target: { x: 5, y: 2 } },
+  { type: "move", playerId: "home-midfielder-1", target: { x: 5, y: 1 } },
+  { type: "move", playerId: "away-winger-1", target: { x: 4, y: 3 } },
+  { type: "move", playerId: "away-defender-1", target: { x: 5, y: 3 } },
+  { type: "move", playerId: "home-winger-1", target: { x: 5, y: 0 } },
+  { type: "move", playerId: "home-midfielder-1", target: { x: 4, y: 1 } },
+  { type: "move", playerId: "away-defender-1", target: { x: 4, y: 2 } },
+  { type: "move", playerId: "away-defender-1", target: { x: 5, y: 3 } },
+  { type: "pass", playerId: "home-striker-1", target: "home-midfielder-1" },
+  { type: "move", playerId: "home-winger-1", target: { x: 5, y: 1 } },
+  { type: "move", playerId: "away-winger-1", target: { x: 4, y: 2 } },
+  { type: "move", playerId: "away-midfielder-1", target: { x: 3, y: 0 } },
+];
+
+/** Who is on the ball when the practice position is handed over. */
+export const GUIDE_CARRIER = "home-midfielder-1";
+
+/** The team-mate the guide asks for the ball to be played to. */
+export const GUIDE_RECEIVER = "home-winger-1";
+
+/**
+ * Build the practice position.
+ *
+ * Goes through the same {@link buildMatch} a real match and the feedback
+ * archive go through, so a position the guide teaches on cannot be a board the
+ * game could not produce.
+ */
+export function guidePosition(): Built {
+  return buildMatch({
+    seed: GUIDE_SEED,
+    format: GUIDE_FORMAT,
+    actionsPerTurn: GUIDE_ACTIONS,
+    replay: GUIDE_COMMANDS,
+  });
+}

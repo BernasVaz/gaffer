@@ -686,3 +686,113 @@ test.describe("the feedback archive", () => {
     );
   });
 });
+
+/**
+ * The guided introduction.
+ *
+ * Driven on a phone held upright, because that is the shape the alpha is
+ * played in and because the spotlight's whole job is landing on the right
+ * thing when the board is drawn a quarter turn round.
+ */
+test.describe("how to play", () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test("never starts by itself", async ({ page }) => {
+    await page.goto("./");
+
+    await expect(page.getByRole("button", { name: /Kick off/ })).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "How to play" })).toBeVisible();
+  });
+
+  test("teaches the whole thing and ends in a real match", async ({ page }) => {
+    await page.goto("./");
+    await page.getByRole("button", { name: "How to play" }).click();
+
+    const step = page.getByRole("dialog");
+    await expect(step).toContainText("Pick a game type");
+
+    await step.getByRole("button", { name: "Next" }).click();
+    await expect(step).toContainText("Actions are your turn");
+
+    await step.getByRole("button", { name: "Next" }).click();
+    await expect(step).toContainText("whole setup");
+
+    /* The step is waiting on the real button, and the real button must not be
+       hidden underneath the card that is asking for it. */
+    const kickOff = page.locator('[data-guide="kick-off"]');
+    const button = await kickOff.boundingBox();
+    const sheet = await step.boundingBox();
+    expect(button!.y + button!.height).toBeLessThan(sheet!.y);
+
+    await kickOff.click();
+    await expect(step).toContainText("Tap one of your players");
+    await expect(page.getByRole("grid")).toBeVisible();
+
+    await page.getByRole("button", { name: /^Select home midfielder/ }).click();
+    await expect(step).toContainText("lights up at once");
+
+    await step.getByRole("button", { name: "Next" }).click();
+    await expect(step).toContainText("Take the safe one");
+
+    await page
+      .getByRole("button", { name: /^Pass to/ })
+      .first()
+      .click();
+    await expect(step).toContainText("whole game");
+
+    await step.getByRole("button", { name: "Play for real" }).click();
+
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByLabel("Scoreboard")).toBeVisible();
+    await expect(page.getByRole("button", { name: "End turn" })).toBeVisible();
+    expect(page.url()).toContain("seed=");
+  });
+
+  test("lights up the thing it is talking about, and nothing else", async ({ page }) => {
+    await page.goto("./");
+    await page.getByRole("button", { name: "How to play" }).click();
+
+    const spot = page.locator(".guide-spotlight");
+    await expect(spot).toBeVisible();
+
+    /* Polled rather than measured once: the spotlight slides between steps, so
+       a single `boundingBox` catches it in flight and compares the hole with
+       where it is *going*. The claim is about where it settles. */
+    await expect(async () => {
+      const lit = await spot.boundingBox();
+      const section = await page.locator('section[aria-labelledby="format-heading"]').boundingBox();
+
+      // Within a few pixels of padding, the hole is over the game-type section.
+      expect(Math.abs(lit!.y - section!.y)).toBeLessThan(16);
+      expect(Math.abs(lit!.height - section!.height)).toBeLessThan(24);
+    }).toPass({ timeout: 5_000 });
+  });
+
+  test("can be left at any point", async ({ page }) => {
+    await page.goto("./");
+    await page.getByRole("button", { name: "How to play" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Skip" }).click();
+
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Kick off/ })).toBeVisible();
+    await expect(page.getByLabel("Scoreboard")).toHaveCount(0);
+  });
+
+  test("closes on Escape", async ({ page }) => {
+    await page.goto("./");
+    await page.getByRole("button", { name: "How to play" }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("is reachable from inside a match too", async ({ page }) => {
+    await page.goto("./?seed=9&mode=5v5&play=hotseat");
+    await expect(page.getByRole("grid")).toBeVisible();
+
+    await page.getByRole("button", { name: "How to play" }).click();
+    await expect(page.getByRole("dialog")).toContainText("Pick a game type");
+  });
+});

@@ -20,6 +20,8 @@ import { useState } from "react";
 import { Crest } from "../art/Crest";
 import { Footballer } from "../art/Footballer";
 import { FeedbackArchive } from "../feedback/FeedbackArchive";
+import { useOrientation } from "../board/orientation";
+import { HowToPlay } from "../guide/HowToPlay";
 import { Button } from "../ui/Button";
 import { Wordmark } from "../ui/Wordmark";
 
@@ -119,6 +121,13 @@ export interface SetupScreenProps {
   initial: MatchSetup;
   /** Called with the finished setup when the player kicks off. */
   onStart: (setup: MatchSetup) => void;
+  /**
+   * Start the guided introduction, when there is somewhere to start it from.
+   *
+   * Optional because the guide itself renders this screen: inside it there is
+   * nothing to offer.
+   */
+  onHowToPlay?: () => void;
 }
 
 /**
@@ -133,7 +142,7 @@ export interface SetupScreenProps {
  * choice on the screen, and a game about visible odds should not hide its
  * biggest one in a footnote.
  */
-export function SetupScreen({ initial, onStart }: SetupScreenProps) {
+export function SetupScreen({ initial, onStart, onHowToPlay }: SetupScreenProps) {
   const [mode, setMode] = useState<MatchFormat>(initial.mode);
   const [play, setPlay] = useState<PlayMode>(initial.play);
   const [actions, setActions] = useState<number>(initial.actions);
@@ -142,6 +151,10 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
   const [seed, setSeed] = useState<number>(initial.seed);
 
   const solo = play === "solo";
+  /* "Attacks right" is a lie on a phone held upright, where the pitch runs up
+     and down — and this screen is the first thing the guide teaches from, so a
+     wrong word here is a wrong word taught. */
+  const upright = useOrientation() === "portrait";
   const chosen = FORMAT_PROFILES[mode];
 
   return (
@@ -248,7 +261,11 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
                     selected={side === team}
                     onClick={() => setSide(team)}
                     title={team === "home" ? "Home" : "Away"}
-                    blurb={team === KICKING_OFF ? "Kicks off · attacks right" : "Attacks left"}
+                    blurb={
+                      team === KICKING_OFF
+                        ? `Kicks off · attacks ${upright ? "up" : "right"}`
+                        : `Attacks ${upright ? "down" : "left"}`
+                    }
                   >
                     <SidePreview team={team} />
                   </Choice>
@@ -350,6 +367,10 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
 
         <Button
           tone="primary"
+          /* The guide points at this button, and a class name is not a promise.
+             One attribute is cheaper than a brittle selector and says why it
+             is here. */
+          data-guide="kick-off"
           onClick={() => onStart({ mode, play, side, difficulty, actions, seed })}
           className="mt-1 py-4 text-lg"
         >
@@ -359,7 +380,10 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
         {/* Notes outlive the match they were taken in, so the way back to them
             has to live somewhere that is not inside a match. This screen is the
             front door and the place "New match" returns to. */}
-        <div className="flex justify-center">
+        <div className="flex justify-center gap-2">
+          {/* Absent while the guide is running, because the guide renders this
+              very screen and offering to start itself would be a loop. */}
+          {onHowToPlay && <HowToPlay onStart={onHowToPlay} />}
           <FeedbackArchive onOpen={onStart} />
         </div>
       </div>
