@@ -20,6 +20,7 @@ import { Button } from "../ui/Button";
 import { Wordmark } from "../ui/Wordmark";
 import { DownloadReport } from "../feedback/DownloadReport";
 import { FeedbackArchive } from "../feedback/FeedbackArchive";
+import { HowToPlay } from "../guide/HowToPlay";
 import { FlagMoment } from "../feedback/FlagMoment";
 import { loadFeedback } from "../feedback/notes";
 import { useFeedback } from "../feedback/useFeedback";
@@ -92,6 +93,8 @@ export interface MatchProps {
   replayTo?: number;
   /** Called when the player wants to go back and set up a different match. */
   onLeave: () => void;
+  /** Start the guided introduction. */
+  onHowToPlay?: () => void;
 }
 
 /**
@@ -105,7 +108,7 @@ export interface MatchProps {
  * driving the other side. The rest of the screen cannot tell the difference,
  * which is the point — the opponent is a player, not a mode.
  */
-export function Match({ setup, replayTo, onLeave }: MatchProps) {
+export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
   /*
    * A match that has flagged moments against it has to come back as *that*
    * match after a refresh, or every note's action index points at a board that
@@ -320,7 +323,8 @@ export function Match({ setup, replayTo, onLeave }: MatchProps) {
             />
           )}
 
-          <FeedbackArchive className="ml-auto" />
+          {onHowToPlay && <HowToPlay onStart={onHowToPlay} className="ml-auto" />}
+          <FeedbackArchive className={onHowToPlay ? undefined : "ml-auto"} />
 
           <Button tone="quiet" onClick={onLeave}>
             New match

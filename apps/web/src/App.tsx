@@ -2,6 +2,8 @@ import { parseReplayTo, parseSetup, setupToQuery, type MatchSetup } from "@gaffe
 import { domAnimation, LazyMotion } from "motion/react";
 import { useCallback, useState } from "react";
 
+import { Guide } from "./guide/Guide";
+import { shouldAutorun } from "./guide/seen";
 import { Match } from "./match/Match";
 import { SetupScreen } from "./setup/SetupScreen";
 
@@ -25,7 +27,7 @@ function publish(setup: MatchSetup) {
 }
 
 /**
- * The client: a setup screen, and a match.
+ * The client: a setup screen, a match, and the guide over either.
  *
  * There is no router and no need for one — there are two screens and the URL
  * describes the match rather than the page. What the address bar holds is always
@@ -49,12 +51,29 @@ export function App() {
     wasSentAMatch() ? parseSetup(search()) : null,
   );
 
+  /*
+   * Off unless somebody asks. `shouldAutorun` reads one constant, currently
+   * false, so running it unasked on a first visit is a switch rather than a
+   * rewrite — see `guide/seen.ts`.
+   */
+  const [guiding, setGuiding] = useState<boolean>(() => shouldAutorun());
+
   const start = useCallback((chosen: MatchSetup) => {
     publish(chosen);
     setSetup(chosen);
   }, []);
 
   const leave = useCallback(() => setSetup(null), []);
+
+  const teach = useCallback(() => setGuiding(true), []);
+
+  /* The guide ends by handing over whatever was chosen along the way, so it
+     finishes in a real match rather than back where it began. */
+  const taught = useCallback((chosen: MatchSetup) => {
+    setGuiding(false);
+    publish(chosen);
+    setSetup(chosen);
+  }, []);
 
   return (
     /*
@@ -65,10 +84,18 @@ export function App() {
      * animation and drag are the parts left behind, and nothing here wants them.
      */
     <LazyMotion features={domAnimation} strict>
-      {setup === null ? (
-        <SetupScreen initial={initial} onStart={start} />
+      {guiding ? (
+        <Guide initial={setup ?? initial} onFinish={taught} onSkip={() => setGuiding(false)} />
+      ) : setup === null ? (
+        <SetupScreen initial={initial} onStart={start} onHowToPlay={teach} />
       ) : (
-        <Match key={setupToQuery(setup)} setup={setup} replayTo={replayTo} onLeave={leave} />
+        <Match
+          key={setupToQuery(setup)}
+          setup={setup}
+          replayTo={replayTo}
+          onLeave={leave}
+          onHowToPlay={teach}
+        />
       )}
     </LazyMotion>
   );
