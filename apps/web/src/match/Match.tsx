@@ -10,6 +10,7 @@ import {
 } from "@gaffer/shared";
 import { useCallback, useState } from "react";
 
+import { useOrientation } from "../board/orientation";
 import { Pitch } from "../board/Pitch";
 import { Scoreboard } from "../board/Scoreboard";
 import { kitFor } from "../board/squads";
@@ -131,6 +132,9 @@ export function Match({ setup, replayTo, onLeave }: MatchProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [focused, setFocused] = useState<Target | null>(null);
 
+  const orientation = useOrientation();
+  const portrait = orientation === "portrait";
+
   const profile = FORMAT_PROFILES[setup.mode];
   const solo = setup.play === "solo";
   const seat: Seat = solo ? setup.side : "both";
@@ -200,11 +204,13 @@ export function Match({ setup, replayTo, onLeave }: MatchProps) {
     <main className="min-h-dvh bg-(--color-night) bg-[radial-gradient(120%_80%_at_50%_0%,var(--color-night-soft),var(--color-night))] px-4 py-6 text-white">
       <div
         className={`mx-auto flex w-full flex-col gap-3 ${
-          profile.board.width > 9
-            ? "max-w-4xl"
-            : profile.board.width > 7
-              ? "max-w-3xl"
-              : "max-w-2xl"
+          portrait
+            ? "max-w-md"
+            : profile.board.width > 9
+              ? "max-w-4xl"
+              : profile.board.width > 7
+                ? "max-w-3xl"
+                : "max-w-2xl"
         }`}
       >
         <header className="flex items-end justify-between gap-3">
@@ -231,9 +237,9 @@ export function Match({ setup, replayTo, onLeave }: MatchProps) {
             </p>
           </div>
           <p className="shrink-0 text-right text-[0.7rem] leading-tight text-white/40">
-            Home attacks &rarr;
+            Home attacks {portrait ? <>&uarr;</> : <>&rarr;</>}
             <br />
-            Away attacks &larr;
+            Away attacks {portrait ? <>&darr;</> : <>&larr;</>}
           </p>
         </header>
 
@@ -265,6 +271,7 @@ export function Match({ setup, replayTo, onLeave }: MatchProps) {
           onFocusTarget={setFocused}
           frozen={moment !== null || !yourMove}
           goalFor={moment?.team ?? null}
+          orientation={orientation}
         />
 
         <StatusBar

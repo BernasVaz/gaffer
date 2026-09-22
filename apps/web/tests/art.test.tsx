@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { Crest } from "../src/art/Crest";
 import { Footballer } from "../src/art/Footballer";
 import { GoalNet, PitchMarkings } from "../src/art/PitchMarkings";
+import { layoutFor } from "../src/board/orientation";
 import { Pieces } from "../src/board/Pieces";
 import { Pitch } from "../src/board/Pitch";
 import { kitFor as colourFor, KITS } from "../src/board/kits";
@@ -133,7 +134,9 @@ describe("the pieces on the board", () => {
     // anything has been read. Someone staring at a ball in their own hands is
     // just cross-eyed, so the carrier looks where it is going instead.
     const state = createInitialState();
-    const { container } = render(<Pieces state={state} />);
+    const { container } = render(
+      <Pieces state={state} layout={layoutFor(state.board, "landscape")} />,
+    );
 
     const carrier = container.querySelector(`[data-player="${state.ball.carrierId}"]`);
     const other = container.querySelector('[data-player="home-winger-1"]');
@@ -186,7 +189,9 @@ describe("a board that has to fit a phone", () => {
      * Taking it out of the flow is what makes that unrepresentable.
      */
     const state = createInitialState();
-    const { container } = render(<Pieces state={state} />);
+    const { container } = render(
+      <Pieces state={state} layout={layoutFor(state.board, "landscape")} />,
+    );
     const label = container.querySelector(".piece-name")!;
 
     expect(label.className).toContain("absolute");

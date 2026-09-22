@@ -8,9 +8,10 @@ import {
 } from "@gaffer/shared";
 
 import { m, useAnimationControls, useReducedMotion } from "motion/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { GoalNet, PitchMarkings } from "../art/PitchMarkings";
+import { layoutFor, type Orientation } from "./orientation";
 import { GOAL, POP_SPRING, TURN_FLOURISH } from "../feel";
 import { GoalBurst } from "./GoalBurst";
 import { Pieces } from "./Pieces";
@@ -123,22 +124,36 @@ function ActiveOrPlain({
  * rather than only energy: you can tell whose turn it is from the direction alone
  * before you have read anything.
  */
-function TurnFlourish({ team, still }: { team: Team; still: boolean }) {
+function TurnFlourish({
+  team,
+  still,
+  orientation,
+}: {
+  team: Team;
+  still: boolean;
+  orientation: Orientation;
+}) {
   const controls = useAnimationControls();
   const previous = useRef(team);
+  const portrait = orientation === "portrait";
 
   useEffect(() => {
     const from = previous.current;
     previous.current = team;
     if (still || from === team) return;
 
-    const rightward = team === "home";
+    /* Home attacks up the numbers, which is rightwards on a wide board and
+       upwards on a tall one. The band has to follow the drawing, or the one
+       piece of information it carries becomes a lie in portrait. */
+    const forward = team === "home";
+    const sweep = forward ? ["-60%", "160%"] : ["160%", "-60%"];
+
     void controls.start({
-      x: rightward ? ["-60%", "160%"] : ["160%", "-60%"],
+      ...(portrait ? { y: [...sweep].reverse() } : { x: sweep }),
       opacity: [0, 0.55, 0],
       transition: { duration: TURN_FLOURISH.duration, ease: "easeInOut" },
     });
-  }, [team, controls, still]);
+  }, [team, controls, still, portrait]);
 
   return (
     <m.div
@@ -146,10 +161,15 @@ function TurnFlourish({ team, still }: { team: Team; still: boolean }) {
       initial={{ opacity: 0 }}
       animate={controls}
       className={cx(
-        "pointer-events-none absolute inset-y-0 z-20 w-1/3 skew-x-12 rounded-xl",
-        team === "home"
-          ? "bg-gradient-to-r from-transparent via-white/35 to-transparent"
-          : "bg-gradient-to-r from-transparent via-zinc-200/25 to-transparent",
+        "pointer-events-none absolute z-20 rounded-xl",
+        portrait ? "inset-x-0 h-1/3 skew-y-12" : "inset-y-0 w-1/3 skew-x-12",
+        portrait
+          ? team === "home"
+            ? "bg-gradient-to-b from-transparent via-white/35 to-transparent"
+            : "bg-gradient-to-b from-transparent via-zinc-200/25 to-transparent"
+          : team === "home"
+            ? "bg-gradient-to-r from-transparent via-white/35 to-transparent"
+            : "bg-gradient-to-r from-transparent via-zinc-200/25 to-transparent",
       )}
     />
   );
@@ -186,6 +206,14 @@ export interface PitchProps {
   frozen?: boolean;
   /** The side whose goal is being celebrated over the pitch, if any. */
   goalFor?: Team | null;
+  /**
+   * Which way round to draw the board.
+   *
+   * Presentation and nothing else: the state handed in is numbered the way the
+   * engine numbers it whichever value this takes, and the same match replays to
+   * the same board either way round.
+   */
+  orientation?: Orientation;
 }
 
 /**
@@ -215,8 +243,17 @@ export function Pitch({
   onFocusTarget,
   frozen = false,
   goalFor = null,
+  orientation = "landscape",
 }: PitchProps) {
   const { width, height } = state.board;
+
+  /*
+   * Where each cell is drawn. Everything below iterates the *grid* and asks
+   * this which cell it is looking at, rather than iterating cells and working
+   * out where they go — so the DOM comes out in reading order at either
+   * orientation, which is what a screen reader and a keyboard both need.
+   */
+  const layout = useMemo(() => layoutFor(state.board, orientation), [state.board, orientation]);
 
   const byCell = new Map(state.players.map((player) => [cellKey(player.position), player]));
   const selected = state.players.find((player) => player.id === selectedId);
@@ -249,6 +286,7 @@ export function Pitch({
    */
   const drag = useBoardDrag({
     state,
+    layout,
     seat,
     selectedId,
     onSelect,
@@ -286,22 +324,23 @@ export function Pitch({
        * one that is a third of a cell is right on both, at any window size.
        */
       className="pitch-board relative rounded-2xl bg-gradient-to-b from-(--color-edge) to-(--color-night) p-[3px] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.75)]"
-      style={{ ["--cols" as string]: width, ["--rows" as string]: height }}
+      style={{ ["--cols" as string]: layout.cols, ["--rows" as string]: layout.rows }}
       animate={shake}
     >
       <div className="relative">
         <div
           role="grid"
           aria-label={`Pitch, ${width} columns by ${height} rows`}
-          aria-rowcount={height}
-          aria-colcount={width}
+          aria-rowcount={layout.rows}
+          aria-colcount={layout.cols}
           className="relative grid w-full touch-pan-y overflow-hidden rounded-xl select-none"
-          style={{ gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))` }}
+          style={{ gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))` }}
           {...drag.handlers}
         >
-          {Array.from({ length: height }, (_unused, y) => (
-            <div role="row" aria-rowindex={y + 1} key={y} className="contents">
-              {Array.from({ length: width }, (_unusedCell, x) => {
+          {Array.from({ length: layout.rows }, (_unused, row) => (
+            <div role="row" aria-rowindex={row + 1} key={row} className="contents">
+              {Array.from({ length: layout.cols }, (_unusedCell, col) => {
+                const { x, y } = layout.toBoard(col, row);
                 const key = cellKey({ x, y });
                 const player = byCell.get(key);
                 const hasBall = player !== undefined && state.ball.carrierId === player.id;
@@ -376,7 +415,7 @@ export function Pitch({
                   <div
                     key={key}
                     role="gridcell"
-                    aria-colindex={x + 1}
+                    aria-colindex={col + 1}
                     aria-label={cellName}
                     aria-selected={isSelected || undefined}
                     /* Only the cells a drag can start from refuse to scroll the
@@ -397,7 +436,19 @@ export function Pitch({
                     )}
                   >
                     {/* Netting, drawn per cell because a mouth is three cells. */}
-                    {goalCells.has(key) && <GoalNet side={x === 0 ? "left" : "right"} />}
+                    {goalCells.has(key) && (
+                      <GoalNet
+                        side={
+                          orientation === "portrait"
+                            ? x === 0
+                              ? "bottom"
+                              : "top"
+                            : x === 0
+                              ? "left"
+                              : "right"
+                        }
+                      />
+                    )}
                     <ActiveOrPlain
                       actionable={actionable}
                       label={actionable ? intent.label : undefined}
@@ -494,12 +545,12 @@ export function Pitch({
           ))}
         </div>
 
-        <PitchMarkings board={state.board} />
+        <PitchMarkings board={state.board} orientation={orientation} />
 
-        <Pieces state={state} readyIds={readyIds} />
+        <Pieces state={state} readyIds={readyIds} layout={layout} />
       </div>
 
-      <TurnFlourish team={state.activeTeam} still={still} />
+      <TurnFlourish team={state.activeTeam} still={still} orientation={orientation} />
 
       {goalFor && <GoalBurst team={goalFor} />}
     </m.div>

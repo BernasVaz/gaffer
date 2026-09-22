@@ -280,6 +280,33 @@ How to build one of these without putting a timer in the rules:
   and returns a command; it has no clock, so _when_ it is asked cannot change _what_ it
   answers.
 
+## Which way round the board is, is the view's business
+
+The pitch draws horizontally on a wide screen and vertically on a tall one (ADR 0014),
+because the testers are on phones and a 13-column board across 375px is a 28px cell.
+
+The rule that makes that safe:
+
+> **`x` runs goal to goal and `y` runs touchline to touchline, always, everywhere.
+> Orientation is a fact about the screen and lives only in `apps/web`.**
+
+Practically:
+
+- **One module owns the mapping.** `board/orientation.ts` returns a `BoardLayout` with
+  the drawn `cols`/`rows`, `toScreen`, `toBoard` and `rotate`. Anything that positions
+  something on the board, or turns a pointer back into a cell, asks it.
+- **Never divide by `board.width` to place something.** That is the bug: it is right in
+  landscape and a quarter turn out in portrait. `useBoardDrag` has a test that fails in
+  exactly that way on purpose.
+- **A direction is rotated, not rewritten.** Where a player is looking, and which way the
+  turn flourish sweeps, are worked out on the pitch and then turned — so they stay facts
+  about the match rather than facts about the screen.
+- **Cell names stay in engine coordinates.** "Column 3, row 2" means the same cell
+  whichever way the phone is held, because a screen reader, an E2E locator and a flagged
+  moment all quote it.
+- **A change to the board is checked in both.** `tests/portrait.test.tsx` and the
+  `on a phone, upright` E2E block play all three formats turned round.
+
 ## The look is data
 
 Everything visual is a value somewhere, not a decision spread through components:
