@@ -58,6 +58,7 @@ export function mirrorCommand(command: MatchCommand, state: MatchState): MatchCo
         target: mirrorPosition(command.target, state.board),
       };
     case "pass":
+    case "launch":
     case "tackle":
       return { ...command, playerId: swapId(command.playerId), target: swapId(command.target) };
     case "shoot":

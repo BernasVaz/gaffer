@@ -1,4 +1,4 @@
-# Gaffer — Game Design Document (v1.8 — LOCKED, v1 baseline)
+# Gaffer — Game Design Document (v1.9 — LOCKED, v1 baseline)
 
 _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementable baseline**: the design is complete enough to build with no open questions. Values marked *(tunable)* are locked starting numbers we will refine in playtest — changing them is a data edit, not a redesign. This is the contract the engine (M2) is built and tested against._
 
@@ -12,6 +12,7 @@ _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementabl
 > - **v1.2 → v1.3:** bounded the win condition (§10, §13) — extra time is 4 turns, then a penalty shootout of 3 kicks plus 10 sudden-death rounds, then most shots, then most duels won, then the side that did not kick off. A tiebreaker cascade was needed because §10 forbids draws and no symmetric shootout terminates on its own.
 > - **v1.3 → v1.4:** made scoring possible. Keeper DEF 5 → 4; the keeper defends a shot only while standing in its own mouth, so drawing it out opens the goal; covering on a shot softened to +1; and only the defending keeper may occupy a goal mouth, which closes the hole where an attacker could stand in the net and shoot at it (§5, §6, §7, §9, §13). See ADR 0004.
 > - **v1.4 → v1.5:** brought feel into v1 scope (§14). Playtesting the first interactive build showed that an instant result reads as a state change rather than as football, which Pillar 1 depends on. Movement, the goal moment and the duel reveal are now in; animation stays presentation-only and may never affect the engine or its determinism. See ADR 0005.
+> - **v1.8 → v1.9:** gave the goalkeeper a **Launch** — a long ball upfield to a team-mate past its own passing range, out to a per-format `launchRange` of 4, 5 and 7 (§7, §13). It is a sixth verb rather than a longer pass so that the odds, the wording and the ring on the board can all say which one it is: a launch hands the defence **+1** on the interception duel, because a ball that long is a ball you can see coming. Measured over 60 self-play matches a side at each format it changes nothing — goals per match and win rates are unmoved — because it is **rare**, which is the finding worth recording: 71% of a keeper's long rays end in empty grass, so the limit is not the range and not the blocking, it is that there is nobody out there to aim at. See ADR 0015.
 > - **v1.7 → v1.8:** shipped the game modes §12 always promised. 7-a-side (9×7, 2-3-1) and 11-a-side (13×9, 4-4-2) join 5-a-side as **alpha**, selectable before kickoff and carried in the link. **No rule changed** — the engine was already written against a board and a squad — but the numbers that scale with a pitch moved onto the match itself (§13). The one that mattered was not the turn cap: it was **actions per turn**, which is 2, 3 and 4. At 2 everywhere, the bigger formats produced 0.65 goals a match with 40–50% goalless. See ADR 0012 and ADR 0013.
 > - **v1.6 → v1.7:** doubled extra time, 4 turns → **8**. Re-measuring v1.6 for the record showed its shootout figures had been taken mid-branch and were wrong: matches decided on penalties went 38.7% → 35.3%, not 44% → 20%. The goals were real (0.99 → 1.50) — what they did not do was reduce draws, because killing _goalless_ matches turns 0–0 into 1–1. §10's reason for a short extra time ("goals are scarce, so it mostly delays the shootout") was true at 0.6 goals a match and false at 1.5: golden goal now fires. Penalties fall to **24%**, golden goals rise to **17%**, at about one turn on the average match. See ADR 0011.
 > - **v1.5 → v1.6:** tuned the match on evidence. A solo opponent (ADR 0006) made self-play possible, and 150 matches at the v1.5 numbers produced 0.60 goals a match with 42% goalless and 44% settled on penalties. Three numbers moved: the duel die d3 → **d4**, keeper DEF 4 → **3**, turn cap 20 → **24**. Both §13 watch-items are closed by the change — the d3 saturation directly, penalty conversion as a consequence (33% → 81%). Result: **1.50 goals a match, 9% goalless, 80% decided by football**. See ADR 0007. The solo opponent also moves from "out of scope" to shipped (§14).
@@ -84,9 +85,10 @@ No per-player hidden variation — a Striker is a Striker. Collection identity c
 ## 7. The ball & actions (LOCKED)
 
 - One **ball**; one carrier; possession is central.
-- The action menu (each costs one of your 2 actions per turn):
+- The action menu (each costs one of your 2 actions per turn; only the goalkeeper gets Launch):
   - **Move** — relocate a player in a straight line along one of the 8 directions, up to its role's Move range, onto an empty cell. **Automatic** (no duel). The first occupied cell in a direction blocks it: you may not move onto or through an occupied cell.
   - **Pass** — send the ball the same way: a straight lane in one of the 8 directions, up to the passer's **PAS** range, to the first player in that direction — legal only if that player is a teammate. **Automatic** if no opponent is beside the lane; a **duel** (passer **PAS** vs interceptor **DEF**) if one is. Either way the pass is offered, and the odds are shown before you commit.
+  - **Launch** — a **goalkeeper** carrying the ball may kick it long: the same straight lane and the same first-player-blocks rule as a Pass, but out to the format's **`launchRange`** (§13) rather than to the kicker's PAS, and only to a team-mate **beyond** its own passing range — so a Pass and a Launch are never offered for the same team-mate. An outlet to relieve a press or start a counter. A clear lane is **automatic**, exactly like a Pass; a lane with an opponent beside it is the same interception duel (**PAS** vs **DEF**) **plus `LAUNCH_INTERCEPT_BONUS` to the defence**, because the ball is in the air long enough to be read. Lose it and the interceptor collects, the same as a Pass. `launchRange` is roughly half the board, so a keeper on its line can always reach the opposition half when the lane is clear.
   - **Dribble** — the contested version of a carrier's move: identical geometry, but a **duel** (**ATK** vs **DEF**). A carrier's move is a Dribble when the carrier is **adjacent to an opponent at its origin or at its destination**; otherwise it is a plain Move. Escaping a press and advancing into contact are therefore both contested, while a clean run through open space is free even if it passes near an opponent. Move and Dribble are mutually exclusive for a given destination — the carrier never gets to choose the free version of a contested move.
   - **Tackle / Press** — a defender **already adjacent to the carrier** challenges it. A **duel** (defender **DEF** vs carrier **ATK**). This is a single atomic action and does **not** bundle movement: getting a defender next to the carrier costs a separate Move first. A defender already in position may therefore press on consecutive turns.
   - **Shoot** — if the carrier is within **SHOT_RANGE** of the opponent's goal mouth (§5), a single **duel** (shooter **ATK** vs whoever is defending the goal). See §9. Shots are not aimed at a particular cell in v1, and defenders in the lane do not block the shot — they add to the defending total (§9).
@@ -167,7 +169,7 @@ A shorter "Blitz" remains a later idea, and is now a row of data rather than a p
 
 The numeric knobs, in one place — all live as Zod data in `@gaffer/shared`, so tuning is a data change, not code.
 
-**Four of them scale with the pitch** and therefore live on the match rather than as one global value (ADR 0012). Everything else below is the same at every game type.
+**Five of them scale with the pitch** and therefore live on the match rather than as one global value (ADR 0012). Everything else below is the same at every game type.
 
 | Scales with the pitch | 5v5   | 7v7   | 11v11 |
 | --------------------- | ----- | ----- | ----- |
@@ -175,8 +177,14 @@ The numeric knobs, in one place — all live as Zod data in `@gaffer/shared`, so
 | Turn cap              | 24    | 32    | 44    |
 | Extra time            | 8     | 10    | 14    |
 | SHOT_RANGE            | 2     | 2     | 3     |
+| launchRange           | 4     | 5     | 7     |
 
 Actions per turn is the one that decides whether a format works at all, and it was not the one we expected. An attack needs a certain number of actions to cross a pitch, and that number grows with the pitch — where a bigger turn cap only buys more turns of the same inadequate length. At 2 actions everywhere, 7-a-side produced **0.65 goals a match with 40% goalless** and 11-a-side **0.63 with 50%**; at 3 and 4 they produce **1.50** and **1.28**, against 5-a-side's 1.63.
+
+`launchRange` is the keeper's long ball (§7), and it scales for the same reason
+SHOT_RANGE does: what it is _for_ — clearing your own half — is a fraction of the pitch,
+not a number of cells. Roughly half the board's length at each format, so a keeper on its
+own line can always find somebody past halfway when the lane is clear.
 
 The goal mouth deliberately does **not** scale. A goal in football is a fixed physical size and the pitch grows around it, and 3 cells is exactly what a keeper on its line covers with a move range of 1 — widening it on a bigger pitch would hand the attacker a goal no keeper could defend.
 
@@ -194,6 +202,8 @@ The 5-a-side column below is unchanged from v1.7:
 | Adjacency                   | the 8 surrounding cells                                          |
 | Goal mouth                  | 3 cells, rows 1–3 of each end column                             |
 | **SHOT_RANGE**              | **2** cells from the goal mouth at 5-a-side                      |
+| **launchRange**             | **4** cells at 5-a-side (§12 for the rest), goalkeeper only      |
+| LAUNCH_INTERCEPT_BONUS      | **+1** to the defence on a launch's interception duel            |
 | Keeper DEF                  | **3** (was 4, was 5)                                             |
 | Keeper guards               | only while standing in its own mouth                             |
 | Goal-mouth occupancy        | defending keeper only                                            |

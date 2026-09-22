@@ -57,38 +57,55 @@ function reachableCells(
   return reachable;
 }
 
+/** Team-mates a carrier can put the ball on, split by what it would take. */
+interface Outlets {
+  /** Within the carrier's own PAS range: an ordinary pass. */
+  pass: Player[];
+  /** Beyond it but within reach: only a goalkeeper's launch gets there. */
+  launch: Player[];
+}
+
 /**
- * Team-mates the carrier can pass to.
+ * Team-mates the carrier can find, and how far each one is.
  *
- * A pass runs down the same straight lanes a player moves along, up to the
- * passer's PAS range, and stops at the first player it meets. If that player is
- * a team-mate the pass is legal; if it is an opponent the lane is blocked.
+ * A ball runs down the same straight lanes a player moves along and stops at the
+ * first player it meets. If that player is a team-mate the ball is legal to play;
+ * if it is an opponent the lane is blocked. That rule is the same for a pass and
+ * for a launch, which is why one walk answers both — a launch cannot travel
+ * *through* somebody a pass would have hit.
+ *
+ * The split is by distance alone: anything inside PAS is a pass, anything past it
+ * is a launch. So the two are never offered for the same team-mate, and a keeper
+ * is never asked to choose between a safe ball and a riskier version of it.
  *
  * An opponent merely *beside* the lane does not affect legality — that is an
- * interception duel when the pass is executed, and the odds are shown before the
+ * interception duel when the ball is played, and the odds are shown before the
  * player commits (GDD §7). Enumeration deliberately stays silent about it.
  */
-function passTargets(
+function outletTargets(
   carrier: Player,
   state: MatchState,
   occupied: ReadonlyMap<string, Player>,
-): Player[] {
-  const targets: Player[] = [];
+  reach: number,
+): Outlets {
+  const outlets: Outlets = { pass: [], launch: [] };
 
   for (const { dx, dy } of DIRECTIONS) {
-    for (let step = 1; step <= carrier.stats.pas; step += 1) {
+    for (let step = 1; step <= reach; step += 1) {
       const cell = { x: carrier.position.x + dx * step, y: carrier.position.y + dy * step };
       if (!isWithinBoard(cell, state.board)) break;
 
       const blocker = occupied.get(cellKey(cell));
       if (!blocker) continue;
 
-      if (blocker.team === carrier.team) targets.push(blocker);
+      if (blocker.team === carrier.team) {
+        (step <= carrier.stats.pas ? outlets.pass : outlets.launch).push(blocker);
+      }
       break; // the first player on a lane ends it either way
     }
   }
 
-  return targets;
+  return outlets;
 }
 
 /** Whether any opponent of `team` stands adjacent to `cell`. */
@@ -122,6 +139,8 @@ function canShoot(carrier: Player, state: MatchState): boolean {
  * - **Every player** of the side to move may Move.
  * - **The carrier**, if the side to move has the ball, may also Pass, Shoot in
  *   range, and Dribble — a Dribble being the contested version of its Move.
+ * - **A goalkeeper carrying the ball** may additionally Launch it, to a team-mate
+ *   past its own passing range but within the format's `launchRange`.
  * - **Any player adjacent to the carrier**, if the side to move does *not* have
  *   the ball, may Tackle.
  *
@@ -173,8 +192,25 @@ export function legalActions(state: MatchState): Action[] {
 
     if (!hasBall) continue;
 
-    for (const mate of passTargets(player, state, occupied)) {
+    /*
+     * Only a keeper looks past its own range, and only while it has the ball.
+     * `Math.max` rather than the rule outright, so a format that ever set a
+     * launch shorter than a stat could not quietly take away the pass.
+     */
+    const mayLaunch = player.role === "goalkeeper";
+    const reach = mayLaunch
+      ? Math.max(player.stats.pas, state.rules.launchRange)
+      : player.stats.pas;
+    const outlets = outletTargets(player, state, occupied, reach);
+
+    for (const mate of outlets.pass) {
       actions.push({ type: "pass", playerId: player.id, target: mate.id });
+    }
+
+    if (mayLaunch) {
+      for (const mate of outlets.launch) {
+        actions.push({ type: "launch", playerId: player.id, target: mate.id });
+      }
     }
 
     if (canShoot(player, state)) {

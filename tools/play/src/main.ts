@@ -29,7 +29,7 @@
 import process from "node:process";
 
 import { chooseCommand } from "@gaffer/ai";
-import { applyAction, createInitialState, createRng } from "@gaffer/engine";
+import { applyAction, createInitialState, createRng, legalActions } from "@gaffer/engine";
 import {
   DEFAULT_FORMAT,
   DIFFICULTIES,
@@ -80,6 +80,9 @@ const MATCHES = Math.max(1, Math.trunc(numberArg("matches", 1)));
 const KEEPER_DEF = numberArg("keeper-def", ROLE_PROFILES.goalkeeper.stats.def);
 const ACTIONS = numberArg("actions", 0);
 const SHOT_RANGE = numberArg("shot-range", 0);
+/* 1 is the floor the schema allows, and it is below every keeper's PAS — so
+   `--launch-range 1` is how you play a match with the verb switched off. */
+const LAUNCH_RANGE = numberArg("launch-range", 0);
 const TURN_CAP = numberArg("turn-cap", 0);
 const EXTRA_TIME = numberArg("extra-time", 0);
 const QUIET = process.argv.includes("--quiet") || MATCHES > 1;
@@ -153,6 +156,8 @@ function describeCommand(command: MatchCommand): string {
       return `${who} ${command.type.padEnd(8)} -> ${cell(command.target)}`;
     case "pass":
       return `${who} pass     -> ${command.target}`;
+    case "launch":
+      return `${who} LAUNCH   -> ${command.target}`;
     case "tackle":
       return `${who} tackle   -> ${command.target}`;
     case "shoot":
@@ -185,6 +190,14 @@ interface MatchReport {
   duels: number;
   /** Commands sent before the match ended. */
   commands: number;
+  /** Launches attempted, both sides. */
+  launches: number;
+  /** Launches an opponent read and took. */
+  launchesLost: number;
+  /** Launches that went down a lane nobody was covering. */
+  launchesClear: number;
+  /** Launches that were on offer at a moment a side chose something else. */
+  launchesDeclined: number;
 }
 
 /** Play one match to its result, narrating unless asked not to. */
@@ -203,6 +216,7 @@ function playMatch(seed: number): MatchReport {
       rules: {
         ...(ACTIONS > 0 ? { actionsPerTurn: ACTIONS } : {}),
         ...(SHOT_RANGE > 0 ? { shotRange: SHOT_RANGE } : {}),
+        ...(LAUNCH_RANGE > 0 ? { launchRange: LAUNCH_RANGE } : {}),
         ...(TURN_CAP > 0 ? { turnCap: TURN_CAP } : {}),
         ...(EXTRA_TIME > 0 ? { extraTimeTurns: EXTRA_TIME } : {}),
       },
@@ -219,6 +233,10 @@ function playMatch(seed: number): MatchReport {
   let goals = 0;
   let duels = 0;
   let commands = 0;
+  let launches = 0;
+  let launchesLost = 0;
+  let launchesClear = 0;
+  let launchesDeclined = 0;
 
   while (!state.result && commands < 5000) {
     if (state.turn !== shownTurn) {
@@ -232,6 +250,12 @@ function playMatch(seed: number): MatchReport {
     }
 
     const command = chooseCommand(state, { difficulty: LEVELS[state.activeTeam], variety: seed });
+
+    /* Counted at the moment of choice, not afterwards: "how often was the long
+       ball there and passed up" is a different question from "how often was it
+       played", and only the first says whether the verb is worth its rules. */
+    const offered = legalActions(state).some((action) => action.type === "launch");
+
     const result = applyAction(state, command, rng);
     commands += 1;
 
@@ -241,6 +265,13 @@ function playMatch(seed: number): MatchReport {
 
     if (command.type === "shoot") shots += 1;
     if (result.duel) duels += 1;
+    if (command.type === "launch") {
+      launches += 1;
+      if (result.duel === null) launchesClear += 1;
+      else if (!result.duel.attackerWon) launchesLost += 1;
+    } else if (offered) {
+      launchesDeclined += 1;
+    }
 
     const scored =
       result.state.score.home !== state.score.home || result.state.score.away !== state.score.away;
@@ -256,7 +287,17 @@ function playMatch(seed: number): MatchReport {
   }
 
   if (!state.result) throw new Error("match did not finish — this should be impossible");
-  return { state, shots, goals, duels, commands };
+  return {
+    state,
+    shots,
+    goals,
+    duels,
+    commands,
+    launches,
+    launchesLost,
+    launchesClear,
+    launchesDeclined,
+  };
 }
 
 // --------------------------------------------------------------- the reports
@@ -331,6 +372,17 @@ function reportMany(reports: MatchReport[]): void {
   const end = totalTurns(reports[0]!.state.rules);
   console.log(`turns per match      ${(turns / matches).toFixed(1)} of ${end}`);
   console.log(`home win rate        ${pct(homeWins, matches)}`);
+
+  const launches = reports.reduce((total, r) => total + r.launches, 0);
+  const lost = reports.reduce((total, r) => total + r.launchesLost, 0);
+  const clear = reports.reduce((total, r) => total + r.launchesClear, 0);
+  const declined = reports.reduce((total, r) => total + r.launchesDeclined, 0);
+
+  console.log(`\nkeeper distribution`);
+  console.log(`  launches per match ${(launches / matches).toFixed(2)}`);
+  console.log(`  down a clear lane  ${pct(clear, launches)}`);
+  console.log(`  intercepted        ${pct(lost, launches)}`);
+  console.log(`  offered, declined  ${declined} moments`);
 
   console.log(`\ngoals in a match`);
   for (const count of [...distribution.keys()].sort((a, b) => a - b)) {

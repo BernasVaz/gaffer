@@ -159,6 +159,7 @@ function commandKey(command: MatchCommand, state: MatchState): string {
       return `${command.type}|${command.playerId}|${cell.x},${cell.y}`;
     }
     case "pass":
+    case "launch":
     case "tackle":
       return `${command.type}|${command.playerId}|${command.target}`;
     case "shoot":

@@ -3,8 +3,8 @@ import { z } from "zod";
 import { PositionSchema } from "./pitch.js";
 import { PlayerIdSchema } from "./player.js";
 
-/** The five things a player can do with an action (GDD §7). */
-export const ActionTypeSchema = z.enum(["move", "pass", "dribble", "tackle", "shoot"]);
+/** The six things a player can do with an action (GDD §7). */
+export const ActionTypeSchema = z.enum(["move", "pass", "launch", "dribble", "tackle", "shoot"]);
 
 /** A validated action type. See {@link ActionTypeSchema}. */
 export type ActionType = z.infer<typeof ActionTypeSchema>;
@@ -13,6 +13,7 @@ export type ActionType = z.infer<typeof ActionTypeSchema>;
 export const ACTION_TYPES = [
   "move",
   "pass",
+  "launch",
   "dribble",
   "tackle",
   "shoot",
@@ -26,6 +27,27 @@ export const MoveActionSchema = z.object({
   playerId: PlayerIdSchema,
   /** The cell to move to. */
   target: PositionSchema,
+});
+
+/**
+ * A goalkeeper's long kick upfield.
+ *
+ * Geometrically a pass — the same straight lanes, the same first-player-blocks
+ * rule, the same team-mate at the end of it — with two differences that are the
+ * whole mechanic: it reaches `launchRange` rather than the kicker's PAS, and the
+ * ball is in the air long enough that whoever is beside the lane has a better
+ * chance of reading it. Kept as its own verb rather than as a long pass so that
+ * the odds, the wording and the ring on the board can all say which one this is.
+ *
+ * Goalkeepers only, and only while carrying — see `legalActions`.
+ */
+export const LaunchActionSchema = z.object({
+  /** Discriminator. */
+  type: z.literal("launch"),
+  /** The goalkeeper with the ball. */
+  playerId: PlayerIdSchema,
+  /** The team-mate being aimed at. */
+  target: PlayerIdSchema,
 });
 
 /**
@@ -88,14 +110,15 @@ export const ShootActionSchema = z.object({
  * One thing a player does with one action.
  *
  * GDD §15 fixes the shape as `{ playerId, type, target }`. What `target` means
- * depends on the verb — a cell for move and dribble, a player for pass and
- * tackle, nothing for a shot — so this is a discriminated union rather than one
+ * depends on the verb — a cell for move and dribble, a player for pass, launch
+ * and tackle, nothing for a shot — so this is a discriminated union rather than one
  * loose object, and an action that names the wrong kind of target fails to parse
  * rather than reaching the rules.
  */
 export const ActionSchema = z.discriminatedUnion("type", [
   MoveActionSchema,
   PassActionSchema,
+  LaunchActionSchema,
   DribbleActionSchema,
   TackleActionSchema,
   ShootActionSchema,

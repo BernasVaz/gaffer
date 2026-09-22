@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   DribbleActionSchema,
+  LaunchActionSchema,
   MoveActionSchema,
   PassActionSchema,
   ShootActionSchema,
@@ -31,16 +32,17 @@ export const EndTurnCommandSchema = z.object({
 export type EndTurnCommand = z.infer<typeof EndTurnCommandSchema>;
 
 /**
- * Anything a player can send the engine: the five gameplay verbs, or an
+ * Anything a player can send the engine: the six gameplay verbs, or an
  * end-turn.
  *
- * `Action` stays exactly GDD §7's action menu — five verbs, each naming a player
+ * `Action` stays exactly GDD §7's action menu — six verbs, each naming a player
  * and a target and each costing an action. This union is the wider thing a
  * client submits and a replay log stores.
  */
 export const MatchCommandSchema = z.discriminatedUnion("type", [
   MoveActionSchema,
   PassActionSchema,
+  LaunchActionSchema,
   DribbleActionSchema,
   TackleActionSchema,
   ShootActionSchema,
@@ -64,7 +66,7 @@ export const REJECTION_REASONS = [
   "not-your-turn",
   /** The side to move has already spent its actions this turn. */
   "no-actions-left",
-  /** A pass or tackle named a player who is not on the pitch. */
+  /** A pass, launch or tackle named a player who is not on the pitch. */
   "unknown-target",
   /** Well-formed, but not among the actions the rules allow right now. */
   "illegal-action",

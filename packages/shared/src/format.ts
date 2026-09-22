@@ -41,6 +41,14 @@ export const MatchRulesSchema = z
     extraTimeTurns: z.number().int().min(0),
     /** How far from the goal mouth a carrier may shoot, in steps. */
     shotRange: z.number().int().min(1),
+    /**
+     * How far a goalkeeper may launch the ball, in steps (GDD §7).
+     *
+     * Scales with the pitch, because what it is for does not: clearing your own
+     * half. Roughly half the board's length at every format, so a keeper on its
+     * line can always find a team-mate past halfway if the lane is clear.
+     */
+    launchRange: z.number().int().min(1),
   })
   .refine((rules) => rules.turnCap % 2 === 0, {
     message: "turnCap must be even, or one side gets an extra turn",
@@ -133,7 +141,7 @@ export const FORMAT_PROFILES: Readonly<Record<MatchFormat, FormatProfile>> = {
       { role: "winger", at: cell(2, 0) },
       { role: "striker", at: cell(3, 1) },
     ],
-    rules: { actionsPerTurn: 2, turnCap: 24, extraTimeTurns: 8, shotRange: 2 },
+    rules: { actionsPerTurn: 2, turnCap: 24, extraTimeTurns: 8, shotRange: 2, launchRange: 4 },
   },
 
   /**
@@ -166,7 +174,7 @@ export const FORMAT_PROFILES: Readonly<Record<MatchFormat, FormatProfile>> = {
       { role: "midfielder", at: cell(3, 5) },
       { role: "striker", at: cell(4, 2) },
     ],
-    rules: { actionsPerTurn: 3, turnCap: 32, extraTimeTurns: 10, shotRange: 2 },
+    rules: { actionsPerTurn: 3, turnCap: 32, extraTimeTurns: 10, shotRange: 2, launchRange: 5 },
   },
 
   /**
@@ -227,7 +235,7 @@ export const FORMAT_PROFILES: Readonly<Record<MatchFormat, FormatProfile>> = {
       { role: "striker", at: cell(6, 3) },
       { role: "striker", at: cell(4, 6) },
     ],
-    rules: { actionsPerTurn: 4, turnCap: 44, extraTimeTurns: 14, shotRange: 3 },
+    rules: { actionsPerTurn: 4, turnCap: 44, extraTimeTurns: 14, shotRange: 3, launchRange: 7 },
   },
 };
 
