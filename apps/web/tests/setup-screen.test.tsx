@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { App } from "../src/App";
 import { SetupScreen } from "../src/setup/SetupScreen";
+import { openMore } from "./kickoff";
 
 /** Point the address bar somewhere, the way a shared link would. */
 const visit = (search: string) => window.history.replaceState(null, "", search || "/");
@@ -126,14 +127,18 @@ describe("which screen you land on", () => {
     await user.click(screen.getByRole("button", { name: /Away/ }));
     await user.click(screen.getByRole("button", { name: /Kick off/ }));
 
-    expect(parseSetup(window.location.search)).toEqual({
+    /* Everything but the seed, which is now freshly drawn for every visit
+       (ADR 0019) — so what is asserted is that it is *in* the link, not what
+       it happens to be. */
+    const published = parseSetup(window.location.search);
+
+    expect(published).toMatchObject({
       mode: "5v5",
       play: "solo",
       side: "away",
       difficulty: "pro",
-      actions: 2,
-      seed: 1,
     });
+    expect(window.location.search).toContain("seed=");
   });
 
   it("comes back to the setup screen on New match", async () => {
@@ -141,6 +146,7 @@ describe("which screen you land on", () => {
     visit("?seed=3&mode=hotseat");
     render(<App />);
 
+    await openMore(user);
     await user.click(screen.getByRole("button", { name: /New match/ }));
     expect(screen.getByRole("button", { name: /Kick off/ })).toBeInTheDocument();
   });

@@ -5,7 +5,7 @@ import {
   legalActions,
   previewDuel,
 } from "@gaffer/engine";
-import { DEFAULT_BOARD, DEFAULT_SETUP, FORMAT_PROFILES, ROLES, totalTurns } from "@gaffer/shared";
+import { DEFAULT_BOARD, DEFAULT_SETUP, FORMAT_PROFILES, totalTurns } from "@gaffer/shared";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -233,16 +233,33 @@ describe("hotseat", () => {
   });
 });
 
-describe("the team sheet", () => {
-  it("lists every role the game type actually fields", () => {
+describe("tapping a player", () => {
+  /* The standing team sheet is gone: a panel about *the player you tapped*
+     says the same things and answers the question you actually had, which is
+     "what is this one" rather than "what is a winger in general". */
+  it("says what they are, including one of theirs", async () => {
+    const user = userEvent.setup();
     render(hotseat());
-    const sheet = screen.getByLabelText("Team sheet");
 
-    // 5-a-side fields one of each, so all five appear and none is doubled up.
-    for (const role of ROLES) {
-      expect(within(sheet).getByText(role)).toBeInTheDocument();
-    }
-    expect(within(sheet).queryByText(/×\d/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: /Player/ }));
+    expect(screen.getByRole("tabpanel")).toHaveTextContent(/Tap anybody on the pitch/);
+
+    await user.click(buttonFor(/^Select home winger/));
+
+    const panel = within(screen.getByRole("tabpanel"));
+    expect(panel.getByText(/home winger/)).toBeInTheDocument();
+    expect(panel.getByText("ATK")).toBeInTheDocument();
+    expect(panel.getByText("PAS")).toBeInTheDocument();
+  });
+
+  it("reads an opposing shirt, which cannot be selected", async () => {
+    const user = userEvent.setup();
+    render(hotseat());
+
+    await user.click(screen.getByRole("tab", { name: /Player/ }));
+    await user.click(screen.getAllByRole("button", { name: /^Inspect away/ })[0]!);
+
+    expect(within(screen.getByRole("tabpanel")).getByText(/away /)).toBeInTheDocument();
   });
 });
 

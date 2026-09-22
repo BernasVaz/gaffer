@@ -1,8 +1,14 @@
 import { FORMAT_PROFILES, FORMATS, type Board } from "@gaffer/shared";
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
-import { layoutFor, svgTransform, useOrientation } from "../src/board/orientation";
+import {
+  layoutFor,
+  layoutOrientation,
+  svgTransform,
+  turnBoard,
+  useOrientation,
+} from "../src/board/orientation";
 
 const BOARDS = FORMATS.map((format) => [format, FORMAT_PROFILES[format].board] as const);
 
@@ -100,54 +106,44 @@ describe("markings transform", () => {
   });
 });
 
-describe("useOrientation", () => {
-  const listeners = new Set<() => void>();
-  let portrait = false;
-
-  const stub = () =>
-    vi.stubGlobal("matchMedia", (query: string) => ({
-      matches: query.includes("portrait") && portrait,
-      addEventListener: (_event: string, handler: () => void) => listeners.add(handler),
-      removeEventListener: (_event: string, handler: () => void) => listeners.delete(handler),
-    }));
-
-  afterEach(() => {
-    listeners.clear();
-    portrait = false;
-    vi.unstubAllGlobals();
+describe("which way round the board is", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    layoutOrientation.set("portrait");
+    window.localStorage.clear();
   });
 
-  it("reads the viewport's shape", () => {
-    portrait = true;
-    stub();
-
+  it("is upright by default, at every screen size", () => {
+    /* The decision ADR 0019 records: portrait is simply the better board to
+       play on, so it is what you get unless you say otherwise — rather than
+       something a media query decides by measuring the window. */
     expect(renderHook(() => useOrientation()).result.current).toBe("portrait");
   });
 
-  it("follows the device being turned", () => {
-    stub();
-    const { result } = renderHook(() => useOrientation());
-    expect(result.current).toBe("landscape");
+  it("turns when the player turns it, everywhere at once", () => {
+    const one = renderHook(() => useOrientation());
+    const two = renderHook(() => useOrientation());
 
-    act(() => {
-      portrait = true;
-      for (const listener of [...listeners]) listener();
-    });
+    act(() => turnBoard());
 
-    expect(result.current).toBe("portrait");
+    expect(one.result.current).toBe("landscape");
+    expect(two.result.current).toBe("landscape");
+
+    act(() => turnBoard());
+    expect(one.result.current).toBe("portrait");
   });
 
-  it("unsubscribes when it goes away", () => {
-    stub();
-    const { unmount } = renderHook(() => useOrientation());
-    expect(listeners.size).toBeGreaterThan(0);
-
-    unmount();
-    expect(listeners.size).toBe(0);
+  it("remembers the choice on this device", () => {
+    act(() => turnBoard());
+    expect(window.localStorage.getItem("gaffer:orientation")).toBe("landscape");
   });
 
-  it("assumes landscape where there is no viewport to ask", () => {
-    vi.stubGlobal("matchMedia", undefined);
-    expect(renderHook(() => useOrientation()).result.current).toBe("landscape");
+  it("ignores a stored value it has no rendering for", () => {
+    window.localStorage.setItem("gaffer:orientation", "diagonal");
+    layoutOrientation.set("portrait");
+    window.localStorage.setItem("gaffer:orientation", "diagonal");
+
+    // A hand-edited setting must not be able to reach the layout.
+    expect(["portrait", "landscape"]).toContain(layoutOrientation.get());
   });
 });

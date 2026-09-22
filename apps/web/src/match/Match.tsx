@@ -1,16 +1,17 @@
 import {
   FORMAT_PROFILES,
   opponentOf,
-  ROLE_PROFILES,
   type Action,
   type MatchCommand,
   type MatchSetup,
-  type MatchState,
-  type Role,
+  type Player,
 } from "@gaffer/shared";
 import { useCallback, useState } from "react";
 
 import { useOrientation } from "../board/orientation";
+import { ActionBar } from "./ActionBar";
+import { InfoPanels } from "./InfoPanels";
+import { ViewControls, useShowOdds } from "../ui/ViewControls";
 import { Pitch } from "../board/Pitch";
 import { Scoreboard } from "../board/Scoreboard";
 import { kitFor } from "../board/squads";
@@ -27,47 +28,6 @@ import { useFeedback } from "../feedback/useFeedback";
 import { useGoalMoment } from "./useGoalMoment";
 import { useMatch, type PlayOutcome } from "./useMatch";
 import { useOpponent } from "./useOpponent";
-
-/**
- * The squad actually on the pitch, by role.
- *
- * Read off the match rather than from a fixed list of five, because a game type
- * decides who turns up: an 11-a-side side has four defenders and two strikers,
- * and a sheet that always said "one of each" would be describing a different
- * match from the one being played.
- */
-function TeamSheet({ state }: { state: MatchState }) {
-  const home = state.players.filter((player) => player.team === "home");
-  const roles = [...new Set(home.map((player) => player.role))] as Role[];
-
-  return (
-    <dl className="grid gap-x-6 gap-y-1.5 text-xs text-white/65 sm:grid-cols-2">
-      {roles.map((role) => {
-        const { stats, moveRange } = ROLE_PROFILES[role];
-        const count = home.filter((player) => player.role === role).length;
-        const first = home.find((player) => player.role === role)!;
-        const kit = kitFor(first, state);
-
-        return (
-          <div key={role} className="flex items-center gap-2">
-            <span className="w-4 shrink-0 text-right font-semibold text-white tabular-nums">
-              {kit.number}
-            </span>
-            <dt className="capitalize">
-              {role}
-              {count > 1 && <span className="ml-1 text-white/40">&times;{count}</span>}
-            </dt>
-            <dd className="ml-auto flex items-center gap-3 tabular-nums">
-              <span>
-                {stats.atk}/{stats.def}/{stats.pas} &middot; {moveRange}
-              </span>
-            </dd>
-          </div>
-        );
-      })}
-    </dl>
-  );
-}
 
 /** A quiet flag on anything whose numbers are still moving. */
 export function AlphaTag({ className = "" }: { className?: string }) {
@@ -108,6 +68,8 @@ export interface MatchProps {
  * driving the other side. The rest of the screen cannot tell the difference,
  * which is the point — the opponent is a player, not a mode.
  */
+const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(" ");
+
 export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
   /*
    * A match that has flagged moments against it has to come back as *that*
@@ -138,6 +100,11 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
 
   const orientation = useOrientation();
   const portrait = orientation === "portrait";
+  const showOdds = useShowOdds();
+
+  /* Whoever was last tapped, so a panel can say what they are. Held here
+     rather than in the panel because the tap happens on the board. */
+  const [inspected, setInspected] = useState<Player | undefined>(undefined);
 
   const profile = FORMAT_PROFILES[setup.mode];
   const solo = setup.play === "solo";
@@ -205,53 +172,47 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
   const opponentName = opponentStriker ? kitFor(opponentStriker, state).name : "";
 
   return (
-    <main className="min-h-dvh bg-(--color-night) bg-[radial-gradient(120%_80%_at_50%_0%,var(--color-night-soft),var(--color-night))] px-4 py-6 text-white">
+    /*
+     * One screen, and it does not scroll.
+     *
+     * A fixed-height flex column: everything that is not the pitch takes the
+     * height it needs, and the pitch takes what is left. The board then fits
+     * itself into that space keeping its own shape, so the full field is
+     * always visible at every size and in either orientation (ADR 0019) —
+     * opening an information panel shrinks the pitch rather than pushing it
+     * off the bottom.
+     */
+    <main
+      className={cx(
+        "flex h-dvh flex-col overflow-hidden px-3 py-2 text-white",
+        "bg-(--color-night) bg-[radial-gradient(120%_80%_at_50%_0%,var(--color-night-soft),var(--color-night))]",
+      )}
+    >
       <div
-        className={`mx-auto flex w-full flex-col gap-3 ${
-          portrait
-            ? "max-w-md"
-            : profile.board.width > 9
-              ? "max-w-4xl"
-              : profile.board.width > 7
-                ? "max-w-3xl"
-                : "max-w-2xl"
-        }`}
+        className={cx(
+          "mx-auto flex h-full w-full min-h-0 flex-col gap-2",
+          portrait ? "max-w-md" : "max-w-5xl",
+        )}
       >
-        <header className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-2xl leading-none">
-              <Wordmark />
-            </h1>
-            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-white/55">
-              <span className="font-bold text-white/75">{profile.label}</span>
-              {profile.status === "alpha" && <AlphaTag />}
-              <span aria-hidden className="text-white/20">
-                |
-              </span>
-              <span className="truncate">
-                {solo ? (
-                  <>
-                    You are {setup.side} &middot; {setup.difficulty} opponent
-                  </>
-                ) : (
-                  <>Hotseat &middot; two players, one screen</>
-                )}{" "}
-                &middot; seed {setup.seed}
-              </span>
-            </p>
-          </div>
-          <p className="shrink-0 text-right text-[0.7rem] leading-tight text-white/40">
-            Home attacks {portrait ? <>&uarr;</> : <>&rarr;</>}
-            <br />
-            Away attacks {portrait ? <>&darr;</> : <>&larr;</>}
+        <header className="flex shrink-0 items-center gap-2">
+          <h1 className="text-lg leading-none">
+            <Wordmark />
+          </h1>
+          <p className="min-w-0 flex-1 truncate text-[0.7rem] text-white/50">
+            <span className="font-bold text-white/70">{profile.label}</span>
+            {profile.status === "alpha" && <AlphaTag className="ml-1.5" />}
+            <span className="ml-1.5">
+              {solo ? `you are ${setup.side}` : "hotseat"} &middot; seed {setup.seed}
+            </span>
           </p>
+          <ViewControls className="shrink-0" />
         </header>
 
         <Scoreboard state={state} scoredBy={moment?.team ?? null} />
 
         {over && state.result && (
-          <p className="rounded-2xl bg-gradient-to-b from-(--color-gold)/25 to-(--color-gold)/10 px-5 py-3 text-sm ring-1 ring-(--color-gold)/45">
-            <span className="text-base font-extrabold text-(--color-gold) capitalize">
+          <p className="shrink-0 rounded-xl bg-gradient-to-b from-(--color-gold)/25 to-(--color-gold)/10 px-4 py-2 text-sm ring-1 ring-(--color-gold)/45">
+            <span className="font-extrabold text-(--color-gold) capitalize">
               {state.result.winner} win
             </span>
             <span className="mx-2 text-white/25">|</span>
@@ -265,18 +226,23 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
           </p>
         )}
 
-        <Pitch
-          state={board}
-          seat={seat}
-          selectedId={moment ? null : selection}
-          targets={targets}
-          onSelect={setSelectedId}
-          onCommit={commit}
-          onFocusTarget={setFocused}
-          frozen={moment !== null || !yourMove}
-          goalFor={moment?.team ?? null}
-          orientation={orientation}
-        />
+        {/* The one element allowed to give up its height. */}
+        <div className="pitch-slot">
+          <Pitch
+            state={board}
+            seat={seat}
+            selectedId={moment ? null : selection}
+            targets={targets}
+            onSelect={setSelectedId}
+            onCommit={commit}
+            onFocusTarget={setFocused}
+            onInspect={setInspected}
+            showOdds={showOdds}
+            frozen={moment !== null || !yourMove}
+            goalFor={moment?.team ?? null}
+            orientation={orientation}
+          />
+        </div>
 
         <StatusBar
           state={state}
@@ -286,67 +252,65 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
           thinking={thinking ? opponentName : null}
         />
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <Button
-            tone="primary"
-            onClick={() => send({ type: "endTurn", team: state.activeTeam })}
-            disabled={!yourMove}
-          >
-            End turn
-          </Button>
-          <Button
-            tone="quiet"
-            disabled={moment !== null}
-            onClick={() => {
-              restart();
-              feedback.reset();
-              setSelectedId(null);
-              setFocused(null);
-            }}
-          >
-            Replay this match
-          </Button>
-          <FlagMoment
-            capture={feedback.capture}
-            commit={feedback.commit}
-            count={feedback.notes.length}
-            onOpenChange={setFlagging}
-          />
-
-          {(over || feedback.notes.length > 0) && (
-            <DownloadReport
-              setup={setup}
-              state={state}
-              log={log}
-              notes={feedback.notes}
-              tone={over ? "primary" : "quiet"}
+        <ActionBar
+          onEndTurn={() => send({ type: "endTurn", team: state.activeTeam })}
+          canEndTurn={yourMove}
+          flag={
+            <FlagMoment
+              capture={feedback.capture}
+              commit={feedback.commit}
+              count={feedback.notes.length}
+              onOpenChange={setFlagging}
             />
-          )}
+          }
+          more={
+            <>
+              <Button
+                tone="quiet"
+                aria-label="Replay this match"
+                disabled={moment !== null}
+                className="px-3 py-1.5 text-sm"
+                onClick={() => {
+                  restart();
+                  feedback.reset();
+                  setSelectedId(null);
+                  setFocused(null);
+                }}
+              >
+                Replay this match
+              </Button>
 
-          {onHowToPlay && <HowToPlay onStart={onHowToPlay} className="ml-auto" />}
-          <FeedbackArchive className={onHowToPlay ? undefined : "ml-auto"} />
+              {(over || feedback.notes.length > 0) && (
+                <DownloadReport
+                  setup={setup}
+                  state={state}
+                  log={log}
+                  notes={feedback.notes}
+                  tone={over ? "primary" : "quiet"}
+                />
+              )}
 
-          <Button tone="quiet" onClick={onLeave}>
-            New match
-          </Button>
-        </div>
+              {onHowToPlay && <HowToPlay onStart={onHowToPlay} className="px-3 py-1.5 text-sm" />}
+              <FeedbackArchive />
+              <Button
+                tone="quiet"
+                aria-label="New match"
+                className="px-3 py-1.5 text-sm"
+                onClick={onLeave}
+              >
+                New match
+              </Button>
+            </>
+          }
+        />
 
         {rewound && (
-          <p className="rounded-xl bg-(--color-gold)/15 px-4 py-2 text-xs text-(--color-gold) ring-1 ring-(--color-gold)/30">
-            Wound back to action {replayTo} of this match&apos;s saved log. Nothing played from here
-            is saved over the notes that produced it.
+          <p className="shrink-0 rounded-lg bg-(--color-gold)/15 px-3 py-1.5 text-[0.7rem] text-(--color-gold)">
+            Wound back to action {replayTo}. Nothing played from here is saved.
           </p>
         )}
 
-        <section
-          aria-label="Team sheet"
-          className="rounded-2xl bg-(--color-panel) px-5 py-4 ring-1 ring-(--color-edge)/30"
-        >
-          <h2 className="mb-3 text-[0.65rem] tracking-widest text-white/50 uppercase">
-            Team sheet &middot; {profile.shape} &middot; ATK/DEF/PAS &middot; move
-          </h2>
-          <TeamSheet state={state} />
-        </section>
+        <InfoPanels state={state} log={log} inspected={inspected} />
       </div>
     </main>
   );

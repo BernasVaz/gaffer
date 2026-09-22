@@ -159,3 +159,13 @@ export async function selectCarrier(page: Page): Promise<void> {
     .first()
     .click();
 }
+
+/**
+ * Open the match's overflow menu.
+ *
+ * Everything reached for *between* turns lives behind one button (ADR 0019),
+ * so the pitch can have the height two rows of controls were costing it.
+ */
+export async function openMore(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "More" }).click();
+}

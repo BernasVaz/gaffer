@@ -20,6 +20,7 @@ import {
   type StoredFeedback,
 } from "../src/feedback/notes";
 import { buildReport, replayLink, reportFilename } from "../src/feedback/report";
+import { openMore } from "./kickoff";
 
 const setup: MatchSetup = { ...DEFAULT_SETUP, play: "hotseat", seed: 42, actions: 2 };
 
@@ -245,6 +246,7 @@ describe("a refresh in the middle of a match", () => {
     render(<Match setup={setup} onLeave={() => {}} />);
     expect(screen.getByLabelText("Scoreboard")).not.toHaveTextContent("Turn 1 of");
 
+    await openMore(user);
     await user.click(screen.getByRole("button", { name: "Replay this match" }));
     expect(screen.getByLabelText("Scoreboard")).toHaveTextContent("Turn 1 of");
   });
@@ -417,11 +419,14 @@ describe("getting the report out", () => {
     const user = userEvent.setup();
     render(<Match setup={setup} onLeave={() => {}} />);
 
+    await openMore(user);
     expect(screen.queryByRole("button", { name: /Download feedback/ })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
 
     await user.keyboard("f");
     await user.click(screen.getByRole("button", { name: "Save note" }));
 
+    await openMore(user);
     expect(screen.getByRole("button", { name: /Download feedback \(1\)/ })).toBeInTheDocument();
   });
 });

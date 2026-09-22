@@ -1,4 +1,4 @@
-import { parseReplayTo, parseSetup, setupToQuery, type MatchSetup } from "@gaffer/shared";
+import { MAX_SEED, parseReplayTo, parseSetup, setupToQuery, type MatchSetup } from "@gaffer/shared";
 import { domAnimation, LazyMotion } from "motion/react";
 import { useCallback, useState } from "react";
 
@@ -20,6 +20,17 @@ const search = () => (typeof window === "undefined" ? "" : window.location.searc
  */
 const wasSentAMatch = () => /(^|[?&])seed=/.test(search());
 
+/**
+ * A seed nobody chose.
+ *
+ * Every fresh visit gets its own match. Before this the setup screen always
+ * opened on the same default seed, so the first match anybody played was the
+ * same match everybody played — and "shuffle" was a button you had to know to
+ * press. A link that *carries* a seed still wins, because that link is a
+ * specific match somebody meant to share (ADR 0019).
+ */
+const freshSeed = () => Math.floor(Math.random() * (MAX_SEED + 1));
+
 /** Put the setup in the address bar, so the link is always the match on screen. */
 function publish(setup: MatchSetup) {
   if (typeof window === "undefined" || !window.history?.replaceState) return;
@@ -40,7 +51,10 @@ function publish(setup: MatchSetup) {
  * three weeks later.
  */
 export function App() {
-  const [initial] = useState<MatchSetup>(() => parseSetup(search()));
+  const [initial] = useState<MatchSetup>(() => {
+    const parsed = parseSetup(search());
+    return wasSentAMatch() ? parsed : { ...parsed, seed: freshSeed() };
+  });
   /*
    * Read once, from the link this page was opened with. It is a place to stand
    * inside a match rather than part of which match it is, so it survives
@@ -58,12 +72,20 @@ export function App() {
    */
   const [guiding, setGuiding] = useState<boolean>(() => shouldAutorun());
 
+  /** Bumped whenever the player comes back for another game. */
+  const [fresh, setFresh] = useState<number | null>(null);
+
   const start = useCallback((chosen: MatchSetup) => {
     publish(chosen);
     setSetup(chosen);
   }, []);
 
-  const leave = useCallback(() => setSetup(null), []);
+  /* Leaving a match goes back to the setup screen on a *new* seed, so "New
+     match" means a new match rather than the same one again. */
+  const leave = useCallback(() => {
+    setFresh(freshSeed());
+    setSetup(null);
+  }, []);
 
   const teach = useCallback(() => setGuiding(true), []);
 
@@ -87,7 +109,11 @@ export function App() {
       {guiding ? (
         <Guide initial={setup ?? initial} onFinish={taught} onSkip={() => setGuiding(false)} />
       ) : setup === null ? (
-        <SetupScreen initial={initial} onStart={start} onHowToPlay={teach} />
+        <SetupScreen
+          initial={fresh === null ? initial : { ...initial, seed: fresh }}
+          onStart={start}
+          onHowToPlay={teach}
+        />
       ) : (
         <Match
           key={setupToQuery(setup)}

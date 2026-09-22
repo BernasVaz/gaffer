@@ -61,30 +61,40 @@
 .pitch-board {
   container-type: inline-size;
   --cell: calc(100cqw / var(--cols));
+
+  /*
+   * The field is always whole, and never scrolled to.
+   *
+   * The board keeps its own shape and fits inside the space it is given,
+   * whichever of width or height is the tighter — which is the whole mechanism
+   * behind "no scroll at any size" (ADR 0019).
+   *
+   * `aspect-ratio` alone cannot do this. Given a ratio and a `max-height`, the
+   * browser clamps the height and leaves the width alone, so the board comes
+   * out distorted — or, in a flex row where neither axis is definite, collapses
+   * to nothing, which is exactly what it did the first time. The slot below is
+   * a *size* container instead, which makes its height available as `100cqh`,
+   * and then the width is simply the smaller of "all of it" and "as wide as
+   * that height allows".
+   */
+  aspect-ratio: var(--cols) / var(--rows);
+  width: min(100%, calc(100cqh * var(--cols) / var(--rows)));
 }
 
 /*
- * A board turned on its side is limited by the height it has, not only the width.
+ * The space the board is given: whatever the match screen has left over.
  *
- * In portrait the long axis of the pitch runs down the screen, so filling the
- * width can put the far goal below the fold — and a board you have to scroll to
- * see the other end of is worse than a slightly smaller one you can take in at a
- * glance. `--cols` and `--rows` are the *drawn* grid, so this one rule holds at
- * every format without knowing which is being played.
- *
- * The floor stops a short window shrinking it to a postage stamp; below that it
- * is better to scroll. Width still wins whenever it is the tighter of the two,
- * which is the phone case, and is why there is never a horizontal scrollbar.
+ * `container-type: size` is what lets the board ask how tall it is. It also
+ * means this box's own size cannot depend on its contents, which is correct
+ * here — the height comes from the flex column above, not from the pitch.
  */
-@media (orientation: portrait) {
-  .pitch-board {
-    /* Explicit, because `margin-inline: auto` on a flex item stops it
-       stretching — and a board that sizes to its contents is a board whose
-       contents are sized from the board: zero, both ways round. */
-    width: 100%;
-    max-width: max(16rem, calc((100dvh - var(--pitch-chrome, 19rem)) * var(--cols) / var(--rows)));
-    margin-inline: auto;
-  }
+.pitch-slot {
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  flex: 1 1 0%;
 }
 
 .pitch-board .odds-badge {
@@ -120,6 +130,27 @@
 @container (max-width: 46px) {
   .piece-name {
     display: none;
+  }
+}
+
+/*
+ * Short screens give their height to the pitch.
+ *
+ * Every pixel the furniture spends is a pixel off the board, because the match
+ * screen is a fixed-height column in which the pitch takes what is left (ADR
+ * 0019). On a 568px phone the scoreboard's own padding was worth about four
+ * cells, so below a certain height everything that is not the pitch gets
+ * quietly thinner. Nothing is hidden — it is the same interface, tighter.
+ */
+@media (max-height: 740px) {
+  [aria-label="Scoreboard"] > div:first-child {
+    padding-block: 0.35rem;
+  }
+  [aria-label="Scoreboard"] > p {
+    padding-block: 0.2rem;
+  }
+  [aria-label="Match status"] {
+    padding-block: 0.4rem;
   }
 }
 
