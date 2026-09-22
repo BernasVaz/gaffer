@@ -145,15 +145,22 @@ function walk(seed: number, steps: number) {
         return { action, rank: gain * 2 };
       }
 
+      /* Only moves reach here — `safe` keeps moves and passes, and passes have
+         already returned above. Narrowed explicitly rather than assumed,
+         because `filter` does not narrow and the target of a pass is a player
+         id rather than a cell. */
+      if (action.type !== "move") return { action, rank: -99 };
+      const to = action.target;
+
       /* Home pushes up the pitch; away holds its shape and closes the ball
          down, which is what stops the search producing a rout with one side
          camped in a corner. */
       const rank =
         mover.team === "home"
-          ? action.target.x - mover.position.x
+          ? to.x - mover.position.x
           : (mover.position.x >= 3 ? 0 : -4) +
-            (chebyshevDistance(mover.position, ball) - chebyshevDistance(action.target, ball)) * 2 +
-            (action.target.x >= 3 ? 1 : -3);
+            (chebyshevDistance(mover.position, ball) - chebyshevDistance(to, ball)) * 2 +
+            (to.x >= 3 ? 1 : -3);
 
       return { action, rank };
     });
