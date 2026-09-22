@@ -12,9 +12,12 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { chooseCommand, PROFILES } from "../src/index.js";
-import { mirrorCommand, mirrorState } from "./helpers.js";
+import { mirrorCommand, mirrorState, pastKickoff } from "./helpers.js";
 
 const kickoff = () => createInitialState();
+
+/** The same board one action in, past the kickoff pass (ADR 0018). */
+const open = () => pastKickoff(createInitialState());
 
 /** Play a whole match with the opponent on both sides. */
 function playMatch(seed: number, difficulty: Difficulty = "pro") {
@@ -149,7 +152,7 @@ describe("chooseCommand", () => {
   it("takes an open goal rather than admiring it", () => {
     // The evaluation's single most expensive possible mistake, pinned down: with
     // one action left, anything but the shot throws the chance away.
-    let state = kickoff();
+    let state = open();
     const away = (role: string) => `away-${role}`;
 
     state = {

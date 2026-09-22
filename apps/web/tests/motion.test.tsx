@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_SETUP } from "@gaffer/shared";
 
 import { Match } from "../src/match/Match";
+import { takeKickoff } from "./kickoff";
 
 /**
  * A hotseat match, rendered directly.
@@ -14,8 +15,10 @@ import { Match } from "../src/match/Match";
  * to show and `Match` is the screen they are about. Rendering it straight avoids
  * standing up a URL and clicking through a setup screen before every assertion.
  */
+/* Four actions rather than 5-a-side's two, so there is still a turn left after
+   the kickoff pass these tests have to get past (ADR 0018). */
 const hotseat = () => (
-  <Match setup={{ ...DEFAULT_SETUP, play: "hotseat", seed: 1 }} onLeave={() => {}} />
+  <Match setup={{ ...DEFAULT_SETUP, play: "hotseat", seed: 1, actions: 4 }} onLeave={() => {}} />
 );
 
 /** The one DOM node representing a given player, wherever it currently is. */
@@ -49,6 +52,7 @@ describe("pieces are drawn as one lasting node each", () => {
      */
     const user = userEvent.setup();
     render(hotseat());
+    await takeKickoff(user);
 
     const before = pieceFor("home-winger-1");
     const cellBefore = before?.dataset.cell;
@@ -137,19 +141,21 @@ describe("motion cannot reach the engine", () => {
      */
     const user = userEvent.setup();
     render(hotseat());
+    await takeKickoff(user);
 
-    expect(screen.getByText("2 actions left")).toBeInTheDocument();
+    expect(screen.getByText("3 actions left")).toBeInTheDocument();
 
     await user.click(buttonFor(/^Select home winger/));
     await user.click(offered(/^Move to/)[0]!);
 
     // No waitFor, no timer advance: the state is already there.
-    expect(screen.getByText("1 action left")).toBeInTheDocument();
+    expect(screen.getByText("2 actions left")).toBeInTheDocument();
   });
 
   it("reports the new board to assistive technology at once, not after the slide", async () => {
     const user = userEvent.setup();
     render(hotseat());
+    await takeKickoff(user);
 
     await user.click(buttonFor(/^Select home winger/));
     const destination = offered(/^Move to/)[0]!;

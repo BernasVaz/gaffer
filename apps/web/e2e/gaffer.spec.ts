@@ -9,7 +9,9 @@ import {
   result,
   selectable,
   status,
+  selectCarrier,
   step,
+  takeKickoff,
   targets,
 } from "./match";
 
@@ -48,7 +50,12 @@ test.describe("arriving", () => {
 });
 
 test.describe("the board", () => {
-  test.beforeEach(async ({ page }) => page.goto("./?seed=1&play=hotseat"));
+  /* Past the kickoff, which offers nothing but the pass (ADR 0018). These are
+     about what an ordinary board offers and what a click does with it. */
+  test.beforeEach(async ({ page }) => {
+    await page.goto("./?seed=1&play=hotseat");
+    await takeKickoff(page);
+  });
 
   test("offers nothing until a player is chosen, then lights every legal option", async ({
     page,
@@ -62,8 +69,9 @@ test.describe("the board", () => {
   test("shows the odds before the commit, which is the whole promise", async ({ page }) => {
     // GDD §9: if a player could not have anticipated the odds from the visible
     // board, the rule is wrong. This asserts they are actually on the board.
-    const carrier = page.getByRole("button", { name: /^Select home striker/ });
-    await carrier.click();
+    /* Whoever the kickoff left the ball with — the striker gives it away
+       (ADR 0018), and a player without the ball has nothing contested to do. */
+    await selectCarrier(page);
 
     const contested = page.getByRole("button", { name: /\d+% chance/ });
     expect(await contested.count()).toBeGreaterThan(0);
@@ -474,8 +482,11 @@ test.describe("dragging a player", () => {
   };
 
   test("commits the same action a click would", async ({ page }) => {
-    await page.goto("./?seed=7&mode=5v5&play=hotseat&actions=2");
-    await expect(page.getByLabel("Scoreboard")).toContainText("2 actions left");
+    /* Four actions rather than two, so the kickoff pass this has to get past
+       (ADR 0018) still leaves a turn to drag in. */
+    await page.goto("./?seed=7&mode=5v5&play=hotseat&actions=4");
+    await takeKickoff(page);
+    await expect(page.getByLabel("Scoreboard")).toContainText("3 actions left");
 
     const from = await carrier(page);
     await page
@@ -483,11 +494,14 @@ test.describe("dragging a player", () => {
       .click();
     const to = await firstOpenDestination(page);
 
-    // Start over, this time by dragging rather than clicking.
+    // Start over, this time by dragging rather than clicking. The reload puts
+    // the board back to its kickoff, so that has to be taken again before the
+    // destination recorded above is legal once more.
     await page.reload();
+    await takeKickoff(page);
     await dragCell(page, from, to);
 
-    await expect(page.getByLabel("Scoreboard")).toContainText("1 action left");
+    await expect(page.getByLabel("Scoreboard")).toContainText("2 actions left");
     await expectNoRuleBug(page);
   });
 
@@ -521,8 +535,9 @@ test.describe("dragging a player", () => {
 
   test("works at the biggest board too", async ({ page }) => {
     await page.goto("./?seed=7&mode=11v11&play=hotseat");
-    const before = await page.getByLabel("Scoreboard").textContent();
+    await takeKickoff(page);
 
+    const before = await page.getByLabel("Scoreboard").textContent();
     const from = await carrier(page);
     await page
       .getByRole("gridcell", { name: new RegExp(`^Column ${from.x}, row ${from.y}:`) })
@@ -530,6 +545,7 @@ test.describe("dragging a player", () => {
     const to = await firstOpenDestination(page);
 
     await page.reload();
+    await takeKickoff(page);
     await dragCell(page, from, to);
 
     await expect(page.getByLabel("Scoreboard")).not.toHaveText(before ?? "");
@@ -591,7 +607,8 @@ test.describe("on a phone, upright", () => {
   }
 
   test("a drag lands on the cell it was dropped on, not a quarter turn away", async ({ page }) => {
-    await page.goto("./?seed=7&mode=5v5&play=hotseat&actions=2");
+    await page.goto("./?seed=7&mode=5v5&play=hotseat&actions=4");
+    await takeKickoff(page);
 
     const label = await page
       .getByRole("gridcell", { name: /with the ball/ })
@@ -605,9 +622,10 @@ test.describe("on a phone, upright", () => {
     const to = await firstOpenDestination(page);
 
     await page.reload();
+    await takeKickoff(page);
     await dragCell(page, from, to);
 
-    await expect(page.getByLabel("Scoreboard")).toContainText("1 action left");
+    await expect(page.getByLabel("Scoreboard")).toContainText("2 actions left");
     await expectNoRuleBug(page);
   });
 
@@ -729,7 +747,7 @@ test.describe("how to play", () => {
     await expect(step).toContainText("Tap one of your players");
     await expect(page.getByRole("grid")).toBeVisible();
 
-    await page.getByRole("button", { name: /^Select home midfielder/ }).click();
+    await page.getByRole("button", { name: /^Select home winger/ }).click();
     await expect(step).toContainText("lights up at once");
 
     await step.getByRole("button", { name: "Next" }).click();

@@ -124,3 +124,38 @@ export async function dragCell(
   await page.mouse.move(end.x, end.y, { steps: 8 });
   await page.mouse.up();
 }
+
+/**
+ * Play the kickoff, which is the only thing a match will let you do first.
+ *
+ * ADR 0018 made a kickoff a pass, so any test that wants a cell destination, a
+ * drag, or a duel has to get past it. Prefers an uncontested pass where one is
+ * offered, so what follows does not depend on a die.
+ */
+export async function takeKickoff(page: Page): Promise<void> {
+  const carrier = page.getByRole("gridcell", { name: /with the ball/ });
+  await carrier.getByRole("button").first().click();
+
+  const passes = page.getByRole("button", { name: /^Pass to / });
+  const count = await passes.count();
+  if (count === 0) throw new Error("a kickoff with no pass on it");
+
+  for (let index = 0; index < count; index += 1) {
+    const label = await passes.nth(index).getAttribute("aria-label");
+    if (!/chance/.test(label ?? "")) {
+      await passes.nth(index).click();
+      return;
+    }
+  }
+
+  await passes.first().click();
+}
+
+/** Select whoever has the ball, so a test can act with the carrier. */
+export async function selectCarrier(page: Page): Promise<void> {
+  await page
+    .getByRole("gridcell", { name: /with the ball/ })
+    .getByRole("button")
+    .first()
+    .click();
+}

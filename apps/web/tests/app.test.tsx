@@ -1,4 +1,10 @@
-import { createInitialState, legalActions, previewDuel } from "@gaffer/engine";
+import {
+  applyAction,
+  createInitialState,
+  createRng,
+  legalActions,
+  previewDuel,
+} from "@gaffer/engine";
 import { DEFAULT_BOARD, DEFAULT_SETUP, FORMAT_PROFILES, ROLES, totalTurns } from "@gaffer/shared";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -6,6 +12,7 @@ import { describe, expect, it } from "vitest";
 
 import { Match } from "../src/match/Match";
 import { targetAt, targetsFor } from "../src/board/targets";
+import { selectCarrier, takeKickoff } from "./kickoff";
 
 /**
  * A hotseat match, rendered directly.
@@ -14,8 +21,8 @@ import { targetAt, targetsFor } from "../src/board/targets";
  * to show and `Match` is the screen they are about. Rendering it straight avoids
  * standing up a URL and clicking through a setup screen before every assertion.
  */
-const hotseat = () => (
-  <Match setup={{ ...DEFAULT_SETUP, play: "hotseat", seed: 1 }} onLeave={() => {}} />
+const hotseat = (over: Partial<typeof DEFAULT_SETUP> = {}) => (
+  <Match setup={{ ...DEFAULT_SETUP, play: "hotseat", seed: 1, ...over }} onLeave={() => {}} />
 );
 
 /** The accessible name of every cell, in row-major order. */
@@ -73,6 +80,7 @@ describe("selecting a player", () => {
   it("lights every legal destination at once", async () => {
     const user = userEvent.setup();
     render(hotseat());
+    await takeKickoff(user);
 
     await user.click(buttonFor(/^Select home winger/));
 
@@ -84,6 +92,7 @@ describe("selecting a player", () => {
   it("deselects when the same player is clicked again", async () => {
     const user = userEvent.setup();
     render(hotseat());
+    await takeKickoff(user);
 
     await user.click(buttonFor(/^Select home winger/));
     expect(offered(/^Move to/).length).toBeGreaterThan(0);
@@ -137,8 +146,9 @@ describe("the odds on the board", () => {
   it("explains the focused target in the status line", async () => {
     const user = userEvent.setup();
     render(hotseat());
+    await takeKickoff(user);
 
-    await user.click(buttonFor(/^Select home striker/));
+    await selectCarrier(user);
     await user.hover(offered(/^Dribble to/)[0]!);
 
     const status = within(screen.getByLabelText("Match status"));
@@ -151,6 +161,7 @@ describe("committing a move", () => {
   it("plays it straight through, with no confirm step", async () => {
     const user = userEvent.setup();
     render(hotseat());
+    await takeKickoff(user);
 
     await user.click(buttonFor(/^Select home winger/));
     const destination = offered(/^Move to/)[0]!;
@@ -167,22 +178,24 @@ describe("committing a move", () => {
 
   it("spends an action and clears the selection", async () => {
     const user = userEvent.setup();
-    render(hotseat());
+    render(hotseat({ actions: 4 }));
+    await takeKickoff(user);
 
-    expect(screen.getByText("2 actions left")).toBeInTheDocument();
+    expect(screen.getByText("3 actions left")).toBeInTheDocument();
 
     await user.click(buttonFor(/^Select home winger/));
     await user.click(offered(/^Move to/)[0]!);
 
-    expect(screen.getByText("1 action left")).toBeInTheDocument();
+    expect(screen.getByText("2 actions left")).toBeInTheDocument();
     expect(offered(/^Move to/)).toHaveLength(0);
   });
 
   it("reports what happened underneath the board", async () => {
     const user = userEvent.setup();
     render(hotseat());
+    await takeKickoff(user);
 
-    await user.click(buttonFor(/^Select home striker/));
+    await selectCarrier(user);
     await user.click(offered(/^Dribble to/)[0]!);
 
     expect(screen.getByText(/rolled \d+–\d+/)).toBeInTheDocument();
@@ -193,12 +206,13 @@ describe("hotseat", () => {
   it("hands the board to the other side once the pool is spent", async () => {
     const user = userEvent.setup();
     render(hotseat());
+    await takeKickoff(user);
 
     expect(screen.getByText(/home to play/)).toBeInTheDocument();
 
+    /* The kickoff pass spent one of the two, so a single move empties the
+       pool — which is the thing being tested. */
     await user.click(buttonFor(/^Select home winger/));
-    await user.click(offered(/^Move to/)[0]!);
-    await user.click(buttonFor(/^Select home midfielder/));
     await user.click(offered(/^Move to/)[0]!);
 
     expect(screen.getByText(/away to play/)).toBeInTheDocument();
@@ -238,13 +252,29 @@ describe("the shared target lookup", () => {
    * places they would eventually answer it differently, which is the failure a
    * second input method invites.
    */
+  /** Whoever the kickoff pass left the ball with. */
+  const carrierAfterKickoff = () => {
+    const start = createInitialState();
+    const kickoff = legalActions(start).find((action) => action.type === "pass")!;
+    const taken = applyAction(start, kickoff, createRng(1));
+    if (!taken.ok) throw new Error("refused");
+    return taken.state.ball.carrierId!;
+  };
+
   const boardFor = (playerId: string) => {
-    const state = createInitialState();
+    /* Past the kickoff: a kickoff offers only passes (ADR 0018), so a board
+       taken straight from `createInitialState` has no cell targets at all. */
+    const start = createInitialState();
+    const kickoff = legalActions(start).find((action) => action.type === "pass")!;
+    const taken = applyAction(start, kickoff, createRng(1));
+    if (!taken.ok) throw new Error("the kickoff pass was refused");
+
+    const state = taken.state;
     return { state, targets: targetsFor(state, playerId) };
   };
 
   it("offers the destination when a cell is empty", () => {
-    const { state, targets } = boardFor("home-striker-1");
+    const { state, targets } = boardFor(carrierAfterKickoff());
     const destination = [...targets.cells.values()][0]!;
     const cell = (destination.action as { target: { x: number; y: number } }).target;
 
@@ -253,7 +283,7 @@ describe("the shared target lookup", () => {
   });
 
   it("offers the pass when a team-mate is standing there", () => {
-    const { state, targets } = boardFor("home-striker-1");
+    const { state, targets } = boardFor(carrierAfterKickoff());
     const [mateId, mateTarget] = [...targets.players.entries()][0]!;
     const mate = state.players.find((player) => player.id === mateId)!;
 
@@ -262,7 +292,7 @@ describe("the shared target lookup", () => {
 
   it("prefers a lit destination over the player standing on it", () => {
     // Clicking a ringed team-mate passes to them rather than switching to them.
-    const { state, targets } = boardFor("home-striker-1");
+    const { state, targets } = boardFor(carrierAfterKickoff());
     const [mateId] = [...targets.players.entries()][0]!;
     const mate = state.players.find((player) => player.id === mateId)!;
 
@@ -278,7 +308,7 @@ describe("the shared target lookup", () => {
   });
 
   it("offers nothing on a cell the rules say nothing about", () => {
-    const { state, targets } = boardFor("home-striker-1");
+    const { state, targets } = boardFor(carrierAfterKickoff());
     const keeper = state.players.find((player) => player.id === "home-goalkeeper-1")!;
 
     expect(targetAt(state, targets, undefined, keeper.position)).toBeNull();

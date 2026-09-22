@@ -9,8 +9,11 @@ import { parseSeed, type Action } from "@gaffer/shared";
 import { describe, expect, it } from "vitest";
 
 import { outcomesOf } from "../src/index.js";
+import { pastKickoff } from "./helpers.js";
 
-const kickoff = () => createInitialState();
+/* Past the kickoff: a kickoff offers nothing but the pass (ADR 0018), and
+   these are about what the search does with an ordinary board. */
+const kickoff = () => pastKickoff(createInitialState());
 
 /** The first legal action of a given type, for building a specific scenario. */
 const firstOfType = (type: Action["type"]) =>

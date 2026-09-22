@@ -144,6 +144,11 @@ function canShoot(carrier: Player, state: MatchState): boolean {
  * - **Any player adjacent to the carrier**, if the side to move does *not* have
  *   the ball, may Tackle.
  *
+ * **At a kickoff, the side kicking off may only Pass** (GDD §7, ADR 0018). A
+ * kickoff is a pass in football, and until this rule existed a match opened
+ * with whatever the kicking side fancied — usually a dribble straight into the
+ * opponent standing next to it.
+ *
  * Move and Dribble are mutually exclusive for a given destination: a carrier
  * never gets to pick the free version of a contested move.
  *
@@ -227,5 +232,25 @@ export function legalActions(state: MatchState): Action[] {
     }
   }
 
-  return actions;
+  return atKickoff(state) ? kickoffOnly(actions) : actions;
+}
+
+/** Whether the side to move still owes its kickoff pass. */
+function atKickoff(state: MatchState): boolean {
+  return state.kickoffPending !== null && state.kickoffPending === state.activeTeam;
+}
+
+/**
+ * Narrow a kickoff down to the pass it is supposed to be.
+ *
+ * With a safety valve: a kickoff formation that offered no pass at all would
+ * leave the side with nothing to do but give the turn away, so if there is no
+ * pass the restriction simply does not apply. `packages/shared/tests` asserts
+ * every shipped format *does* have one, so the valve is a guard against a
+ * future formation rather than something any current match can reach — but a
+ * rule that can strand a player is worse than one with a documented exception.
+ */
+function kickoffOnly(actions: Action[]): Action[] {
+  const passes = actions.filter((action) => action.type === "pass");
+  return passes.length > 0 ? passes : actions;
 }

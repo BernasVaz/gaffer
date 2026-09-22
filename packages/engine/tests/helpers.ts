@@ -33,7 +33,13 @@ export interface Spec {
  */
 export function makeState(
   specs: readonly Spec[],
-  opts: { activeTeam?: Team; actionsRemaining?: number; format?: MatchFormat } = {},
+  opts: {
+    activeTeam?: Team;
+    actionsRemaining?: number;
+    format?: MatchFormat;
+    /** Which side still owes a kickoff pass. A hand-built board owes none. */
+    kickoffPending?: Team | null;
+  } = {},
 ): MatchState {
   /* Fixtures are 5-a-side unless a test is specifically about another format:
      the rules are the same at every scale, so a rule is best pinned on the
@@ -65,6 +71,10 @@ export function makeState(
     activeTeam: opts.activeTeam ?? "home",
     actionsRemaining: opts.actionsRemaining ?? profile.rules.actionsPerTurn,
     score: { home: 0, away: 0 },
+    /* A fixture describes a moment mid-match unless a test says otherwise, so
+       the kickoff obligation is off by default — otherwise every rule test
+       would find the board offering nothing but a pass. */
+    kickoffPending: opts.kickoffPending ?? null,
     kickedOff: "home",
     stats: {
       shotsAttempted: { home: 0, away: 0 },

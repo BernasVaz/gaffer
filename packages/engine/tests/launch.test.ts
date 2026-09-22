@@ -10,7 +10,13 @@ import {
 } from "@gaffer/shared";
 import { describe, expect, it } from "vitest";
 
-import { applyAction, createRng, legalActions, previewDuel } from "../src/index.js";
+import {
+  applyAction,
+  createInitialState,
+  createRng,
+  legalActions,
+  previewDuel,
+} from "../src/index.js";
 import { makeState } from "./helpers.js";
 
 /** Every launch the side to move may play. */
@@ -346,5 +352,79 @@ describe("every format", () => {
     expect(aimedAt(launches(state))).toEqual(["home-striker-1"]);
     // And it genuinely leaves the keeper's half.
     expect(rules.launchRange).toBeGreaterThanOrEqual(Math.ceil(board.width / 2));
+  });
+});
+
+describe("the kickoff is a pass", () => {
+  it("offers the kicking side nothing else, at every format", () => {
+    for (const format of FORMATS) {
+      const state = createInitialState({ format });
+      const actions = legalActions(state);
+
+      expect(actions.length, `${format} has no kickoff at all`).toBeGreaterThan(0);
+      expect(
+        actions.every((action) => action.type === "pass"),
+        `${format} offers more than a pass at kickoff`,
+      ).toBe(true);
+    }
+  });
+
+  it("names the side that owes it, and forgets once it is taken", () => {
+    const state = createInitialState({ kickingOff: "away" });
+    expect(state.kickoffPending).toBe("away");
+
+    const taken = applyAction(state, legalActions(state)[0]!, createRng(1));
+    expect(taken.ok).toBe(true);
+    if (!taken.ok) return;
+
+    expect(taken.state.kickoffPending).toBeNull();
+  });
+
+  it("does not restrict the side that is not kicking off", () => {
+    /* Away is to move but home owes the kickoff — an impossible board, built
+       deliberately to check the rule keys off the *active* side rather than
+       off the field being set at all. */
+    const state = makeState(
+      [
+        { team: "home", role: "goalkeeper", at: [0, 2] },
+        { team: "home", role: "striker", at: [3, 2], ball: true },
+        { team: "away", role: "striker", at: [4, 2] },
+        { team: "away", role: "goalkeeper", at: [6, 2] },
+      ],
+      { activeTeam: "away", kickoffPending: "home" },
+    );
+
+    expect(legalActions(state).some((action) => action.type !== "pass")).toBe(true);
+  });
+
+  it("comes back after a goal, for the side that conceded", () => {
+    const state = makeState(
+      [
+        { team: "home", role: "goalkeeper", at: [0, 2] },
+        { team: "home", role: "striker", at: [5, 2], ball: true },
+        { team: "away", role: "goalkeeper", at: [6, 0] },
+      ],
+      { actionsRemaining: 2 },
+    );
+
+    const shot = legalActions(state).find((action) => action.type === "shoot")!;
+    const scored = applyAction(state, shot, createRng(2));
+
+    expect(scored.ok).toBe(true);
+    if (!scored.ok) return;
+    expect(scored.state.score.home).toBe(1);
+
+    // The conceding side restarts, and restarts with a pass.
+    expect(scored.state.kickoffPending).toBe("away");
+    expect(legalActions(scored.state).every((action) => action.type === "pass")).toBe(true);
+  });
+
+  it("is forfeited by giving the turn away rather than held over", () => {
+    const state = createInitialState();
+    const given = applyAction(state, { type: "endTurn", team: "home" }, createRng(1));
+
+    expect(given.ok).toBe(true);
+    if (!given.ok) return;
+    expect(given.state.kickoffPending).toBeNull();
   });
 });

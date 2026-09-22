@@ -157,9 +157,15 @@ export function applyAction(state: MatchState, command: MatchCommand, rng: Rng):
 
   if (command.type === "endTurn") {
     if (command.team !== state.activeTeam) return { ok: false, reason: "not-your-turn" };
+    /* Giving the turn away forfeits the kickoff pass along with it. Holding the
+       obligation over would mean a side that passed once could be asked for a
+       kickoff pass again on some later turn, which is not a rule anybody
+       would expect. */
+    const given =
+      state.kickoffPending === state.activeTeam ? { ...state, kickoffPending: null } : state;
     return {
       ok: true,
-      state: endOfTurn(state, rng),
+      state: endOfTurn(given, rng),
       duel: null,
       turnEnded: true,
     };
@@ -181,6 +187,15 @@ export function applyAction(state: MatchState, command: MatchCommand, rng: Rng):
   const { state: resolved, duel } = resolveAction(state, command, rng);
   const tallied = withStats(resolved, state, command, duel);
 
+  /* The obligation lasts exactly one action. Cleared here rather than in the
+     resolver because it is a fact about the turn economy, not about what the
+     ball did — and clearing it in `resolveAction` would wipe the fresh one a
+     goal has just created. */
+  const settled: MatchState =
+    resolved.kickoffPending === state.kickoffPending
+      ? { ...tallied, kickoffPending: null }
+      : tallied;
+
   /*
    * A goal ends the turn on the spot. resolveAction has already rebuilt the
    * pitch for the kickoff and given the conceding side the ball; passing the
@@ -189,10 +204,10 @@ export function applyAction(state: MatchState, command: MatchCommand, rng: Rng):
   const scored =
     resolved.score.home !== state.score.home || resolved.score.away !== state.score.away;
   if (scored) {
-    return { ok: true, state: endOfTurn(tallied, rng), duel, turnEnded: true };
+    return { ok: true, state: endOfTurn(settled, rng), duel, turnEnded: true };
   }
 
-  const spent: MatchState = { ...tallied, actionsRemaining: tallied.actionsRemaining - 1 };
+  const spent: MatchState = { ...settled, actionsRemaining: settled.actionsRemaining - 1 };
   if (spent.actionsRemaining <= 0) {
     return { ok: true, state: endOfTurn(spent, rng), duel, turnEnded: true };
   }

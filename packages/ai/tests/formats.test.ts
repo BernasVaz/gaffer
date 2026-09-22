@@ -11,6 +11,7 @@ import {
 import { describe, expect, it } from "vitest";
 
 import { chooseCommand, PROFILES } from "../src/index.js";
+import { pastKickoff } from "./helpers.js";
 
 /**
  * Play at `format` until the match is decided, or until `limit` commands.
@@ -122,7 +123,12 @@ describe("what the opponent costs to run", () => {
   it("searches a wider pitch less widely, which is how it stays affordable", () => {
     // Recorded because it is a deliberate trade — the opponent plays a little
     // worse at 11-a-side — rather than something that happens to be true.
-    const counts = FORMATS.map((format) => legalActions(createInitialState({ format })).length);
+    /* Measured one action in. At a kickoff the board offers only the pass
+       (ADR 0018), which is a handful of options at every format and says
+       nothing about how widely the search has to look. */
+    const counts = FORMATS.map(
+      (format) => legalActions(pastKickoff(createInitialState({ format }))).length,
+    );
 
     for (let index = 1; index < counts.length; index += 1) {
       expect(counts[index]!).toBeGreaterThan(counts[index - 1]!);

@@ -161,14 +161,57 @@ describe("replay determinism", () => {
   });
 });
 
+/**
+ * The board one action into the match.
+ *
+ * A kickoff offers nothing but the pass (ADR 0018), so a test that wants a move
+ * and a dribble side by side has to get past it first. The pass is played with
+ * its own generator, so it cannot spend dice the test is about to compare.
+ */
+function afterKickoff(): MatchState {
+  /* A longer turn than 5-a-side's two, so that taking the kickoff and then a
+     move does not run the pool out and hand the board to the other side —
+     which is what "no move leaves the dribble on the board" turned out to
+     mean the first time round. */
+  const start = createInitialState({ rules: { actionsPerTurn: 4 } });
+  const kickoff = legalActions(start)[0]!;
+  const taken = applyAction(start, kickoff, createRng(parseSeed(1)));
+  if (!taken.ok) throw new Error("the kickoff pass was refused");
+  return taken.state;
+}
+
+/**
+ * A board with a move and a dribble that do not interfere with each other.
+ *
+ * Picked rather than assumed: moving a player can change what the carrier is
+ * offered — walking somebody out of the way turns a dribble into a plain move —
+ * and then "the same dribble after a move" is not the same action at all. The
+ * search keeps only a move the dribble survives.
+ */
+function anUncontestedMoveBeside() {
+  const start = afterKickoff();
+  const dribble = legalActions(start).find((action) => action.type === "dribble")!;
+  expect(dribble, "no dribble on the board to test with").toBeDefined();
+
+  const key = (action: { type: string; playerId: string }) => `${action.type}|${action.playerId}`;
+
+  for (const move of legalActions(start).filter((action) => action.type === "move")) {
+    const after = applyAction(start, move, createRng(parseSeed(1)));
+    if (!after.ok) continue;
+    if (legalActions(after.state).some((action) => key(action) === key(dribble))) {
+      return { start, move, dribble };
+    }
+  }
+
+  throw new Error("no move leaves the dribble on the board");
+}
+
 describe("the dice sequence", () => {
   it("is untouched by uncontested actions", () => {
     // A move consumes no randomness. Inserting one before a duel must not change
     // what that duel rolls, or adding a reposition to a replay would silently
     // rewrite everything after it.
-    const start = createInitialState();
-    const move = legalActions(start).find((action) => action.type === "move")!;
-    const dribble = legalActions(start).find((action) => action.type === "dribble")!;
+    const { start, move, dribble } = anUncontestedMoveBeside();
 
     const rngA = createRng(parseSeed(4242));
     const rngB = createRng(parseSeed(4242));
@@ -187,9 +230,7 @@ describe("the dice sequence", () => {
   });
 
   it("spends dice only on contested actions", () => {
-    const start = createInitialState();
-    const move = legalActions(start).find((action) => action.type === "move")!;
-    const dribble = legalActions(start).find((action) => action.type === "dribble")!;
+    const { start, move, dribble } = anUncontestedMoveBeside();
 
     const rng = createRng(parseSeed(9));
     const before = rng.state();
