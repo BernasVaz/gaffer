@@ -16,6 +16,7 @@ import { saveFeedback, storageKey, type FeedbackNote } from "../src/feedback/not
 import { buildArchiveReport, buildReport } from "../src/feedback/report";
 import { Match } from "../src/match/Match";
 import { buildMatch } from "../src/match/replay";
+import { openMore } from "./kickoff";
 
 const note = (overrides: Partial<FeedbackNote> = {}): FeedbackNote => ({
   id: "note-1",
@@ -279,6 +280,7 @@ describe("the panel", () => {
     const user = userEvent.setup();
     render(<Match setup={setupFor({ play: "hotseat", seed: 4 })} onLeave={() => {}} />);
 
+    await openMore(user);
     await user.click(screen.getByRole("button", { name: "My feedback" }));
     expect(screen.getByRole("dialog", { name: "My feedback" })).toBeInTheDocument();
   });

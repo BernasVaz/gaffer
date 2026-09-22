@@ -28,6 +28,7 @@ import {
   shouldAutorun,
 } from "../src/guide/seen";
 import { guideSteps } from "../src/guide/steps";
+import { openMore } from "./kickoff";
 
 /** Pretend the viewport is upright — the shape that matters most. */
 function holdPhoneUpright(upright = true) {
@@ -380,6 +381,7 @@ describe("reaching it from a match", () => {
     await user.click(screen.getByRole("button", { name: /Kick off/ }));
     expect(screen.getByLabelText("Scoreboard")).toBeInTheDocument();
 
+    await openMore(user);
     await user.click(screen.getByRole("button", { name: "How to play" }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });

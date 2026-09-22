@@ -42,3 +42,13 @@ export async function selectCarrier(user: UserEvent): Promise<void> {
   if (!select) throw new Error("the carrier is not selectable");
   await user.click(select);
 }
+
+/**
+ * Open the match's overflow menu.
+ *
+ * Everything you reach for *between* turns lives behind one button now, so the
+ * pitch can have the height those two rows of controls were costing it.
+ */
+export async function openMore(user: UserEvent): Promise<void> {
+  await user.click(screen.getByRole("button", { name: "More" }));
+}

@@ -9,6 +9,7 @@ import {
   result,
   selectable,
   status,
+  openMore,
   selectCarrier,
   step,
   takeKickoff,
@@ -232,7 +233,7 @@ test.describe("game types", () => {
     await page.goto("./?seed=42&mode=hotseat");
 
     await expect(page.getByRole("grid")).toBeVisible();
-    await expect(page.getByText(/Hotseat/)).toBeVisible();
+    await expect(page.getByText(/hotseat/i)).toBeVisible();
     await expect(page.getByRole("gridcell")).toHaveCount(35);
   });
 
@@ -433,6 +434,7 @@ test.describe("flagging a moment", () => {
     await page.getByLabel("What happened").fill("this is the moment");
     await page.getByRole("button", { name: "Save note" }).click();
 
+    await openMore(page);
     const [download] = await Promise.all([
       page.waitForEvent("download"),
       page.getByRole("button", { name: /Download feedback/ }).click(),
@@ -656,6 +658,7 @@ test.describe("the feedback archive", () => {
     await page.getByRole("button", { name: /^Save/ }).click();
 
     // Walk away, exactly as somebody who never finishes a match would.
+    await openMore(page);
     await page.getByRole("button", { name: "New match" }).click();
     await expect(page.getByRole("button", { name: /Kick off/ })).toBeVisible();
 
@@ -672,6 +675,7 @@ test.describe("the feedback archive", () => {
     await page.getByRole("button", { name: /Flag moment/ }).click();
     await page.getByRole("textbox").fill("offside was never called");
     await page.getByRole("button", { name: /^Save/ }).click();
+    await openMore(page);
     await page.getByRole("button", { name: "New match" }).click();
 
     await page.getByRole("button", { name: "My feedback" }).click();
@@ -810,7 +814,85 @@ test.describe("how to play", () => {
     await page.goto("./?seed=9&mode=5v5&play=hotseat");
     await expect(page.getByRole("grid")).toBeVisible();
 
+    await openMore(page);
     await page.getByRole("button", { name: "How to play" }).click();
     await expect(page.getByRole("dialog")).toContainText("Pick a game type");
+  });
+});
+
+/**
+ * The field is always whole, and you never scroll to it.
+ *
+ * ADR 0019's promise, asserted at the sizes it has to hold at — including a
+ * 320-wide phone, which is the tightest screen anybody is still using.
+ */
+test.describe("the board fits the screen", () => {
+  const PHONES = [
+    { name: "small", width: 320, height: 568 },
+    { name: "common", width: 375, height: 667 },
+    { name: "tall", width: 390, height: 844 },
+  ];
+
+  for (const phone of PHONES) {
+    for (const mode of ["5v5", "11v11"] as const) {
+      test(`${mode} on a ${phone.name} phone`, async ({ page }) => {
+        await page.setViewportSize({ width: phone.width, height: phone.height });
+        await page.goto(`./?seed=7&mode=${mode}&play=hotseat`);
+        await expect(page.getByRole("grid")).toBeVisible();
+
+        const fit = await page.evaluate(() => {
+          const doc = document.documentElement;
+          const board = document.querySelector(".pitch-board")!.getBoundingClientRect();
+          return {
+            vertical: doc.scrollHeight - doc.clientHeight,
+            horizontal: doc.scrollWidth - doc.clientWidth,
+            top: board.top,
+            bottom: board.bottom,
+            height: window.innerHeight,
+            width: board.width,
+          };
+        });
+
+        expect(fit.vertical, "the page scrolls vertically").toBeLessThanOrEqual(0);
+        expect(fit.horizontal, "the page scrolls sideways").toBeLessThanOrEqual(0);
+        expect(fit.top, "the board is cut off at the top").toBeGreaterThanOrEqual(0);
+        expect(fit.bottom, "the board is cut off at the bottom").toBeLessThanOrEqual(fit.height);
+        expect(fit.width, "the board has collapsed").toBeGreaterThan(80);
+      });
+    }
+  }
+
+  test("stays whole when an information panel is opened", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto("./?seed=7&mode=11v11&play=hotseat");
+
+    const board = () => page.locator(".pitch-board").boundingBox();
+    const before = await board();
+
+    await page.getByRole("tab", { name: /Commentary/ }).click();
+    await expect(page.getByRole("tabpanel")).toBeVisible();
+
+    const after = await board();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
+    );
+
+    // The pitch gives way to the panel rather than the page growing.
+    expect(after!.height).toBeLessThan(before!.height);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test("turns sideways and back from the match header", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("./?seed=7&mode=5v5&play=hotseat");
+
+    const grid = page.getByRole("grid");
+    await expect(grid).toHaveAttribute("aria-colcount", "5");
+
+    await page.getByRole("button", { name: /Turn the board sideways/ }).click();
+    await expect(grid).toHaveAttribute("aria-colcount", "7");
+
+    await page.getByRole("button", { name: /Stand the board upright/ }).click();
+    await expect(grid).toHaveAttribute("aria-colcount", "5");
   });
 });

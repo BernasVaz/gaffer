@@ -1,5 +1,5 @@
 import type { Board, Position } from "@gaffer/shared";
-import { useSyncExternalStore } from "react";
+import { preference, usePreference } from "../ui/preference";
 
 /** Which way round the board is drawn. */
 export type Orientation = "landscape" | "portrait";
@@ -93,35 +93,32 @@ export function svgTransform(board: Board, orientation: Orientation): string | u
   return orientation === "portrait" ? `matrix(0 -1 1 0 0 ${board.width})` : undefined;
 }
 
-const PORTRAIT = "(orientation: portrait)";
-
-function subscribe(onChange: () => void): () => void {
-  const query = window.matchMedia?.(PORTRAIT);
-  if (!query) return () => {};
-
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
-}
-
-function snapshot(): Orientation {
-  return window.matchMedia?.(PORTRAIT)?.matches ? "portrait" : "landscape";
-}
-
-/** Landscape on a server, where there is no viewport to ask. */
-const serverSnapshot = (): Orientation => "landscape";
+/** Where the chosen orientation is remembered. */
+const ORIENTATIONS = ["portrait", "landscape"] as const;
 
 /**
- * Which way up the viewport is, live.
+ * Portrait, unless the player says otherwise — at every screen size.
  *
- * A media query rather than a width breakpoint: the question is genuinely about
- * the shape of the window, and phrasing it that way means a phone turned on its
- * side goes back to the wide board at once, and a tall narrow desktop window
- * gets the tall board — both of which are what you would want and neither of
- * which a device guess would get right.
- *
- * Subscribed rather than measured in an effect, so the first paint is already
- * the right way round instead of flipping a frame later.
+ * This replaces the media query ADR 0014 shipped with, and the reason is what
+ * the alpha showed: the upright board is simply the better one to play on. It
+ * fills a phone, it is the shape the pitch already is, and on a desktop it
+ * leaves room beside the board for everything that is not the board. A media
+ * query was answering "what shape is the window", which turned out to be the
+ * wrong question — the right one is "which way do you want it", and that has a
+ * sensible default and an answer the player can change (ADR 0019).
  */
+export const layoutOrientation = preference<Orientation>(
+  "gaffer:orientation",
+  "portrait",
+  ORIENTATIONS,
+);
+
+/** Which way round the board is drawn, live. */
 export function useOrientation(): Orientation {
-  return useSyncExternalStore(subscribe, snapshot, serverSnapshot);
+  return usePreference(layoutOrientation, "portrait");
+}
+
+/** Turn the board the other way round. */
+export function turnBoard(): void {
+  layoutOrientation.set(layoutOrientation.get() === "portrait" ? "landscape" : "portrait");
 }

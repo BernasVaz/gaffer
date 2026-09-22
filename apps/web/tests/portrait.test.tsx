@@ -6,26 +6,23 @@ import {
   FORMATS,
   type MatchFormat,
 } from "@gaffer/shared";
-import { render, renderHook, screen } from "@testing-library/react";
+import { render, renderHook, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { layoutFor } from "../src/board/orientation";
+import { layoutFor, layoutOrientation } from "../src/board/orientation";
 import { useBoardDrag } from "../src/board/useBoardDrag";
 import { Match } from "../src/match/Match";
 
-/** Pretend the viewport is upright, for as long as a test wants it to be. */
+/**
+ * Stand the board up, or lay it on its side.
+ *
+ * A stored choice rather than a stubbed media query since ADR 0019: portrait is
+ * the default at every size and the player turns it, so these tests say which
+ * way they want it rather than pretending to be a particular device.
+ */
 function holdPhoneUpright(upright: boolean) {
-  vi.stubGlobal("matchMedia", (query: string) => ({
-    media: query,
-    matches: upright && query.includes("(orientation: portrait)"),
-    onchange: null,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    addListener: () => {},
-    removeListener: () => {},
-    dispatchEvent: () => false,
-  }));
+  layoutOrientation.set(upright ? "portrait" : "landscape");
 }
 
 const match = (mode: MatchFormat) => (
@@ -43,7 +40,7 @@ function cellAt(index: number) {
   return { x: Number(found![1]), y: Number(found![2]) };
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => layoutOrientation.set("portrait"));
 
 describe.each(FORMATS)("a %s board on a phone held upright", (mode) => {
   const board = FORMAT_PROFILES[mode].board;
@@ -129,8 +126,19 @@ describe("the board turned round", () => {
   it("points the attack arrows up and down instead of left and right", () => {
     holdPhoneUpright(true);
     render(match("5v5"));
-    expect(screen.getByText(/Home attacks/).textContent).toMatch(/↑/);
-    expect(screen.getByText(/Home attacks/).textContent).toMatch(/↓/);
+
+    const board = within(screen.getByLabelText("Scoreboard"));
+    expect(board.getByText("attacks up")).toBeInTheDocument();
+    expect(board.getByText("attacks down")).toBeInTheDocument();
+  });
+
+  it("points them left and right again on a wide board", () => {
+    holdPhoneUpright(false);
+    render(match("5v5"));
+
+    const board = within(screen.getByLabelText("Scoreboard"));
+    expect(board.getByText("attacks right")).toBeInTheDocument();
+    expect(board.getByText("attacks left")).toBeInTheDocument();
   });
 
   it("hangs the nets off the top and bottom of an upright pitch", () => {

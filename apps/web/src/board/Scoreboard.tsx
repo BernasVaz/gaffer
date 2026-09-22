@@ -1,6 +1,7 @@
 import { totalTurns, type MatchState, type Team } from "@gaffer/shared";
 
 import { Crest } from "../art/Crest";
+import { useOrientation } from "./orientation";
 
 const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(" ");
 
@@ -28,10 +29,31 @@ function Pips({ left, of }: { left: number; of: number }) {
   );
 }
 
-/** One side of the scoreline: crest, name, and whether it is their move. */
-function Side({ team, active }: { team: Team; active: boolean }) {
+/**
+ * One side of the scoreline: crest, name, which way they attack, and whether it
+ * is their move.
+ *
+ * The arrow lives here rather than in a note beside the pitch because it is a
+ * fact about the *team*, and because it has to follow the board: "attacks
+ * right" is a lie on an upright pitch, where play runs up and down.
+ */
+function Side({
+  team,
+  active,
+  mirrored = false,
+}: {
+  team: Team;
+  active: boolean;
+  mirrored?: boolean;
+}) {
+  const upright = useOrientation() === "portrait";
+  const forward = team === "home";
+  const arrow = upright ? (forward ? "↑" : "↓") : forward ? "→" : "←";
+  const way = upright ? (forward ? "up" : "down") : forward ? "right" : "left";
+  const says = `attacks ${way}`;
+
   return (
-    <span className="flex min-w-0 items-center gap-2">
+    <span className={cx("flex min-w-0 items-center gap-2", mirrored && "flex-row-reverse")}>
       <Crest team={team} className={cx("h-7 w-6 shrink-0", !active && "opacity-70")} />
       <span
         className={cx(
@@ -40,6 +62,10 @@ function Side({ team, active }: { team: Team; active: boolean }) {
         )}
       >
         {team}
+      </span>
+      <span className="shrink-0 text-xs text-white/40" title={`${team} ${says}`}>
+        <span aria-hidden>{arrow}</span>
+        <span className="sr-only">{says}</span>
       </span>
     </span>
   );
@@ -70,7 +96,7 @@ export function Scoreboard({
       aria-label="Scoreboard"
       className="overflow-hidden rounded-2xl bg-(--color-panel) ring-1 ring-(--color-edge)/40"
     >
-      <div className="flex items-center justify-between gap-3 bg-gradient-to-b from-white/8 to-transparent px-4 py-3">
+      <div className="flex items-center justify-between gap-3 bg-gradient-to-b from-white/8 to-transparent px-3 py-2">
         <Side team="home" active={!over && state.activeTeam === "home"} />
 
         <span
@@ -84,26 +110,10 @@ export function Scoreboard({
           {state.score.home}&ndash;{state.score.away}
         </span>
 
-        <span className="flex min-w-0 flex-row-reverse items-center gap-2">
-          <Crest
-            team="away"
-            className={cx(
-              "h-7 w-6 shrink-0",
-              !(!over && state.activeTeam === "away") && "opacity-70",
-            )}
-          />
-          <span
-            className={cx(
-              "truncate text-sm font-bold tracking-wide uppercase",
-              !over && state.activeTeam === "away" ? "text-white" : "text-white/55",
-            )}
-          >
-            away
-          </span>
-        </span>
+        <Side team="away" active={!over && state.activeTeam === "away"} mirrored />
       </div>
 
-      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/8 px-4 py-2 text-xs text-white/70">
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-white/8 px-3 py-1.5 text-xs text-white/70">
         <span className="tabular-nums">
           Turn {state.turn} of {totalTurns(state.rules)}
         </span>

@@ -192,6 +192,10 @@ function TurnFlourish({
 type CellIntent =
   | { kind: "commit"; target: Target; label: string }
   | { kind: "select"; playerId: string; label: string }
+  /* Somebody you cannot command and cannot act on — an opponent, or one of
+     yours on a turn that is not yours. Tapping still tells you what they are,
+     which is the only way to read an opposing shirt's numbers. */
+  | { kind: "inspect"; playerId: string; label: string }
   | { kind: "clear" };
 
 export interface PitchProps {
@@ -219,6 +223,10 @@ export interface PitchProps {
   frozen?: boolean;
   /** The side whose goal is being celebrated over the pitch, if any. */
   goalFor?: Team | null;
+  /** Called when a player is tapped, so a panel can show what they are. */
+  onInspect?: (player: Player) => void;
+  /** False to hide every win-chance badge. Presentation only. */
+  showOdds?: boolean;
   /**
    * Which way round to draw the board.
    *
@@ -257,6 +265,8 @@ export function Pitch({
   frozen = false,
   goalFor = null,
   orientation = "landscape",
+  onInspect,
+  showOdds = true,
 }: PitchProps) {
   const { width, height } = state.board;
 
@@ -340,14 +350,22 @@ export function Pitch({
       style={{ ["--cols" as string]: layout.cols, ["--rows" as string]: layout.rows }}
       animate={shake}
     >
-      <div className="relative">
+      {/* Full height, or the grid's `h-full` resolves against nothing and the
+          board draws as an empty rectangle. */}
+      <div className="relative h-full">
         <div
           role="grid"
           aria-label={`Pitch, ${width} columns by ${height} rows`}
           aria-rowcount={layout.rows}
           aria-colcount={layout.cols}
-          className="relative grid w-full touch-pan-y overflow-hidden rounded-xl select-none"
-          style={{ gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))` }}
+          className="relative grid h-full w-full touch-pan-y overflow-hidden rounded-xl select-none"
+          /* Rows as well as columns, so the grid fills the board it is given
+             rather than deriving its height from square cells. The board's own
+             aspect ratio is what keeps those cells square. */
+          style={{
+            gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${layout.rows}, minmax(0, 1fr))`,
+          }}
           {...drag.handlers}
         >
           {Array.from({ length: layout.rows }, (_unused, row) => (
@@ -402,7 +420,13 @@ export function Pitch({
                                 ? `Deselect ${describe(player, state)}`
                                 : `Select ${player.team} ${ROLE_NAME[player.role]}, ${describe(player, state)}`,
                             }
-                          : { kind: "clear" };
+                          : player
+                            ? {
+                                kind: "inspect",
+                                playerId: player.id,
+                                label: `Inspect ${player.team} ${ROLE_NAME[player.role]}, ${describe(player, state)}`,
+                              }
+                            : { kind: "clear" };
 
                 const actionable = intent.kind !== "clear";
 
@@ -416,10 +440,16 @@ export function Pitch({
                   /* A drag that has just committed still produces a click, and
                      that click would be read as selecting whoever it landed on. */
                   if (drag.swallowNextClick()) return;
+
+                  /* Tapping anybody reports them, whatever else the tap does.
+                     Choosing one of yours is also the commonest way of asking
+                     "what is this player", so the two go together. */
+                  if (player && intent.kind !== "commit") onInspect?.(player);
+
                   if (intent.kind === "commit") onCommit(intent.target.action);
                   else if (intent.kind === "select")
                     onSelect(intent.playerId === selectedId ? null : intent.playerId);
-                  else onSelect(null);
+                  else if (intent.kind === "clear") onSelect(null);
                 };
 
                 const focusTarget = intent.kind === "commit" ? intent.target : null;
@@ -435,7 +465,7 @@ export function Pitch({
                        page, so a phone can still scroll from open grass. */
                     style={selectable ? { touchAction: "none" } : undefined}
                     className={cx(
-                      "relative aspect-square",
+                      "relative",
                       drag.dragging &&
                         drag.over === key &&
                         (drag.overIsTarget
@@ -535,16 +565,16 @@ export function Pitch({
                         />
                       )}
 
-                      {cellTarget?.duel && (
+                      {showOdds && cellTarget?.duel && (
                         <Badge chance={cellTarget.duel.winChance} tone="attack" />
                       )}
-                      {playerTarget?.duel && (
+                      {showOdds && playerTarget?.duel && (
                         <Badge
                           chance={playerTarget.duel.winChance}
                           tone={playerTarget.action.type === "tackle" ? "defend" : "attack"}
                         />
                       )}
-                      {isMouth && y === mouthCentre && targets.shot?.duel && (
+                      {showOdds && isMouth && y === mouthCentre && targets.shot?.duel && (
                         <span
                           aria-hidden
                           className="odds-badge pointer-events-none absolute rounded-md bg-(--color-gold) px-[4px] leading-tight font-extrabold text-amber-950 tabular-nums shadow"
