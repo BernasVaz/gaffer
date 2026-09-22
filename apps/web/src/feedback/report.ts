@@ -148,3 +148,65 @@ export function buildReport({ setup, state, log, notes, origin }: ReportInput): 
 export function reportFilename(setup: MatchSetup): string {
   return `gaffer-feedback-${setup.mode}-seed${setup.seed}.md`;
 }
+
+/** What one saved match contributes to a combined report. */
+export interface ArchiveEntry {
+  /** Which match it was. */
+  setup: MatchSetup;
+  /** The board it reached, replayed from the seed. */
+  state: MatchState;
+  /** Everything played. */
+  log: readonly RecordedEvent[];
+  /** The flagged moments. */
+  notes: readonly FeedbackNote[];
+}
+
+/**
+ * Every match on this device, as one file.
+ *
+ * The thing a tester actually has to hand over. Individual reports are right
+ * when somebody wants to talk about one match, but an alpha session is several
+ * matches and "please send me six files" is how five of them go missing.
+ *
+ * An index first, then each match's full report unchanged, so the combined file
+ * is the single reports concatenated rather than a lesser summary of them —
+ * nothing is dropped on the way in, and every repro link still works.
+ */
+export function buildArchiveReport(entries: readonly ArchiveEntry[], origin: string): string {
+  const notes = entries.reduce((total, entry) => total + entry.notes.length, 0);
+  const lines: string[] = [];
+
+  lines.push(
+    `# Gaffer feedback — ${entries.length} match${entries.length === 1 ? "" : "es"}, ${notes} flagged moment${
+      notes === 1 ? "" : "s"
+    }`,
+    "",
+    `Exported ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC.`,
+    "",
+  );
+
+  if (entries.length === 0) {
+    lines.push("Nothing was saved on this device.", "");
+    return lines.join("\n");
+  }
+
+  lines.push("| Match | Game type | Seed | Flagged |", "| --- | --- | --- | --- |");
+  entries.forEach((entry, position) => {
+    const profile = FORMAT_PROFILES[entry.setup.mode];
+    lines.push(
+      `| ${position + 1} | ${profile.label} | \`${entry.setup.seed}\` | ${entry.notes.length} |`,
+    );
+  });
+  lines.push("", "---", "");
+
+  for (const entry of entries) {
+    lines.push(buildReport({ ...entry, origin }), "", "---", "");
+  }
+
+  return lines.join("\n");
+}
+
+/** A filename for the whole archive. */
+export function archiveFilename(): string {
+  return `gaffer-feedback-all-${new Date().toISOString().slice(0, 10)}.md`;
+}

@@ -19,6 +19,7 @@ import { useState } from "react";
 
 import { Crest } from "../art/Crest";
 import { Footballer } from "../art/Footballer";
+import { FeedbackArchive } from "../feedback/FeedbackArchive";
 import { Button } from "../ui/Button";
 import { Wordmark } from "../ui/Wordmark";
 
@@ -354,6 +355,13 @@ export function SetupScreen({ initial, onStart }: SetupScreenProps) {
         >
           Kick off
         </Button>
+
+        {/* Notes outlive the match they were taken in, so the way back to them
+            has to live somewhere that is not inside a match. This screen is the
+            front door and the place "New match" returns to. */}
+        <div className="flex justify-center">
+          <FeedbackArchive onOpen={onStart} />
+        </div>
       </div>
     </main>
   );

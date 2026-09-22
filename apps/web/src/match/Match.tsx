@@ -19,6 +19,7 @@ import { isCommandable, NO_TARGETS, targetsFor, type Seat, type Target } from ".
 import { Button } from "../ui/Button";
 import { Wordmark } from "../ui/Wordmark";
 import { DownloadReport } from "../feedback/DownloadReport";
+import { FeedbackArchive } from "../feedback/FeedbackArchive";
 import { FlagMoment } from "../feedback/FlagMoment";
 import { loadFeedback } from "../feedback/notes";
 import { useFeedback } from "../feedback/useFeedback";
@@ -319,7 +320,9 @@ export function Match({ setup, replayTo, onLeave }: MatchProps) {
             />
           )}
 
-          <Button tone="quiet" className="ml-auto" onClick={onLeave}>
+          <FeedbackArchive className="ml-auto" />
+
+          <Button tone="quiet" onClick={onLeave}>
             New match
           </Button>
         </div>

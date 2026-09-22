@@ -61,7 +61,25 @@ export interface StoredFeedback {
   log: RecordedEvent[];
   /** The notes themselves. */
   notes: FeedbackNote[];
+  /**
+   * When this was last written, as an epoch millisecond count.
+   *
+   * Optional, and deliberately so: entries saved before this field existed are
+   * still perfectly good feedback, and discarding somebody's notes to tidy up a
+   * schema would be the worst possible trade. The archive sorts what it knows
+   * about first and lists the rest after.
+   */
+  savedAt?: number;
 }
+
+/**
+ * The prefix every match's feedback key starts with.
+ *
+ * One key per match rather than one key for everything, so two matches cannot
+ * overwrite each other and a refresh finds its own. The cost is that nothing
+ * can be found without knowing the rest of the key — which is what the archive
+ * exists to solve, by scanning for this prefix.
+ */
 
 /**
  * Where a match's feedback lives.
@@ -70,8 +88,10 @@ export interface StoredFeedback {
  * and two matches cannot overwrite each other's notes. Everything that changes
  * what is played is in the key, which is the same reason it is all in the link.
  */
+export const FEEDBACK_KEY_PREFIX = "gaffer:feedback:";
+
 export function storageKey(setup: MatchSetup): string {
-  return `gaffer:feedback:${setup.seed}:${setup.mode}:${setup.play}:${setup.side}:${setup.difficulty}:${setup.actions}`;
+  return `${FEEDBACK_KEY_PREFIX}${setup.seed}:${setup.mode}:${setup.play}:${setup.side}:${setup.difficulty}:${setup.actions}`;
 }
 
 /**
@@ -103,7 +123,10 @@ export function loadFeedback(setup: MatchSetup): StoredFeedback | null {
 /** Write a match's feedback, quietly doing nothing if storage refuses. */
 export function saveFeedback(stored: StoredFeedback): void {
   try {
-    window.localStorage.setItem(storageKey(stored.setup), JSON.stringify(stored));
+    window.localStorage.setItem(
+      storageKey(stored.setup),
+      JSON.stringify({ ...stored, savedAt: Date.now() }),
+    );
   } catch {
     /* Private windows, blocked storage, a full quota. A note that cannot be
        saved is still on screen and still makes it into the report; losing the
