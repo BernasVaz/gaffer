@@ -1,4 +1,4 @@
-import { FORMAT_PROFILES, type MatchSetup } from "@gaffer/shared";
+import { FORMAT_PROFILES, type MatchSetup, type RulesStanding } from "@gaffer/shared";
 import { useCallback, useState } from "react";
 
 import { Button } from "../ui/Button";
@@ -20,6 +20,23 @@ import {
 } from "./report";
 
 const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(" ");
+
+/**
+ * What to say about a match played under rules we no longer have.
+ *
+ * The notes are still worth every word — somebody wrote down what they
+ * thought — but the *board* they point at is not the board a replay would
+ * produce, and a link that quietly reopens a different match is worse than one
+ * that says so (ADR 0022).
+ */
+const STANDING_NOTE: Readonly<Record<RulesStanding, string | null>> = {
+  current: null,
+  older:
+    "Played under older rules — the notes hold, but replaying it will not reproduce the board they describe.",
+  newer: "Played under newer rules than this build has. Replaying it may be refused part-way.",
+  unknown:
+    "Saved before matches recorded which rules they were played under, so this one cannot be placed.",
+};
 
 /** How a saved match's date reads, or nothing when the entry predates the field. */
 function when(savedAt: number | undefined): string | null {
@@ -84,6 +101,12 @@ function SavedRow({
           {saved.notes
             .map((note) => (note.note.trim().length > 0 ? note.note.trim() : "(no words)"))
             .join(" · ")}
+        </p>
+      )}
+
+      {STANDING_NOTE[saved.standing] !== null && (
+        <p className="mt-1.5 text-[0.7rem] leading-snug text-amber-300/80">
+          {STANDING_NOTE[saved.standing]}
         </p>
       )}
 

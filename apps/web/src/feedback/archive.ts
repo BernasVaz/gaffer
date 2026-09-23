@@ -2,8 +2,10 @@ import {
   DuelSchema,
   MatchCommandSchema,
   MatchSetupSchema,
+  rulesStanding,
   ScoreSchema,
   TeamSchema,
+  type RulesStanding,
 } from "@gaffer/shared";
 import { z } from "zod";
 
@@ -45,6 +47,10 @@ export interface SavedMatch {
   notes: FeedbackNote[];
   /** When it was last written, if the entry is new enough to say. */
   savedAt: number | undefined;
+  /** Which edition of the rules it was played under, if it says. */
+  rulesVersion: number | undefined;
+  /** Whether replaying it now would reproduce what was actually played. */
+  standing: RulesStanding;
   /** How many stored items were unreadable and left out. */
   dropped: number;
 }
@@ -101,6 +107,10 @@ export function readSavedMatch(key: string, raw: string): SavedMatch | null {
     log: log.kept,
     notes: notes.kept,
     savedAt: typeof record.savedAt === "number" ? record.savedAt : undefined,
+    rulesVersion: typeof record.rulesVersion === "number" ? record.rulesVersion : undefined,
+    standing: rulesStanding(
+      typeof record.rulesVersion === "number" ? record.rulesVersion : undefined,
+    ),
     dropped: log.dropped + notes.dropped,
   };
 }

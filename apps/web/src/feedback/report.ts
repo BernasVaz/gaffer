@@ -1,4 +1,10 @@
-import { FORMAT_PROFILES, setupToQuery, type MatchSetup, type MatchState } from "@gaffer/shared";
+import {
+  FORMAT_PROFILES,
+  RULES_VERSION,
+  setupToQuery,
+  type MatchSetup,
+  type MatchState,
+} from "@gaffer/shared";
 
 import { describeEvent } from "../match/describe";
 import type { RecordedEvent } from "../match/useMatch";
@@ -74,6 +80,7 @@ export function buildReport({ setup, state, log, notes, origin }: ReportInput): 
     `| Outcome | ${outcome(state)} |`,
     `| Length | turn ${state.turn} · ${log.length} actions |`,
     `| Match link | ${replayLink(setup, origin)} |`,
+    `| Rules edition | ${RULES_VERSION} |`,
     "",
   );
 
