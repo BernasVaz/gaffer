@@ -896,3 +896,46 @@ test.describe("the board fits the screen", () => {
     await expect(grid).toHaveAttribute("aria-colcount", "5");
   });
 });
+
+/**
+ * The clock says what phase the match is in.
+ *
+ * Regulation counts to the turn cap and nothing else; extra time is a separate
+ * count that begins at one, and it only exists for a match that was level when
+ * regulation ran out (ADR 0020).
+ */
+test.describe("the match clock", () => {
+  test("counts regulation to the turn cap", async ({ page }) => {
+    await page.goto("./?seed=5&mode=5v5&play=hotseat");
+
+    const board = page.getByLabel("Scoreboard");
+    await expect(board).toContainText("Turn 1 of 24");
+    await expect(board).not.toContainText("extra time");
+
+    // And it is still the cap a few turns in, not a number that includes extra time.
+    await page.getByRole("button", { name: "End turn" }).click();
+    await expect(board).toContainText("Turn 2 of 24");
+    await expect(board).not.toContainText(/of 32/);
+  });
+
+  test("names extra time, and counts it from one", async ({ page }) => {
+    test.slow();
+
+    /* Played out rather than constructed: the only way into extra time is to be
+       level when regulation ends, which is a property of the match, not a state
+       a link can ask for. A goalless seed gets there. */
+    await page.goto("./?seed=5&mode=5v5&play=hotseat");
+    const board = page.getByLabel("Scoreboard");
+
+    for (let turn = 0; turn < 24; turn += 1) {
+      const end = page.getByRole("button", { name: "End turn" });
+      if (!(await end.isEnabled())) break;
+      await end.click();
+    }
+
+    // Level after 24 turns of nothing, so extra time begins.
+    await expect(board).toContainText("extra time");
+    await expect(board).toContainText("Turn 1 of 8");
+    await expect(board).not.toContainText("Turn 25");
+  });
+});
