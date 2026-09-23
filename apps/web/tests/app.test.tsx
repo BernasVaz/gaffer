@@ -5,7 +5,7 @@ import {
   legalActions,
   previewDuel,
 } from "@gaffer/engine";
-import { DEFAULT_BOARD, DEFAULT_SETUP, FORMAT_PROFILES, totalTurns } from "@gaffer/shared";
+import { DEFAULT_BOARD, DEFAULT_SETUP, FORMAT_PROFILES } from "@gaffer/shared";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -227,8 +227,10 @@ describe("hotseat", () => {
     await user.click(screen.getByRole("button", { name: "End turn" }));
 
     expect(screen.getByText(/away to play/)).toBeInTheDocument();
+    /* Regulation counts to the cap, not to the cap plus an extra time most
+       matches never reach (ADR 0020). */
     expect(
-      screen.getByText(`Turn 2 of ${totalTurns(FORMAT_PROFILES["5v5"].rules)}`),
+      screen.getByText(`Turn 2 of ${FORMAT_PROFILES["5v5"].rules.turnCap}`),
     ).toBeInTheDocument();
   });
 });

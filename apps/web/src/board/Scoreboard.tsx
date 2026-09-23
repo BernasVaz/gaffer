@@ -1,6 +1,7 @@
-import { totalTurns, type MatchState, type Team } from "@gaffer/shared";
+import type { MatchState, Team } from "@gaffer/shared";
 
 import { Crest } from "../art/Crest";
+import { matchClock } from "./clock";
 import { useOrientation } from "./orientation";
 
 const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(" ");
@@ -88,7 +89,11 @@ export function Scoreboard({
   /** The side that has just scored, so the new number lands rather than appears. */
   scoredBy?: Team | null;
 }) {
-  const inExtraTime = state.turn > state.rules.turnCap;
+  /* Regulation counts to the cap and extra time counts itself — see
+     `matchClock`. A denominator that included extra time made every match look
+     as though it had stopped short of a phase most of them never enter. */
+  const clock = matchClock(state.turn, state.rules);
+  const inExtraTime = clock.phase === "extraTime";
   const over = state.result !== null;
 
   return (
@@ -114,14 +119,14 @@ export function Scoreboard({
       </div>
 
       <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-white/8 px-3 py-1.5 text-xs text-white/70">
-        <span className="tabular-nums">
-          Turn {state.turn} of {totalTurns(state.rules)}
-        </span>
         {inExtraTime && (
           <span className="rounded-full bg-(--color-gold)/20 px-2 py-0.5 text-[0.65rem] font-bold tracking-wider text-(--color-gold) uppercase">
             extra time
           </span>
         )}
+        <span className="tabular-nums">
+          Turn {clock.turn} of {clock.of}
+        </span>
         <span aria-hidden className="text-white/20">
           |
         </span>
