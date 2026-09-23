@@ -1,5 +1,11 @@
 import { applyAction, createInitialState, createRng, legalActions } from "@gaffer/engine";
-import { DEFAULT_SETUP, parseSeed, type MatchCommand, type MatchSetup } from "@gaffer/shared";
+import {
+  DEFAULT_SETUP,
+  parseSeed,
+  RULES_VERSION,
+  type MatchCommand,
+  type MatchSetup,
+} from "@gaffer/shared";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -294,5 +300,72 @@ describe("forgetting", () => {
     forgetSavedMatch(storageKey(setupFor({ seed: 1 })));
 
     expect(listSavedMatches().map((match) => match.setup.seed)).toEqual([2]);
+  });
+});
+
+describe("which rules a match was played under", () => {
+  const setup = setupFor({ seed: 31 });
+
+  it("is stamped on everything saved from now on", () => {
+    store(setup, [note()]);
+
+    const [found] = listSavedMatches();
+    expect(found?.rulesVersion).toBe(RULES_VERSION);
+    expect(found?.standing).toBe("current");
+  });
+
+  it("says it cannot place a match saved before the stamp existed", () => {
+    /* The entries that already exist on testers' devices. They must keep
+       loading — the notes are the point — and the archive says plainly that it
+       cannot vouch for replaying them. */
+    window.localStorage.setItem(
+      storageKey(setup),
+      JSON.stringify({ version: 1, setup, log: [], notes: [note()] }),
+    );
+
+    const [found] = listSavedMatches();
+    expect(found?.notes).toHaveLength(1);
+    expect(found?.rulesVersion).toBeUndefined();
+    expect(found?.standing).toBe("unknown");
+  });
+
+  it("marks a match played under older rules", () => {
+    window.localStorage.setItem(
+      storageKey(setup),
+      JSON.stringify({ version: 1, setup, log: [], notes: [note()], rulesVersion: 0 }),
+    );
+
+    expect(listSavedMatches()[0]?.standing).toBe("older");
+  });
+
+  it("warns about it in the panel rather than hiding the match", async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem(
+      storageKey(setup),
+      JSON.stringify({ version: 1, setup, log: [], notes: [note()], rulesVersion: 0 }),
+    );
+
+    render(<FeedbackArchive />);
+    await user.click(screen.getByRole("button", { name: "My feedback" }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/Played under older rules/)).toBeInTheDocument();
+    // The notes are still there, and still exportable.
+    expect(within(dialog).getByRole("button", { name: "Report" })).toBeInTheDocument();
+  });
+
+  it("puts the edition in the report, so a handed-over match can be placed", () => {
+    store(setup, [note()]);
+    const saved = listSavedMatches()[0]!;
+
+    const report = buildReport({
+      setup: saved.setup,
+      state: replaySavedMatch(saved).state,
+      log: saved.log,
+      notes: saved.notes,
+      origin: "https://example.test/gaffer/",
+    });
+
+    expect(report).toContain(`| Rules edition | ${RULES_VERSION} |`);
   });
 });

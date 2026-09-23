@@ -1,4 +1,4 @@
-import type { MatchSetup } from "@gaffer/shared";
+import { RULES_VERSION, type MatchSetup } from "@gaffer/shared";
 
 import type { RecordedEvent } from "../match/useMatch";
 
@@ -61,6 +61,15 @@ export interface StoredFeedback {
   log: RecordedEvent[];
   /** The notes themselves. */
   notes: FeedbackNote[];
+  /**
+   * Which edition of the rules this match was played under.
+   *
+   * Optional for the same reason `savedAt` is: entries saved before it existed
+   * are still perfectly good feedback, and discarding somebody's notes to tidy
+   * up a schema would be the worst possible trade. An absent value means
+   * "cannot be placed", which the archive says out loud rather than guessing.
+   */
+  rulesVersion?: number;
   /**
    * When this was last written, as an epoch millisecond count.
    *
@@ -125,7 +134,7 @@ export function saveFeedback(stored: StoredFeedback): void {
   try {
     window.localStorage.setItem(
       storageKey(stored.setup),
-      JSON.stringify({ ...stored, savedAt: Date.now() }),
+      JSON.stringify({ ...stored, rulesVersion: RULES_VERSION, savedAt: Date.now() }),
     );
   } catch {
     /* Private windows, blocked storage, a full quota. A note that cannot be
