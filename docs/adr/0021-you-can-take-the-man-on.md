@@ -54,35 +54,38 @@ changed nothing — 1.32 goals and 0.99 through-dribbles either way, because the
 was already only taking them forward. The restriction would have cost a legitimate
 option (beating a man to escape a corner) for nothing.
 
-## Consequences — including a gate that did not pass
+## Consequences
 
-200 self-play matches per arm at 5-a-side, against a rebuilt engine:
+Taking the man on is **half** of the change. On its own it costs the match goals, and
+the second half — a won dribble carrying on one more cell (ADR 0023) — is what pays them
+back. The two shipped together, and the table below is the progression across both.
 
-|                                  | baseline | with the rule |
-| -------------------------------- | -------- | ------------- |
-| **goals per match**              | **1.51** | **1.32**      |
-| shots per match                  | 2.61     | 2.39          |
-| shot conversion                  | 58.0%    | 55.4%         |
-| **dribbles per match**           | **0.79** | **1.78**      |
-| through-the-man per match        | 0.00     | **1.01**      |
-| …won                             | —        | 60.6%         |
-| progression by a won dribble     | 0.47     | 1.01          |
-| progression by a pass            | 7.09     | 6.33          |
-| **dribble share of progression** | **6.2%** | **13.8%**     |
+600 self-play matches per arm at 5-a-side, each against a freshly rebuilt engine:
 
-**What passed.** Dribbling is a real choice: played more than twice as often, and the
-"man in front" case now happens about once a match from nothing. Passing still does
-**86%** of progression, so dribbling has not overtaken it.
+|                                  | baseline | take the man on | **+ carry on** |
+| -------------------------------- | -------- | --------------- | -------------- |
+| **goals per match**              | **1.45** | 1.32            | **1.43**       |
+| shots per match                  | 2.68     | 2.39            | 2.44           |
+| shot conversion                  | 54.1%    | 55.4%           | 58.8%          |
+| **dribbles per match**           | **0.71** | 1.78            | **2.05**       |
+| through-the-man per match        | 0.00     | 1.01            | **1.35**       |
+| …won                             | —        | 60.6%           | 61.0%          |
+| progression by a pass            | 6.95     | 6.33            | 6.25           |
+| **dribble share of progression** | **5.1%** | 13.8%           | **15.0%**      |
 
-**What did not.** Goals per match fall **1.51 → 1.32, a 13% drop**. The cause is
-mechanical: dribbling is attractive, so more are taken, ~40% are lost, and each loss is
-a turnover — possessions end sooner and shots fall with them. Two levers were tried and
-neither recovered it (the covering rate is within noise; forward-only changes nothing).
+**Taking the man on alone costs about a tenth of the goals.** Mechanically: dribbling
+becomes attractive, so more are taken, about 40% are lost, and each loss is a turnover —
+possessions end sooner and shots fall with them. Two levers were tried against it and
+neither recovered anything (the covering rate is within noise; restricting it to the
+attacking direction changes nothing at all). What recovers it is giving a won dribble
+something to be worth.
 
-1.32 is still inside the GDD's stated target of 1–3 goals a match, and well clear of the
-0.60 that ADR 0007 treated as the problem. It is **not** within a hair of the 1.50 that
-ADR 0007 settled on. Which of those two readings "stays in its healthy band" means is
-Bernardo's call, and this ADR does not pretend otherwise.
+**A correction worth recording.** The first report of this put the baseline at **1.51**
+and the drop at 13%. That baseline was a 200-match estimate running high; measured over
+600 it is **1.45**, so the drop was nearer 9%. The middle column did not move — only
+what it was being compared against did. Two hundred matches is not enough to argue about
+a tenth of a goal, and this ADR would otherwise have recorded a sharper regression than
+ever existed.
 
 **One AI test changed meaning rather than being weakened.** The opponent's keeper
 regression asserted `strayed === 0` across a single match. Its stated concern is a keeper

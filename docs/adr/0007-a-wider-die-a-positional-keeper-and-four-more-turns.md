@@ -144,3 +144,14 @@ And the match, over 150 self-play matches at `pro`:
 - The 62% kickoff advantage becomes something players notice and resent, in which case the
   lever is the kickoff position itself, not the duel maths.
 - Squad-building arrives. Every number here assumes both sides field the identical five.
+
+---
+
+## Clarification — 2026-09-23
+
+Added as a dated note rather than an edit, because an accepted ADR is not rewritten
+(`docs/engineering.md`). It settles a reading that came up twice while tuning dribbling:
+
+> **The goals-per-match health target is ~1.50.** The 1–3 range quoted elsewhere is the
+> _acceptable envelope_, not the target. A change that lands at 1.3 is inside the
+> envelope and is still a regression against the number this ADR settled on.

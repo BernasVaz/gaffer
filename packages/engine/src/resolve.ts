@@ -1,5 +1,7 @@
 import {
   DUEL_DIE_SIDES,
+  goalMouthOwner,
+  isWithinBoard,
   opponentOf,
   type Action,
   type Duel,
@@ -42,6 +44,48 @@ function rollDuel(duelPreview: DuelPreview, rng: Rng): Duel {
     // Strictly higher: a tie goes to the defender (GDD §9).
     attackerWon: attackerTotal > defenderTotal,
   };
+}
+
+/**
+ * Where a won dribble actually finishes.
+ *
+ * One cell further than it was aimed at, in the direction it was going — you
+ * knock it past him and run on. Only when that cell is on the board, empty, and
+ * one this player may stand on; otherwise the run simply ends where it was
+ * aimed.
+ *
+ * This is what stopped dribbling being a tax. Taking the man on (ADR 0021) gave
+ * a dribble a destination a move could not reach, but every dribble was still
+ * paying a duel for ground a move would have covered for free — and 5-a-side
+ * lost a seventh of its goals to the turnovers that bought. Winning now buys
+ * ground (GDD §7, ADR 0023).
+ *
+ * Composes with the through-the-man case: beating the defender in front carries
+ * the carrier past him *and* on, which is the one run in the game a move could
+ * never make.
+ */
+function carriedOn(state: MatchState, actor: Player, target: Position): Position {
+  const step = {
+    x: Math.sign(target.x - actor.position.x),
+    y: Math.sign(target.y - actor.position.y),
+  };
+  if (step.x === 0 && step.y === 0) return target;
+
+  const beyond = { x: target.x + step.x, y: target.y + step.y };
+  if (!isWithinBoard(beyond, state.board)) return target;
+
+  const blocked = state.players.some(
+    (player) =>
+      player.id !== actor.id && player.position.x === beyond.x && player.position.y === beyond.y,
+  );
+  if (blocked) return target;
+
+  /* A goal mouth is what a shot is aimed into, not somewhere a player stands —
+     only the keeper defending it may be there (GDD §7). */
+  const owner = goalMouthOwner(beyond, state.board);
+  if (owner !== null && !(actor.team === owner && actor.role === "goalkeeper")) return target;
+
+  return beyond;
 }
 
 /** Move one player, leaving everything else alone. */
@@ -114,7 +158,7 @@ function afterGoal(state: MatchState, scoringTeam: Team): MatchState {
  * | Action | Attacker wins | Attacker loses |
  * |---|---|---|
  * | Move | relocates, carrying the ball if it has it | — |
- * | Dribble | advances with the ball | turnover: the defender takes the ball where it stands, and the carrier does not advance |
+ * | Dribble | advances with the ball, **and one cell further** in the direction of travel when that cell is free | turnover: the defender takes the ball where it stands, and the carrier does not advance |
  * | Pass | the receiver collects it | the interceptor collects it |
  * | Launch | the receiver collects it | the interceptor collects it |
  * | Tackle | the tackler wins the ball | the carrier keeps it |
@@ -154,7 +198,7 @@ export function resolveAction(state: MatchState, action: Action, rng: Rng): Reso
 
     case "dribble": {
       if (attackerWon) {
-        const moved = movePlayer(state, actor.id, action.target);
+        const moved = movePlayer(state, actor.id, carriedOn(state, actor, action.target));
         return { state: giveBallTo(moved, actor.id), duel };
       }
       // A turnover: the challenge won the ball, and the run does not happen.

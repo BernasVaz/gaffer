@@ -144,7 +144,9 @@ describe("what beating him does", () => {
       const striker = result.state.players.find((p) => p.id === "home-striker-1")!;
 
       if (result.duel!.attackerWon) {
-        expect(striker.position).toEqual({ x: 4, y: 2 });
+        /* Through the man on (3,2), onto (4,2), and carried on to (5,2) —
+           winning buys ground as well as the beating (ADR 0023). */
+        expect(striker.position).toEqual({ x: 5, y: 2 });
         expect(result.state.ball.carrierId).toBe("home-striker-1");
         seen.add("won");
       } else {
@@ -173,7 +175,7 @@ describe("what beating him does", () => {
     }
   });
 
-  it("moves the carrier exactly two cells, never one", () => {
+  it("carries the carrier three cells: past him, and on", () => {
     const state = manInFront();
     const through = dribbles(state, "home-striker-1").find(
       (action) => action.type === "dribble" && action.target.x === 4 && action.target.y === 2,
@@ -184,7 +186,7 @@ describe("what beating him does", () => {
     if (!result.duel!.attackerWon) return;
 
     const striker = result.state.players.find((p) => p.id === "home-striker-1")!;
-    expect(chebyshevDistance({ x: 2, y: 2 }, striker.position)).toBe(2);
+    expect(chebyshevDistance({ x: 2, y: 2 }, striker.position)).toBe(3);
   });
 
   it("replays identically from the same seed", () => {
@@ -197,5 +199,124 @@ describe("what beating him does", () => {
     };
 
     expect(JSON.stringify(play())).toBe(JSON.stringify(play()));
+  });
+});
+
+describe("a won dribble carries on", () => {
+  /** A carrier with an ordinary contested run into open space. */
+  const contestedRun = () =>
+    makeState([
+      { team: "home", role: "goalkeeper", at: [0, 2] },
+      { team: "home", role: "midfielder", at: [2, 2], ball: true },
+      { team: "away", role: "winger", at: [2, 3] },
+      { team: "away", role: "goalkeeper", at: [6, 2] },
+    ]);
+
+  /** The one dribble aimed at a given cell. */
+  const aimedAt = (state: MatchState, playerId: string, x: number, y: number) =>
+    dribbles(state, playerId).find(
+      (action) => action.type === "dribble" && action.target.x === x && action.target.y === y,
+    );
+
+  it("takes an ordinary won dribble one cell past where it was aimed", () => {
+    /* The other half of the change: every won dribble buys ground, not only
+       the ones that go through somebody. Without this, a dribble still paid a
+       duel for ground a move covers for free. */
+    const state = contestedRun();
+    const run = aimedAt(state, "home-midfielder-1", 3, 2)!;
+    expect(run).toBeDefined();
+
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const result = applyAction(contestedRun(), run, createRng(seed));
+      if (!result.ok) throw new Error("refused");
+
+      const carrier = result.state.players.find((p) => p.id === "home-midfielder-1")!;
+      if (result.duel!.attackerWon) {
+        expect(carrier.position).toEqual({ x: 4, y: 2 });
+      } else {
+        expect(carrier.position).toEqual({ x: 2, y: 2 });
+      }
+    }
+  });
+
+  it("stops where it was aimed when the cell beyond is taken", () => {
+    const crowded = makeState([
+      { team: "home", role: "goalkeeper", at: [0, 2] },
+      { team: "home", role: "midfielder", at: [2, 2], ball: true },
+      { team: "home", role: "striker", at: [4, 2] },
+      { team: "away", role: "winger", at: [2, 3] },
+      { team: "away", role: "goalkeeper", at: [6, 2] },
+    ]);
+
+    const run = aimedAt(crowded, "home-midfielder-1", 3, 2)!;
+    const result = applyAction(crowded, run, createRng(7));
+    if (!result.ok) throw new Error("refused");
+    if (!result.duel!.attackerWon) return;
+
+    expect(result.state.players.find((p) => p.id === "home-midfielder-1")!.position).toEqual({
+      x: 3,
+      y: 2,
+    });
+  });
+
+  it("stops at the touchline rather than running off it", () => {
+    const edge = makeState([
+      { team: "home", role: "goalkeeper", at: [0, 2] },
+      { team: "home", role: "midfielder", at: [2, 1], ball: true },
+      { team: "away", role: "winger", at: [2, 2] },
+      { team: "away", role: "goalkeeper", at: [6, 2] },
+    ]);
+
+    const run = aimedAt(edge, "home-midfielder-1", 2, 0)!;
+    expect(run).toBeDefined();
+
+    const result = applyAction(edge, run, createRng(4));
+    if (!result.ok) throw new Error("refused");
+    if (!result.duel!.attackerWon) return;
+
+    expect(result.state.players.find((p) => p.id === "home-midfielder-1")!.position).toEqual({
+      x: 2,
+      y: 0,
+    });
+  });
+
+  it("never carries an outfielder into a goal mouth", () => {
+    /* A mouth is what a shot is aimed into, not somewhere anybody stands. */
+    const nearGoal = makeState([
+      { team: "home", role: "goalkeeper", at: [0, 2] },
+      { team: "home", role: "striker", at: [4, 2], ball: true },
+      { team: "away", role: "winger", at: [4, 3] },
+      { team: "away", role: "goalkeeper", at: [6, 1] },
+    ]);
+
+    const run = aimedAt(nearGoal, "home-striker-1", 5, 2)!;
+    expect(run).toBeDefined();
+
+    const result = applyAction(nearGoal, run, createRng(6));
+    if (!result.ok) throw new Error("refused");
+    if (!result.duel!.attackerWon) return;
+
+    expect(result.state.players.find((p) => p.id === "home-striker-1")!.position).toEqual({
+      x: 5,
+      y: 2,
+    });
+  });
+
+  it("leaves a lost dribble exactly where it was", () => {
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const result = applyAction(
+        contestedRun(),
+        aimedAt(contestedRun(), "home-midfielder-1", 3, 2)!,
+        createRng(seed),
+      );
+      if (!result.ok) throw new Error("refused");
+      if (result.duel!.attackerWon) continue;
+
+      expect(result.state.players.find((p) => p.id === "home-midfielder-1")!.position).toEqual({
+        x: 2,
+        y: 2,
+      });
+      expect(result.state.ball.carrierId).toBe("away-winger-2");
+    }
   });
 });
