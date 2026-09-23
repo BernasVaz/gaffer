@@ -263,6 +263,47 @@ the pitch being too big for the movement, not the turn cap or the action economy
 the search cost proves fatal, the cheaper alternative is to shrink the 11-a-side board
 rather than lengthen everybody's legs.
 
+### Re-measured, 2026-09-23 — both halves of the above are now wrong
+
+Re-run after ADR 0018 (kickoff is a pass), ADR 0021 (take the man on) and ADR 0023 (a
+won dribble carries on), at **60 matches an arm on matched seeds**, each against a
+freshly built engine:
+
+|                       | shipped    | off 5 / on role | off 5 / on 3 |
+| --------------------- | ---------- | --------------- | ------------ |
+| goals per match       | **1.55**   | 1.97            | 1.75         |
+| goalless matches      | 10.0%      | 6.7%            | **3.3%**     |
+| shots per match       | 2.77       | 3.63            | 3.52         |
+| turns per match       | 46.9 of 58 | 45.8            | 46.9         |
+| **AI time per match** | **6.14 s** | 8.75 s          | **8.67 s**   |
+| AI time per decision  | 33 ms      | 48 ms           | 47 ms        |
+| legal actions offered | 109.3      | 132.2           | 129.8        |
+
+**The 30× slowdown does not reproduce.** The shipped arm lands on 6.14 s against the
+6.2 s recorded above — the harness is measuring the same thing the original did — and
+the treatment costs **1.41×**, not 30×. The most likely explanation is that the
+original patch let a player reach _every_ cell within range rather than along the eight
+rays the rule actually uses, which both explodes the search and is a different rule; it
+is recorded here rather than resolved, because the patch was not kept.
+
+**And the problem the change was for has already been solved.** 11-a-side's complaint
+was 1.12 goals a match and one match in seven goalless. It now plays at **1.55 goals and
+10% goalless** with no movement change at all — which is ADR 0007's target (1.50 / 9%)
+to within the noise of this sample. Dribbling did it: a big pitch punished a carrier
+who could not beat the man in front, and 11-a-side had that man there for 36% of carrier
+moments against 5-a-side's 28%.
+
+Applying the movement change now moves 11-a-side **away** from the goals target rather
+than towards it. Of the two treatments, `off 5 / on 3` is the better: fewer goalless
+matches than either, and less overshoot than off-ball alone — carrying the ball costing
+you something is doing real work.
+
+**Recommendation: do not ship it.** 11-a-side is on target, and the search cut this
+section asked for is not needed at 33 ms a decision. Revisit only if a big pitch still
+_feels_ untraversable in play, which is a judgement the numbers cannot make — and note
+that 60 matches an arm separates 1.55 from 1.97 but not 1.75 from 1.97, so a lock-in
+decision wants 200.
+
 ---
 
 ## 4. New actions
@@ -383,9 +424,9 @@ Everything above interacts, so the order matters more than the list:
 8. **Cards / sin-bin**, **counter-attack**, **feints** — last, and only if the earlier
    changes have not already made the midfield interesting.
 
-**11-a-side movement sits outside this order**, because its blocker is not a rules
-question but the search cost (§3b). It should be taken whenever somebody is willing to
-re-tune the opponent, and not before.
+**11-a-side movement sits outside this order** — and, on the 2026-09-23 re-measurement
+(§3b), off it. Its blocker was never the search cost, which is 1.4× rather than 30×, and
+the football it was meant to fix now plays on target without it.
 
 ---
 
@@ -398,7 +439,7 @@ Honest accounting, because half of this is arithmetic and half is observation.
 | 1 · Dribbling           | **measured** — 120 self-play matches, 6,323 carrier moments                     |
 | 2 · Bent passes         | **measured** — 45,983 team-mate sightings                                       |
 | 3 · Match completion    | **measured** — 120 matches, no early finish in any of them                      |
-| 3b · 11-a-side movement | **measured** — 40 matches with the rule patched in, against 40 without          |
+| 3b · 11-a-side movement | **measured twice** — 40 matches an arm, then 60 an arm after the dribble rules  |
 | 4 · New actions         | **design only**, except keeper distribution which shipped with data in ADR 0015 |
 | 5 · Cards               | **design only** — there is nothing to measure until a foul exists               |
 | 6 · Keeper's area       | **design only** — the zone table is arithmetic from `GOAL_MOUTH_HEIGHT`         |
