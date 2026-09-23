@@ -298,6 +298,21 @@ export function Pitch({
   );
   const mouthCentre = height >> 1;
 
+  /**
+   * Cells a dribble would carry the ball on to, past the one it is aimed at.
+   *
+   * Drawn as a second, fainter ring so the run reads as the two cells it is
+   * (ADR 0023). Without it the board rings the man being gone through and says
+   * nothing about the ground beyond him, which understates every dribble on
+   * offer.
+   */
+  const carryCells = new Set(
+    [...targets.cells.values()]
+      .map((target) => target.carriesTo)
+      .filter((cell) => cell !== null)
+      .map(cellKey),
+  );
+
   const still = useReducedMotion() ?? false;
   const shake = useAnimationControls();
 
@@ -395,8 +410,10 @@ export function Pitch({
                         kind: "commit",
                         target: cellTarget,
                         label: `${cellTarget.action.type === "dribble" ? "Dribble" : "Move"} to column ${x}, row ${y}${
-                          cellTarget.duel ? `, ${pct(cellTarget.duel.winChance)} chance` : ""
-                        }`,
+                          cellTarget.carriesTo
+                            ? `, on to column ${cellTarget.carriesTo.x}, row ${cellTarget.carriesTo.y} if you win`
+                            : ""
+                        }${cellTarget.duel ? `, ${pct(cellTarget.duel.winChance)} chance` : ""}`,
                       }
                     : playerTarget && player
                       ? {
@@ -506,6 +523,14 @@ export function Pitch({
                         actionable && "cursor-pointer",
                       )}
                     >
+                      {/* Where a won dribble would carry on to. */}
+                      {!cellTarget && carryCells.has(key) && (
+                        <span
+                          aria-hidden
+                          className="absolute inset-[30%] rounded-full border border-dashed border-amber-200/50"
+                        />
+                      )}
+
                       {/* An empty destination. */}
                       {cellTarget && (
                         <m.span

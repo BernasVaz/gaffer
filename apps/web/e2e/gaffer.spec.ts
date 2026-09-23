@@ -1034,4 +1034,33 @@ test.describe("dribbling past your man", () => {
       if (to) expect(occupied.has(`${to.x},${to.y}`), `${label} lands on somebody`).toBe(false);
     }
   });
+
+  test("tells you where a won dribble would carry the ball on to", async ({ page }) => {
+    await page.goto("./?seed=11&mode=5v5&play=hotseat&actions=4");
+    await takeKickoff(page);
+    await selectCarrier(page);
+
+    /* A dribble is aimed at one cell and, won, finishes on the next (ADR 0023).
+       The board has to say so: the odds were always honest, the prize was not. */
+    const carrying = page.getByRole("button", {
+      name: /^Dribble to column \d+, row \d+, on to column \d+, row \d+ if you win/,
+    });
+
+    expect(await carrying.count(), "no dribble named its carry-on cell").toBeGreaterThan(0);
+
+    const label = (await carrying.first().getAttribute("aria-label")) ?? "";
+    const cells = [...label.matchAll(/column (\d+), row (\d+)/g)].map((found) => ({
+      x: Number(found[1]),
+      y: Number(found[2]),
+    }));
+
+    // One step further along, and never the cell it already named.
+    const [aimed, on] = cells as [{ x: number; y: number }, { x: number; y: number }];
+    expect(Math.abs(on.x - aimed.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(on.y - aimed.y)).toBeLessThanOrEqual(1);
+    expect(on).not.toEqual(aimed);
+
+    await carrying.first().click();
+    await expectNoRuleBug(page);
+  });
 });
