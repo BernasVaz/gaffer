@@ -6,6 +6,7 @@ import {
   defendingGoalMouth,
   duelWinChance,
   LAUNCH_INTERCEPT_BONUS,
+  THROUGH_COVERING_BONUS,
   SHOOT_COVERING_BONUS,
   type Action,
   type DuelPreview,
@@ -44,6 +45,35 @@ function laneBetween(from: Position, to: Position): Position[] | null {
     x: from.x + stepX * (index + 1),
     y: from.y + stepY * (index + 1),
   }));
+}
+
+/**
+ * The opponent being gone *through*, when a dribble is taking somebody on.
+ *
+ * A dribble that ends two cells away on a straight ray, with an opponent on the
+ * cell in between, is the through-ball of dribbles — and the duel is against
+ * *that* player, whatever else is standing nearby. Anyone else adjacent covers.
+ *
+ * Derived from the geometry rather than carried on the action, so a client
+ * cannot claim to be beating a defender it is not actually going past.
+ */
+function manBeingBeaten(state: MatchState, actor: Player, target: Position): Player | undefined {
+  if (chebyshevDistance(actor.position, target) !== 2) return undefined;
+
+  const dx = Math.sign(target.x - actor.position.x);
+  const dy = Math.sign(target.y - actor.position.y);
+
+  // Only a straight ray can have a single cell in between.
+  if (actor.position.x + dx * 2 !== target.x) return undefined;
+  if (actor.position.y + dy * 2 !== target.y) return undefined;
+
+  const between = { x: actor.position.x + dx, y: actor.position.y + dy };
+  return state.players.find(
+    (player) =>
+      player.team !== actor.team &&
+      player.position.x === between.x &&
+      player.position.y === between.y,
+  );
 }
 
 /** Opponents of `team` standing next to any of `cells`, each listed once. */
@@ -146,15 +176,27 @@ export function previewDuel(state: MatchState, action: Action): DuelPreview | nu
       const candidates = opponentsBeside(state, actor.team, [actor.position, action.target]);
       if (candidates.length === 0) return null;
 
-      const primary = primaryDefender(candidates);
+      /*
+       * Going through somebody is a duel with *that* somebody, whatever else
+       * is standing nearby. The players either side are partly being left
+       * behind by the same movement, so they cover at half the open-play rate
+       * — see {@link THROUGH_COVERING_BONUS} for what each of the three
+       * possible rates was measured to do.
+       *
+       * Otherwise, the strongest opponent beside the run leads it as before,
+       * with the rest covering.
+       */
+      const beaten = manBeingBeaten(state, actor, action.target);
+      const primary = beaten ?? primaryDefender(candidates);
       const covering = candidates.filter((player) => player.id !== primary.id);
+      const rate = beaten ? THROUGH_COVERING_BONUS : COVERING_DEFENDER_BONUS;
 
       return preview(
         { playerId: actor.id, stat: actor.stats.atk, modifier: 0 },
         {
           playerId: primary.id,
           stat: primary.stats.def,
-          modifier: COVERING_DEFENDER_BONUS * covering.length,
+          modifier: rate * covering.length,
         },
         covering,
       );

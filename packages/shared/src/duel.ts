@@ -51,6 +51,20 @@ export const SHOOT_COVERING_BONUS = 1;
 export const LAUNCH_INTERCEPT_BONUS = 1;
 
 /**
+ * What each covering defender adds when a carrier goes *through* the man in
+ * front (GDD §7, ADR 0021).
+ *
+ * Half the open-play rate, and measured rather than guessed. The players either
+ * side of a body swerve are partly being left behind by the same movement, so
+ * charging them the full {@link COVERING_DEFENDER_BONUS} prices a tackle that
+ * is only half happening — at +2 the change cost 5-a-side a ninth of its goals.
+ * Charging nothing at all is worse in the other direction: through-balls then
+ * win four times in five and dribbling takes over from passing as the way the
+ * ball moves up the pitch, which is not the game.
+ */
+export const THROUGH_COVERING_BONUS = 1;
+
+/**
  * The exact probability the attacker wins a duel, from the two scores.
  *
  * A "score" is a stat plus any modifiers, before the die. Both sides roll a d3

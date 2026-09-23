@@ -57,6 +57,62 @@ function reachableCells(
   return reachable;
 }
 
+/**
+ * Cells the carrier can reach by going *through* the man in front.
+ *
+ * For each of the eight directions: if an opponent is standing immediately
+ * there, and the cell directly beyond them is on the board, empty and one this
+ * player may occupy, then taking them on is a legal dribble to that far cell.
+ *
+ * This is the dribble the game never had. `reachableCells` stops at the first
+ * body, so before this the one thing a carrier could not do was beat the
+ * defender in front of it — and that defender is there for 28% of carrier
+ * moments at 5-a-side and 36% at 11-a-side. Every dribble on offer ended
+ * somewhere a plain move could also have reached, which made a dribble a tax
+ * rather than a choice (GDD §7, ADR 0021).
+ *
+ * Adjacent opponents only. This is a body swerve past the man marking you, not
+ * a run through a defence.
+ *
+ * All eight directions, not just forward. Restricting it to the attacking
+ * direction was measured and changed nothing — the opponent was already only
+ * taking them forward — so the restriction would have cost a legitimate option
+ * (beating a man to escape a corner) for no gain.
+ */
+function throughTargets(
+  carrier: Player,
+  state: MatchState,
+  occupied: ReadonlyMap<string, Player>,
+): Position[] {
+  /*
+   * Never the goalkeeper. A keeper taking a man on is absurd on its own terms,
+   * and it is worse than absurd here: going through somebody puts it two cells
+   * off its line, and a keeper outside its mouth does not defend the goal at
+   * all (ADR 0004). The opponent found this immediately — its "keeper stays
+   * home" regression test failed the moment this rule existed.
+   */
+  if (carrier.role === "goalkeeper") return [];
+
+  const past: Position[] = [];
+
+  for (const { dx, dy } of DIRECTIONS) {
+    const man = { x: carrier.position.x + dx, y: carrier.position.y + dy };
+    if (!isWithinBoard(man, state.board)) continue;
+
+    const blocker = occupied.get(cellKey(man));
+    if (!blocker || blocker.team === carrier.team) continue;
+
+    const beyond = { x: man.x + dx, y: man.y + dy };
+    if (!isWithinBoard(beyond, state.board)) continue;
+    if (occupied.has(cellKey(beyond))) continue;
+    if (!mayOccupy(carrier, beyond, state)) continue;
+
+    past.push(beyond);
+  }
+
+  return past;
+}
+
 /** Team-mates a carrier can put the ball on, split by what it would take. */
 interface Outlets {
   /** Within the carrier's own PAS range: an ordinary pass. */
@@ -139,6 +195,8 @@ function canShoot(carrier: Player, state: MatchState): boolean {
  * - **Every player** of the side to move may Move.
  * - **The carrier**, if the side to move has the ball, may also Pass, Shoot in
  *   range, and Dribble — a Dribble being the contested version of its Move.
+ * - **The carrier** may also Dribble *through* an adjacent opponent, ending on
+ *   the cell beyond them — the one destination a plain Move can never reach.
  * - **A goalkeeper carrying the ball** may additionally Launch it, to a team-mate
  *   past its own passing range but within the format's `launchRange`.
  * - **Any player adjacent to the carrier**, if the side to move does *not* have
@@ -193,6 +251,14 @@ export function legalActions(state: MatchState): Action[] {
         playerId: player.id,
         target: cell,
       });
+    }
+
+    if (hasBall) {
+      /* Taking the man on. Always a dribble — there is no uncontested version
+         of going through somebody. */
+      for (const beyond of throughTargets(player, state, occupied)) {
+        actions.push({ type: "dribble", playerId: player.id, target: beyond });
+      }
     }
 
     if (!hasBall) continue;
