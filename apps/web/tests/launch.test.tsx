@@ -134,7 +134,7 @@ describe("the board offers a launch as its own thing", () => {
     render(
       <StatusBar
         state={state}
-        focused={{ action, duel: previewDuel(state, action) }}
+        focused={{ action, duel: previewDuel(state, action), carriesTo: null }}
         lastEvent={null}
         rejection={null}
         thinking={null}

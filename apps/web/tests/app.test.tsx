@@ -333,3 +333,58 @@ describe("the shared target lookup", () => {
     expect(targetAt(state, targets, undefined, keeper.position)).toBeNull();
   });
 });
+
+describe("what a dribble is worth", () => {
+  it("names the cell a win carries on to, not just the one it is aimed at", async () => {
+    const user = userEvent.setup();
+    render(hotseat());
+    await takeKickoff(user);
+
+    /* Walk turns until somebody is offered a dribble that carries on. The
+       geometry is ordinary — most dribbles do — but which turn it lands on is
+       a seed detail. */
+    let label: string | null = null;
+
+    for (let attempt = 0; attempt < 12 && label === null; attempt += 1) {
+      await selectCarrier(user);
+
+      for (const button of offered(/^Dribble to/)) {
+        const name = button.getAttribute("aria-label") ?? "";
+        if (/on to column \d+, row \d+ if you win/.test(name)) label = name;
+      }
+
+      if (label === null) {
+        const move = offered(/^Move to/)[0];
+        if (move === undefined) break;
+        await user.click(move);
+      }
+    }
+
+    expect(label, "no dribble carried on within twelve tries").not.toBeNull();
+
+    /* The two cells are adjacent and in line: the carry-on is one step further
+       along the direction the dribble was already going. */
+    const cells = [...(label ?? "").matchAll(/column (\d+), row (\d+)/g)].map((found) => ({
+      x: Number(found[1]),
+      y: Number(found[2]),
+    }));
+    expect(cells).toHaveLength(2);
+
+    const [aimed, carried] = cells as [{ x: number; y: number }, { x: number; y: number }];
+    expect(Math.abs(carried.x - aimed.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(carried.y - aimed.y)).toBeLessThanOrEqual(1);
+    expect(aimed).not.toEqual(carried);
+  });
+
+  it("says nothing about carrying on when there is nowhere to carry on to", () => {
+    /* The engine is the one that decides, so the label must be silent exactly
+       when `dribbleFinish` is — never "on to" the cell it is already naming. */
+    const state = createInitialState({ format: "5v5" });
+    for (const target of targetsFor(state, state.ball.carrierId ?? "").cells.values()) {
+      if (target.carriesTo === null) continue;
+      expect(target.action.type).toBe("dribble");
+      if (target.action.type !== "dribble") continue;
+      expect(target.carriesTo).not.toEqual(target.action.target);
+    }
+  });
+});

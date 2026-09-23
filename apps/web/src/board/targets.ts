@@ -1,4 +1,4 @@
-import { legalActions, previewDuel } from "@gaffer/engine";
+import { dribbleFinish, legalActions, previewDuel } from "@gaffer/engine";
 import {
   attackingGoalMouth,
   type Action,
@@ -18,6 +18,16 @@ export interface Target {
   action: Action;
   /** The duel it would provoke, or null when nothing contests it. */
   duel: DuelPreview | null;
+  /**
+   * Where a won dribble actually finishes, when that is past the cell it is
+   * aimed at.
+   *
+   * `null` for everything else, including a dribble that carries on to nowhere.
+   * A won dribble knocks the ball a cell further (ADR 0023), so a ring drawn on
+   * the cell the action names would otherwise understate the prize — and §9
+   * promises the reward is knowable before committing, not only the odds.
+   */
+  carriesTo: { x: number; y: number } | null;
 }
 
 /**
@@ -61,13 +71,20 @@ export function targetsFor(state: MatchState, playerId: string | null): Targets 
 
   for (const action of legalActions(state)) {
     if (action.playerId !== playerId) continue;
-    const target: Target = { action, duel: previewDuel(state, action) };
+    const target: Target = { action, duel: previewDuel(state, action), carriesTo: null };
 
     switch (action.type) {
       case "move":
-      case "dribble":
         cells.set(cellKey(action.target), target);
         break;
+      case "dribble": {
+        /* Asked of the engine rather than worked out here: where a won dribble
+           ends is a rule, and rules do not live in the client. */
+        const finish = dribbleFinish(state, playerId, action.target);
+        const moved = finish.x !== action.target.x || finish.y !== action.target.y;
+        cells.set(cellKey(action.target), { ...target, carriesTo: moved ? finish : null });
+        break;
+      }
       case "pass":
       case "launch":
       case "tackle":

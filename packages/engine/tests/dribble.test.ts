@@ -1,7 +1,7 @@
 import { chebyshevDistance, type Action, type MatchState } from "@gaffer/shared";
 import { describe, expect, it } from "vitest";
 
-import { applyAction, createRng, legalActions, previewDuel } from "../src/index.js";
+import { applyAction, createRng, dribbleFinish, legalActions, previewDuel } from "../src/index.js";
 import { makeState } from "./helpers.js";
 
 /** Every dribble the side to move may play with a given player. */
@@ -318,5 +318,54 @@ describe("a won dribble carries on", () => {
       });
       expect(result.state.ball.carrierId).toBe("away-winger-2");
     }
+  });
+});
+
+describe("asking where a dribble would finish", () => {
+  it("names the cell a win carries on to, before any die is rolled", () => {
+    const state = manInFront();
+
+    /* Aimed through the man on 3,2 at 4,2 — and a win carries on to 5,2. */
+    expect(dribbleFinish(state, "home-striker-1", { x: 4, y: 2 })).toEqual({ x: 5, y: 2 });
+  });
+
+  it("agrees with what the resolver actually does", () => {
+    /* The point of the query: the number shown before committing has to be the
+       number the engine reaches, or perfect information is a slogan. */
+    for (let seed = 1; seed <= 60; seed += 1) {
+      const state = manInFront();
+      const told = dribbleFinish(state, "home-striker-1", { x: 4, y: 2 });
+
+      const result = applyAction(
+        state,
+        { type: "dribble", playerId: "home-striker-1", target: { x: 4, y: 2 } },
+        createRng(seed),
+      );
+      expect(result.ok).toBe(true);
+      if (!result.ok || result.duel === null || !result.duel.attackerWon) continue;
+
+      const carrier = result.state.players.find((player) => player.id === "home-striker-1");
+      expect(carrier?.position).toEqual(told);
+    }
+  });
+
+  it("names the aimed cell when nothing is carried on to", () => {
+    /* A body on the far side stops the run where it was aimed. */
+    const blocked = makeState([
+      { team: "home", role: "goalkeeper", at: [0, 2] },
+      { team: "home", role: "striker", at: [2, 2], ball: true },
+      { team: "away", role: "defender", at: [3, 2] },
+      { team: "away", role: "winger", at: [5, 2] },
+      { team: "away", role: "goalkeeper", at: [6, 2] },
+    ]);
+
+    expect(dribbleFinish(blocked, "home-striker-1", { x: 4, y: 2 })).toEqual({ x: 4, y: 2 });
+  });
+
+  it("answers for a player who is not there rather than throwing", () => {
+    /* A caller labelling a board it is mid-render on should never be the thing
+       that crashes it. */
+    const state = manInFront();
+    expect(dribbleFinish(state, "nobody", { x: 4, y: 2 })).toEqual({ x: 4, y: 2 });
   });
 });

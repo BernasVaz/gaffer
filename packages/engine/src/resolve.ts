@@ -146,6 +146,31 @@ function afterGoal(state: MatchState, scoringTeam: Team): MatchState {
 }
 
 /**
+ * Where a dribble to this cell would finish, if it is won.
+ *
+ * The same answer the resolver will reach, asked ahead of time and
+ * without a die. A board that draws a ring on the cell a dribble is *aimed* at
+ * is telling the truth about the duel and only half the truth about the prize:
+ * since ADR 0023 a won dribble carries on a cell further, so the run can end
+ * somewhere the ring never mentioned. Perfect information (GDD §9) means the
+ * reward is knowable before committing, not just the odds.
+ *
+ * Returns `target` unchanged when nothing is carried on to — the edge of the
+ * board, a taken cell, a goal mouth — and when the player or the move is not
+ * one that could dribble, so a caller can use it for any target it is about to
+ * label.
+ *
+ * @param state - The board as it stands. Not modified.
+ * @param playerId - The player who would be dribbling.
+ * @param target - The cell the dribble is aimed at.
+ */
+export function dribbleFinish(state: MatchState, playerId: string, target: Position): Position {
+  const actor = findPlayer(state, playerId);
+  if (actor === undefined) return target;
+  return carriedOn(state, actor, target);
+}
+
+/**
  * Play one action out and return the board it produces.
  *
  * Rolls only for contested actions, and exactly twice when it does — attacker's
