@@ -306,6 +306,43 @@ decision wants 200.
 
 ---
 
+## 3c. Where the three formats stand after the dribble rules
+
+The dribble change (ADR 0021, ADR 0023) was validated at 5-a-side and shipped to all
+three, because no rule reads a format (ADR 0012). This is the check that it landed well
+everywhere. Same harness, matched seeds, an engine built from each side of the change —
+the **before** column is a worktree at `9109a31`, verified to contain neither rule
+before it was measured.
+
+| format        | before     | after          | change    |
+| ------------- | ---------- | -------------- | --------- |
+| 5-a-side      | 1.51 / 7%  | 1.38 / 2%      | −0.13     |
+| **7-a-side**  | 1.73 / 7%  | **2.13** / 3%  | **+0.40** |
+| **11-a-side** | 1.12 / 12% | **1.55** / 10% | **+0.43** |
+
+_(goals per match / goalless matches. 100 matches at 5- and 7-a-side, 60 at 11.)_
+
+The "before" column at 11-a-side reproduces the 1.12 and 13.3% recorded in §3b from a
+different harness on a different day, which is the best evidence available that this
+instrument measures what it claims to.
+
+**The change helps most where the pitch is biggest**, and the reason is in the original
+dribbling measurement: the man in front is there for 28% of carrier moments at 5-a-side
+and **36% at 11-a-side**. The format that suffered most from being unable to beat him
+gained most from being able to.
+
+**7-a-side is now the format furthest from target.** At **2.13** it is inside ADR 0007's
+1–3 envelope but well above the ~1.50 the envelope is centred on, and it was already the
+highest-scoring format before the change. It takes 4.4 shots a match against 5-a-side's
+2.5 — three actions a turn on a 9×7 board is a lot of pitch per action.
+
+Nothing is proposed here. 7-a-side is marked alpha, one number outside its target on a
+format nobody has played much is not an emergency, and the cheapest levers if it is
+wanted — `actionsPerTurn` or `turnCap`, both already per-format data (ADR 0012) — should
+not be pulled on 100 matches of self-play alone.
+
+---
+
 ## 4. New actions
 
 Ranked by value against cost, given everything above.
