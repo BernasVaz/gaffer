@@ -939,3 +939,99 @@ test.describe("the match clock", () => {
     await expect(board).not.toContainText("Turn 25");
   });
 });
+
+/**
+ * Taking the man on.
+ *
+ * The one destination a plain move can never reach: the cell beyond an
+ * adjacent opponent (ADR 0021). Driven through the board rather than asserted
+ * against the engine, because what matters here is that the board offers it and
+ * commits it like any other target.
+ */
+test.describe("dribbling past your man", () => {
+  /** The cell a "Dribble to column X, row Y" button names. */
+  const cellOf = (label: string) => {
+    const found = /to column (\d+), row (\d+)/i.exec(label);
+    return found ? { x: Number(found[1]), y: Number(found[2]) } : null;
+  };
+
+  test("offers the cell beyond an opponent, and commits it", async ({ page }) => {
+    await page.goto("./?seed=11&mode=5v5&play=hotseat&actions=4");
+    await takeKickoff(page);
+
+    /* Walk the first few turns looking for a carrier with somebody in front of
+       it. The geometry is common — a defender is directly ahead for roughly a
+       quarter of carrier moments — but which turn it lands on is a seed detail. */
+    let through: { label: string; from: { x: number; y: number } } | null = null;
+
+    for (let attempt = 0; attempt < 12 && through === null; attempt += 1) {
+      const carrier = page.getByRole("gridcell", { name: /with the ball/ });
+      const carrierLabel = await carrier.getAttribute("aria-label");
+      const from = cellOf(`to ${carrierLabel?.replace(":", "")}`) ?? {
+        x: Number(/^Column (\d+)/.exec(carrierLabel ?? "")?.[1]),
+        y: Number(/row (\d+)/.exec(carrierLabel ?? "")?.[1]),
+      };
+
+      await carrier.getByRole("button").first().click();
+
+      const dribbles = page.getByRole("button", { name: /^Dribble to/ });
+      const count = await dribbles.count();
+
+      for (let index = 0; index < count; index += 1) {
+        const label = (await dribbles.nth(index).getAttribute("aria-label")) ?? "";
+        const to = cellOf(label);
+        if (!to) continue;
+
+        const distance = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+        if (distance === 2) {
+          through = { label, from };
+          break;
+        }
+      }
+
+      if (through === null) {
+        const de = page.getByRole("button", { name: /^Deselect / });
+        if (await de.count()) await de.first().click();
+        if (await step(page)) continue;
+      }
+    }
+
+    expect(through, "no through-the-man dribble appeared in twelve actions").not.toBeNull();
+
+    await page.getByRole("button", { name: through!.label }).click();
+    await expectNoRuleBug(page);
+
+    // Whether it came off or not, the board moved on and the rules held.
+    await expect(page.getByRole("grid")).toBeVisible();
+  });
+
+  test("never offers a dribble onto an occupied cell", async ({ page }) => {
+    await page.goto("./?seed=11&mode=5v5&play=hotseat&actions=4");
+    await takeKickoff(page);
+    await selectCarrier(page);
+
+    const dribbles = page.getByRole("button", { name: /^Dribble to/ });
+    const occupied = new Set(
+      (await page.getByRole("gridcell").all()).length > 0
+        ? (
+            await Promise.all(
+              (await page.getByRole("gridcell").all()).map((cell) =>
+                cell.getAttribute("aria-label"),
+              ),
+            )
+          )
+            .filter((label): label is string => label !== null && !/: empty$/.test(label))
+            .map((label) => {
+              const found = /^Column (\d+), row (\d+):/.exec(label);
+              return `${found?.[1]},${found?.[2]}`;
+            })
+        : [],
+    );
+
+    for (let index = 0; index < (await dribbles.count()); index += 1) {
+      const label = (await dribbles.nth(index).getAttribute("aria-label")) ?? "";
+      const to = cellOf(label);
+      if (to) expect(occupied.has(`${to.x},${to.y}`), `${label} lands on somebody`).toBe(false);
+    }
+  });
+});

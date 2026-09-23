@@ -22,8 +22,15 @@ import { z } from "zod";
  *
  * Not the same thing as the package's semver, which is about publishing and is
  * owned by Changesets. This is about whether two matches are the same game.
+ *
+ * The editions so far:
+ *
+ * - **1** — the rules as they stood when this field shipped.
+ * - **2** — a carrier may take the man on (ADR 0021), and a won dribble carries
+ *   on a cell further (ADR 0023). Both change what a dribble *produces*, so a
+ *   log from edition 1 replays silently to a board that never happened.
  */
-export const RULES_VERSION = 1;
+export const RULES_VERSION = 2;
 
 /** A validated rules edition. See {@link RULES_VERSION}. */
 export const RulesVersionSchema = z.number().int().min(1);

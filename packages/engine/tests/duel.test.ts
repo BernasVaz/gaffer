@@ -321,7 +321,9 @@ describe("resolveAction", () => {
       );
 
       expect(duel!.attackerWon).toBe(true);
-      expect(next.players.find((p) => p.id === "home-striker-0")!.position).toEqual({ x: 3, y: 1 });
+      /* Aimed at (3,1) and carried on to (3,0): a won dribble buys a cell of
+         ground in the direction of travel as well as the beating (ADR 0023). */
+      expect(next.players.find((p) => p.id === "home-striker-0")!.position).toEqual({ x: 3, y: 0 });
       expect(next.ball.carrierId).toBe("home-striker-0");
       expect(next.possession).toBe("home");
     });
