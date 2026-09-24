@@ -10,7 +10,13 @@ import {
 } from "@gaffer/shared";
 import { describe, expect, it } from "vitest";
 
-import { applyAction, createInitialState, createRng, legalActions } from "../src/index.js";
+import {
+  applyAction,
+  createInitialState,
+  createRng,
+  legalActions,
+  previewDuel,
+} from "../src/index.js";
 import { makeState, scriptedRng } from "./helpers.js";
 
 /* These tests pin the rules, and a rule is best pinned on the smallest board
@@ -316,7 +322,10 @@ describe("match statistics", () => {
        what is being checked here is that an *uncontested* action tallies
        nothing — not which verb it happened to be. */
     const start = createInitialState();
-    const kickoff = applyAction(start, legalActions(start)[0]!, scriptedRng([]));
+    /* An *uncontested* kickoff pass, so the empty scripted generator is never
+       asked for a die. Since ADR 0025 the opening offers contested balls too. */
+    const opener = legalActions(start).find((action) => previewDuel(start, action) === null)!;
+    const kickoff = applyAction(start, opener, scriptedRng([]));
     expect(kickoff.ok).toBe(true);
     if (!kickoff.ok) return;
 

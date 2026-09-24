@@ -27,16 +27,21 @@ function keeperWithAnOutlet(): MatchState {
   const keeper = base.players.find((p) => p.team === "home" && p.role === "goalkeeper")!;
   const striker = base.players.find((p) => p.team === "home" && p.role === "striker")!;
 
-  /* Everybody else parked on the touchlines: off every ray out of the keeper's
-     cell, and far enough from the lane to leave it uncontested. The keeper's
-     only outlet is therefore the striker, at launch range. */
+  /* Everybody else parked beyond the keeper's reach — every spare cell is five
+     or more steps from (0, mid), against a launch range of four. Under ray
+     lanes it was enough to stand off the eight rays; since ADR 0025 a clear
+     lane is a clear lane, so the only way to leave the striker as the keeper's
+     sole outlet is to put the rest genuinely out of range. Nobody at x >= 5 can
+     reach the lane cells either, so it stays uncontested. */
+  const away = base.players.filter((player) => player.team === "away");
+  const awayKeeper = away.find((player) => player.role === "goalkeeper")!;
+
   const spare = [
-    [1, 0],
-    [3, 0],
     [5, 0],
-    [1, base.board.height - 1],
-    [3, base.board.height - 1],
-    [5, base.board.height - 1],
+    [5, 1],
+    [5, 2],
+    [5, 3],
+    [5, 4],
     [base.board.width - 1, 0],
     [base.board.width - 1, base.board.height - 1],
   ] as const;
@@ -45,6 +50,10 @@ function keeperWithAnOutlet(): MatchState {
   const players: Player[] = base.players.map((player) => {
     if (player.id === keeper.id) return { ...player, position: { x: 0, y: mid } };
     if (player.id === striker.id) return { ...player, position: { x: launchRange, y: mid } };
+    /* The away keeper takes its own mouth, which only it may stand in. */
+    if (player.id === awayKeeper.id) {
+      return { ...player, position: { x: base.board.width - 1, y: mid } };
+    }
     const [x, y] = spare[next++]!;
     return { ...player, position: { x, y } };
   });
@@ -55,6 +64,10 @@ function keeperWithAnOutlet(): MatchState {
     ball: { position: { x: 0, y: mid }, carrierId: keeper.id },
     possession: "home",
     activeTeam: "home",
+    /* Mid-match, not a kickoff: a kickoff narrows the side to its pass (ADR
+       0018), which would hide the launch this fixture exists to show. It was
+       only ever invisible here because the keeper had no pass to narrow to. */
+    kickoffPending: null,
   };
 }
 

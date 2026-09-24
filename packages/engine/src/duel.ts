@@ -16,36 +16,12 @@ import {
   type Position,
 } from "@gaffer/shared";
 
+import { laneBetween } from "./lane.js";
+
 const cellKey = (position: Position): string => `${position.x},${position.y}`;
 
 const findPlayer = (state: MatchState, id: string): Player | undefined =>
   state.players.find((player) => player.id === id);
-
-/**
- * The cells strictly between two positions along a straight line, or null when
- * they do not sit on one of the 8 rays.
- *
- * Endpoints are excluded: a lane is what the ball travels *through*, not where
- * it starts or ends. Neighbouring cells therefore give an empty lane, which is
- * why a pass to an adjacent team-mate can never be intercepted.
- */
-function laneBetween(from: Position, to: Position): Position[] | null {
-  const deltaX = to.x - from.x;
-  const deltaY = to.y - from.y;
-  const steps = chebyshevDistance(from, to);
-
-  if (steps === 0) return null;
-  if (Math.abs(deltaX) !== 0 && Math.abs(deltaX) !== steps) return null;
-  if (Math.abs(deltaY) !== 0 && Math.abs(deltaY) !== steps) return null;
-
-  const stepX = Math.sign(deltaX);
-  const stepY = Math.sign(deltaY);
-
-  return Array.from({ length: steps - 1 }, (_unused, index) => ({
-    x: from.x + stepX * (index + 1),
-    y: from.y + stepY * (index + 1),
-  }));
-}
 
 /**
  * The opponent being gone *through*, when a dribble is taking somebody on.
@@ -97,15 +73,21 @@ function primaryDefender(candidates: Player[]): Player {
 /**
  * Cells a shot passes through on its way to goal.
  *
- * The mouth is three cells wide and a shooter is rarely aligned with all three,
- * so this is the union of the straight lanes to whichever mouth cells *are* on
- * one of the shooter's rays. An opponent standing on any of them is covering.
+ * The mouth is three cells wide, so this is the union of the flights to all
+ * three. An opponent standing on any of them is covering.
+ *
+ * It used to be the union of the lanes to whichever mouth cells happened to lie
+ * on one of the shooter's eight rays — and a shot aimed at a mouth cell that did
+ * not could not be covered by a body in front of it **at all**, because there
+ * was no lane to stand in. A defender could be square in the way and count for
+ * nothing. Line-of-sight lanes remove the special case rather than patch it: the
+ * flight is the flight, for a shot exactly as for a pass.
  */
 function shotLaneCells(state: MatchState, shooter: Player): Position[] {
   const cells = new Map<string, Position>();
 
   for (const mouthCell of attackingGoalMouth(shooter.team, state.board)) {
-    for (const cell of laneBetween(shooter.position, mouthCell) ?? []) {
+    for (const cell of laneBetween(shooter.position, mouthCell)) {
       cells.set(cellKey(cell), cell);
     }
   }
@@ -265,8 +247,10 @@ export function previewDuel(state: MatchState, action: Action): DuelPreview | nu
       const receiver = findPlayer(state, action.target);
       if (!receiver) return null;
 
+      /* The same lane enumeration used to decide the ball could be played at
+         all, so what blocks a pass and what contests it are one geometry. */
       const lane = laneBetween(actor.position, receiver.position);
-      if (!lane || lane.length === 0) return null;
+      if (lane.length === 0) return null;
 
       const candidates = opponentsBeside(state, actor.team, lane);
       /*

@@ -11,6 +11,8 @@ import {
   type Position,
 } from "@gaffer/shared";
 
+import { ballDistance, laneBetween } from "./lane.js";
+
 /** Key a cell for map lookup. */
 const cellKey = (position: Position): string => `${position.x},${position.y}`;
 
@@ -122,21 +124,31 @@ interface Outlets {
 }
 
 /**
- * Team-mates the carrier can find, and how far each one is.
+ * Team-mates the carrier can find, and what it would take to reach each.
  *
- * A ball runs down the same straight lanes a player moves along and stops at the
- * first player it meets. If that player is a team-mate the ball is legal to play;
- * if it is an opponent the lane is blocked. That rule is the same for a pass and
- * for a launch, which is why one walk answers both — a launch cannot travel
- * *through* somebody a pass would have hit.
+ * A pass goes to **any team-mate with a clear lane** — not only to the seven or
+ * eight who happen to stand on a ray. The ball flies straight from one cell to
+ * the other and is stopped by the first body whose square it crosses, whichever
+ * side that body is on: an opponent blocks it because he heads it away, a
+ * team-mate blocks it because the ball reaches *him* instead.
  *
- * The split is by distance alone: anything inside PAS is a pass, anything past it
- * is a launch. So the two are never offered for the same team-mate, and a keeper
- * is never asked to choose between a safe ball and a riskier version of it.
+ * Before this, legality was an accident of the grid. A team-mate two forward and
+ * one across — the commonest shape on a football pitch and the one every angled
+ * ball in the sport is played into — was simply unreachable, while the same
+ * player one step sideways was a free pass. That is why 71% of a keeper's long
+ * rays ended in empty grass (ADR 0015): the rays were not finding anybody
+ * because there was rarely anybody standing exactly on one.
+ *
+ * The split is by distance alone: anything inside PAS is a pass, anything past
+ * it is a launch. So the two are never offered for the same team-mate, and a
+ * keeper is never asked to choose between a safe ball and a riskier version of
+ * it.
  *
  * An opponent merely *beside* the lane does not affect legality — that is an
  * interception duel when the ball is played, and the odds are shown before the
- * player commits (GDD §7). Enumeration deliberately stays silent about it.
+ * player commits (GDD §7). Enumeration deliberately stays silent about it, and
+ * `duel.ts` reads the same {@link laneBetween} so the two can never disagree
+ * about where the ball went.
  */
 function outletTargets(
   carrier: Player,
@@ -146,19 +158,19 @@ function outletTargets(
 ): Outlets {
   const outlets: Outlets = { pass: [], launch: [] };
 
-  for (const { dx, dy } of DIRECTIONS) {
-    for (let step = 1; step <= reach; step += 1) {
-      const cell = { x: carrier.position.x + dx * step, y: carrier.position.y + dy * step };
-      if (!isWithinBoard(cell, state.board)) break;
+  for (const mate of state.players) {
+    if (mate.team !== carrier.team || mate.id === carrier.id) continue;
 
-      const blocker = occupied.get(cellKey(cell));
-      if (!blocker) continue;
+    const distance = ballDistance(carrier.position, mate.position);
+    if (distance > reach) continue;
 
-      if (blocker.team === carrier.team) {
-        (step <= carrier.stats.pas ? outlets.pass : outlets.launch).push(blocker);
-      }
-      break; // the first player on a lane ends it either way
-    }
+    /* A body anywhere under the flight stops it, so the ball never arrives. */
+    const blocked = laneBetween(carrier.position, mate.position).some((cell) =>
+      occupied.has(cellKey(cell)),
+    );
+    if (blocked) continue;
+
+    (distance <= carrier.stats.pas ? outlets.pass : outlets.launch).push(mate);
   }
 
   return outlets;

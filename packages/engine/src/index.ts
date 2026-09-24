@@ -31,6 +31,7 @@ export { createInitialState, type CreateInitialStateOptions } from "./state.js";
 export { legalActions } from "./legal-actions.js";
 export { previewDuel } from "./duel.js";
 export { dribbleFinish } from "./resolve.js";
+export { ballDistance, laneBetween } from "./lane.js";
 export {
   applyAction,
   type CommandAccepted,

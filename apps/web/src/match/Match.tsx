@@ -236,6 +236,7 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
             onSelect={setSelectedId}
             onCommit={commit}
             onFocusTarget={setFocused}
+            focused={focused}
             onInspect={setInspected}
             showOdds={showOdds}
             frozen={moment !== null || !yourMove}
