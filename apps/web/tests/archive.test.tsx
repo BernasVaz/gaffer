@@ -60,7 +60,11 @@ function store(setup: MatchSetup, notes: FeedbackNote[]) {
   saveFeedback({ version: 1, setup, log: [], notes });
 }
 
-const setupFor = (over: Partial<MatchSetup>): MatchSetup => ({ ...DEFAULT_SETUP, ...over });
+const setupFor = (over: Partial<MatchSetup>): MatchSetup => ({
+  ...DEFAULT_SETUP,
+  mode: "5v5",
+  ...over,
+});
 
 beforeEach(() => window.localStorage.clear());
 afterEach(() => {

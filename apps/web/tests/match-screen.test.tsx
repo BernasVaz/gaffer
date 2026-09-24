@@ -13,7 +13,10 @@ import { showOddsPreference } from "../src/ui/ViewControls";
 import { takeKickoff } from "./kickoff";
 
 const hotseat = () => (
-  <Match setup={{ ...DEFAULT_SETUP, play: "hotseat", seed: 1, actions: 4 }} onLeave={() => {}} />
+  <Match
+    setup={{ ...DEFAULT_SETUP, mode: "5v5", play: "hotseat", seed: 1, actions: 4 }}
+    onLeave={() => {}}
+  />
 );
 
 beforeEach(() => {

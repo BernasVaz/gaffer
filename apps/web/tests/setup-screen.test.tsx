@@ -1,5 +1,4 @@
 import {
-  DEFAULT_FORMAT,
   DEFAULT_SETUP,
   FORMAT_PROFILES,
   FORMATS,
@@ -57,11 +56,13 @@ describe("the setup screen", () => {
     await user.click(screen.getByRole("button", { name: /Kick off/ }));
 
     expect(chosen).toEqual({
-      mode: "5v5",
+      /* Untouched from the default, which is 11-a-side since ADR 0027 — the
+         point of the test is that what you did not change comes back as it was. */
+      mode: "11v11",
       play: "solo",
       side: "away",
       difficulty: "elite",
-      actions: 2,
+      actions: 4,
       seed: 1,
     });
   });
@@ -133,12 +134,12 @@ describe("which screen you land on", () => {
     const published = parseSetup(window.location.search);
 
     expect(published).toMatchObject({
-      mode: "5v5",
+      /* What a bare link opens on, pinned rather than read off DEFAULT_SETUP:
+         the game type a newcomer sees (ADR 0027) and the level they meet
+         (ADR 0026) are decisions, and should not be able to drift silently. */
+      mode: "11v11",
       play: "solo",
       side: "away",
-      /* The gentler default a first-time player gets (ADR 0026). Pinned rather
-         than read off DEFAULT_SETUP, because which level somebody meets first
-         is a decision and should not be able to drift silently. */
       difficulty: "casual",
     });
     expect(window.location.search).toContain("seed=");
@@ -171,22 +172,27 @@ describe("choosing a game type", () => {
     }
   });
 
-  it("starts on the one whose balance is settled", () => {
+  it("starts on the game type a bare link opens", () => {
+    /* 11-a-side since ADR 0027 — the game people picture when they picture
+       football. Not `DEFAULT_FORMAT`, which is the engine's default and stays
+       5-a-side for the tests and helpers that pin rules against it. */
     render(<SetupScreen initial={DEFAULT_SETUP} onStart={() => {}} />);
-    expect(screen.getByRole("button", { name: new RegExp(DEFAULT_FORMAT) })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.getByRole("button", { name: /^11v11/ })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("flags the provisional ones, and only those", () => {
-    // A tester should never have to guess which numbers are still moving.
+  it("flags every game type as alpha, in the name a screen reader hears", () => {
+    /* The badge is about the build, not about which numbers have been measured:
+       a tester picking 5-a-side is in the same alpha as one picking 11. Which
+       formats have provisional *numbers* is the note under the buttons. */
     render(<SetupScreen initial={DEFAULT_SETUP} onStart={() => {}} />);
 
     for (const format of FORMATS) {
-      const tile = screen.getByRole("button", { name: new RegExp(format) });
-      const alpha = FORMAT_PROFILES[format].status === "alpha";
-      expect(/alpha/i.test(tile.textContent ?? ""), format).toBe(alpha);
+      const tile = screen.getByRole("button", { name: new RegExp(`^${format}`) });
+      expect(/alpha/i.test(tile.textContent ?? ""), `${format} shows the badge`).toBe(true);
+      expect(
+        /alpha/i.test(tile.getAttribute("aria-label") ?? ""),
+        `${format} says it in its name`,
+      ).toBe(true);
     }
   });
 
@@ -292,9 +298,10 @@ describe("choosing an action economy", () => {
     const user = userEvent.setup();
     render(<SetupScreen initial={DEFAULT_SETUP} onStart={() => {}} />);
 
-    expect(actionTile(2)).toHaveAttribute("aria-pressed", "true");
-    await user.click(screen.getByRole("button", { name: /11v11/ }));
+    // Starting on 11-a-side's four, switching down to 5-a-side's two.
     expect(actionTile(4)).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: /^5v5/ }));
+    expect(actionTile(2)).toHaveAttribute("aria-pressed", "true");
   });
 
   it("keeps a deliberate choice once it is made", async () => {
@@ -305,7 +312,7 @@ describe("choosing an action economy", () => {
     await user.click(actionTile(1));
     await user.click(screen.getByRole("button", { name: /Kick off/ }));
 
-    expect(chosen).toMatchObject({ mode: "5v5", actions: 1 });
+    expect(chosen).toMatchObject({ mode: "11v11", actions: 1 });
   });
 
   it("carries it into the link", async () => {

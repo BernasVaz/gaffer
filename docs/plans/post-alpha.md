@@ -102,3 +102,9 @@ Two mistakes were made twice each during the alpha lane, and both are cheap to a
 - **Measure against a rebuilt engine, and treat "identical to baseline" as a suspected
   no-op.** `tools/play` imports the built `dist`. Every A/B in this lane carries an
   explicit build guard for this reason, and it caught three genuine no-ops.
+- **`.gitignore` covers binaries; stage explicit paths; never blind `git add -A`.** A
+  137 MB installer sitting in `FeedbackLogs/` was swept into a commit by a blind
+  `git add -A`, GitHub rejected the push at its 100 MB limit, and the commit had to be
+  unpicked. The ignore rules now cover binaries, and the lesson generalises past size:
+  `add -A` commits whatever happens to be in the tree, which is not the same thing as
+  what the change is.

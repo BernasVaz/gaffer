@@ -38,3 +38,28 @@ docs/api/
 # Word copy of the master plan — binary, not diffable.
 # The canonical version is docs/MASTER_PLAN.md.
 *.docx
+
+# Binaries, which git is the wrong tool for.
+#
+# A 137 MB installer once landed in FeedbackLogs/ and a blind `git add -A` swept
+# it into a commit; GitHub rejected the push at 100 MB and the commit had to be
+# unpicked. Nothing here is diffable, reviewable, or something a clone should
+# have to carry.
+#
+# Feedback *reports* are deliberately not covered: they are small, plain
+# Markdown, and they are the input to the between-wave synthesis.
+*.dmg
+*.pkg
+*.iso
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+*.exe
+*.msi
+*.app/
+*.mp4
+*.mov
+*.avi

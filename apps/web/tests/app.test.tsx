@@ -21,8 +21,23 @@ import { selectCarrier, takeKickoff } from "./kickoff";
  * to show and `Match` is the screen they are about. Rendering it straight avoids
  * standing up a URL and clicking through a setup screen before every assertion.
  */
+/*
+ * 5-a-side, and its own action economy with it. A bare link opens on 11-a-side
+ * now (ADR 0027), but these are tests of what the board does with a rule, and
+ * the smallest board that can express one is the right place to express it —
+ * pinning the format without pinning `actions` leaves a 5-a-side pitch running
+ * 11-a-side's four, which is a different game.
+ */
+const FIVES = {
+  mode: "5v5",
+  actions: FORMAT_PROFILES["5v5"].rules.actionsPerTurn,
+} as const;
+
 const hotseat = (over: Partial<typeof DEFAULT_SETUP> = {}) => (
-  <Match setup={{ ...DEFAULT_SETUP, play: "hotseat", seed: 1, ...over }} onLeave={() => {}} />
+  <Match
+    setup={{ ...DEFAULT_SETUP, ...FIVES, play: "hotseat", seed: 1, ...over }}
+    onLeave={() => {}}
+  />
 );
 
 /** The accessible name of every cell, in row-major order. */

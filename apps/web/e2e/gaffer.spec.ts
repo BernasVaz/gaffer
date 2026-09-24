@@ -99,7 +99,7 @@ test.describe("a whole match", () => {
       if (message.type() === "error") refusals.push(message.text());
     });
 
-    await page.goto("./?seed=12&play=hotseat");
+    await page.goto("./?seed=12&mode=5v5&play=hotseat");
 
     const steps = await playToTheEnd(page);
 
@@ -116,7 +116,10 @@ test.describe("a whole match", () => {
   });
 
   test("lets a solo player take a turn and the opponent answer", async ({ page }) => {
-    await page.goto("./?seed=5&play=solo&side=home&level=pro");
+    /* 5-a-side pinned: this counts turns, and two actions is a turn there. A bare
+       link opens on 11-a-side's four (ADR 0027), which would leave the turn
+       half-spent and the opponent still waiting. */
+    await page.goto("./?seed=5&mode=5v5&play=solo&side=home&level=pro");
 
     // Everything offered is ours; the opponent's players are never on the menu.
     const names = await selectable(page).evaluateAll((nodes) =>
@@ -189,12 +192,12 @@ test.describe("the seed in the link", () => {
   };
 
   test("plays out the same way twice", async ({ page }) => {
-    await page.goto("./?seed=777&play=hotseat");
+    await page.goto("./?seed=777&mode=5v5&play=hotseat");
     const first = await endEveryTurn(page);
     await expect(result(page)).toBeVisible();
     const firstResult = await result(page).textContent();
 
-    await page.goto("./?seed=777&play=hotseat");
+    await page.goto("./?seed=777&mode=5v5&play=hotseat");
     const second = await endEveryTurn(page);
     const secondResult = await result(page).textContent();
 
@@ -204,11 +207,11 @@ test.describe("the seed in the link", () => {
 
   test("plays out differently under a different seed", async ({ page }) => {
     // Otherwise the first test would pass on an engine that ignored the seed.
-    await page.goto("./?seed=777&play=hotseat");
+    await page.goto("./?seed=777&mode=5v5&play=hotseat");
     await endEveryTurn(page);
     const seven = await result(page).textContent();
 
-    await page.goto("./?seed=31337&play=hotseat");
+    await page.goto("./?seed=31337&mode=5v5&play=hotseat");
     await endEveryTurn(page);
     const other = await result(page).textContent();
 
@@ -223,10 +226,18 @@ test.describe("game types", () => {
   test("offers all three, and flags the provisional ones", async ({ page }) => {
     await page.goto("./");
 
-    await expect(page.getByRole("button", { name: /5v5/ })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("button", { name: /7v7/ })).toContainText("Alpha");
-    await expect(page.getByRole("button", { name: /11v11/ })).toContainText("Alpha");
-    await expect(page.getByRole("button", { name: /5v5/ })).not.toContainText("Alpha");
+    /* All three badged since ADR 0027 — the badge is about the build, not about
+       which numbers have been measured. Which of those is *settled* is the note
+       under the buttons, and 11-a-side is what a bare link opens on. */
+    await expect(page.getByRole("button", { name: /^11v11/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    for (const mode of ["5v5", "7v7", "11v11"]) {
+      await expect(page.getByRole("button", { name: new RegExp(`^${mode}`) })).toContainText(
+        "Alpha",
+      );
+    }
   });
 
   test("carries the chosen one into the link", async ({ page }) => {
@@ -374,24 +385,28 @@ test.describe("actions per turn", () => {
     await page.goto("./");
 
     const economy = page.getByLabel("Actions per turn");
-    await expect(economy.getByRole("button", { name: /^2/ })).toHaveAttribute(
+    /* A bare link opens on 11-a-side, which brings its own four (ADR 0012). */
+    await expect(economy.getByRole("button", { name: /^4/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
 
-    await economy.getByRole("button", { name: /^4/ }).click();
+    /* Change it to something the game type did not choose, so what is carried
+       into the link is provably the choice and not the default. */
+    await economy.getByRole("button", { name: /^3/ }).click();
     await page.getByRole("button", { name: /Kick off/ }).click();
 
-    expect(page.url()).toContain("actions=4");
-    await expect(page.getByLabel("Scoreboard")).toContainText("4 actions left");
+    expect(page.url()).toContain("actions=3");
+    await expect(page.getByLabel("Scoreboard")).toContainText("3 actions left");
   });
 
   test("follows the game type when that changes", async ({ page }) => {
     await page.goto("./");
     const economy = page.getByLabel("Actions per turn");
 
-    await page.getByRole("button", { name: /11v11/ }).click();
-    await expect(economy.getByRole("button", { name: /^4/ })).toHaveAttribute(
+    // Down from 11-a-side's four to 5-a-side's two.
+    await page.getByRole("button", { name: /^5v5/ }).click();
+    await expect(economy.getByRole("button", { name: /^2/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -1200,5 +1215,63 @@ test.describe("penalties, taken one at a time", () => {
     /* And the match is decided, by the penalties we just watched. */
     await expect(page.getByText(/decided by shootout/)).toBeVisible();
     await expectNoRuleBug(page);
+  });
+});
+
+/**
+ * What a bare link opens on.
+ *
+ * The one URL nobody chooses and everybody arrives at: no seed, no mode, no
+ * level. In a real browser because it is the first thing a tester will see, and
+ * because the alpha badge has to survive an actual phone-width layout rather
+ * than jsdom's opinion of one (ADR 0019, ADR 0027).
+ */
+test.describe("the front door", () => {
+  test("opens on 11-a-side, casual, with every game type badged alpha", async ({ page }) => {
+    await page.goto("./");
+
+    /* The game type people picture when they picture football. */
+    await expect(page.getByRole("button", { name: /^11v11/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await expect(page.getByRole("button", { name: /^Casual/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    /* Every game type says alpha, and says it in the name a screen reader
+       reads out rather than only in a coloured pill. */
+    for (const mode of ["5v5", "7v7", "11v11"]) {
+      const tile = page.getByRole("button", { name: new RegExp(`^${mode}`) });
+      await expect(tile).toBeVisible();
+      expect(await tile.getAttribute("aria-label"), `${mode} names its badge`).toMatch(/alpha/i);
+      await expect(tile).toContainText(/alpha/i);
+    }
+  });
+
+  test("keeps the badges and the buttons intact at phone width", async ({ page }) => {
+    /* Three buttons in a row, each carrying an extra pill: the shape most
+       likely to overflow on the narrowest phone we support (ADR 0019). */
+    await page.setViewportSize({ width: 320, height: 640 });
+    await page.goto("./");
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow, "the setup screen scrolls sideways").toBeLessThanOrEqual(0);
+
+    for (const mode of ["5v5", "7v7", "11v11"]) {
+      const box = await page.getByRole("button", { name: new RegExp(`^${mode}`) }).boundingBox();
+      expect(box, `${mode} has a box`).not.toBeNull();
+      expect(box!.width, `${mode} is wide enough to press`).toBeGreaterThan(40);
+      expect(box!.height, `${mode} is tall enough to press`).toBeGreaterThan(30);
+    }
+  });
+
+  test("a link that names a game type still gets that game type", async ({ page }) => {
+    /* Only the no-param default moved. Anything shared keeps what it said. */
+    await page.goto("./?seed=11&mode=5v5&play=hotseat&actions=4");
+    await expect(page.getByRole("grid", { name: /7 columns by 5 rows/ })).toBeVisible();
   });
 });

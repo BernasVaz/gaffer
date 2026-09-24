@@ -1,11 +1,5 @@
 import { applyAction, createInitialState, createRng } from "@gaffer/engine";
-import {
-  DEFAULT_SETUP,
-  FORMAT_PROFILES,
-  FORMATS,
-  parseSeed,
-  type MatchRules,
-} from "@gaffer/shared";
+import { FORMAT_PROFILES, FORMATS, parseSeed, type MatchRules } from "@gaffer/shared";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
@@ -104,8 +98,10 @@ describe("the scoreboard's clock", () => {
     const rules = FORMAT_PROFILES["5v5"].rules;
     const total = rules.turnCap + rules.extraTimeTurns;
 
+    /* Built on 5-a-side's numbers deliberately, whatever a bare link now opens
+       on: the smallest board that can express the rule is the right one to
+       express it on. */
     render(<Scoreboard state={atTurn(4)} />);
     expect(screen.queryByText(new RegExp(`of ${total}\\b`))).not.toBeInTheDocument();
-    expect(DEFAULT_SETUP.mode).toBe("5v5");
   });
 });
