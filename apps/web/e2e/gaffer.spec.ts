@@ -1076,9 +1076,11 @@ test.describe("dribbling past your man", () => {
 test.describe("a pass finds anyone with a clear lane", () => {
   test("offers the angled ball no ray could reach, with its odds", async ({ page }) => {
     await page.goto("./?seed=11&mode=5v5&play=hotseat&actions=4");
+    await selectCarrier(page);
 
     /* The kickoff itself proves the rule: the striker's winger is two forward
-       and one across, which under ray lanes was not a pass at all. */
+       and one across, which under ray lanes was not a pass at all. A kickoff
+       narrows the side to its passes (ADR 0018), so these are all of them. */
     const passes = page.getByRole("button", { name: /^Pass to/ });
     await expect(passes).toHaveCount(3);
 
@@ -1092,6 +1094,7 @@ test.describe("a pass finds anyone with a clear lane", () => {
 
   test("draws the ball's flight over the cells it crosses", async ({ page }) => {
     await page.goto("./?seed=11&mode=5v5&play=hotseat&actions=4");
+    await selectCarrier(page);
 
     /* A contested pass has a lane with something beside it, so it certainly has
        a lane to draw. Hovering it should light the cells in between. */
@@ -1104,13 +1107,16 @@ test.describe("a pass finds anyone with a clear lane", () => {
     await contested.hover();
     await expect(lit().first()).toBeVisible();
 
-    /* And it goes away again, rather than accumulating over a match. */
-    await page.getByRole("grid").hover({ position: { x: 2, y: 2 } });
+    /* And it goes away again, rather than accumulating over a match. Moved with
+       the mouse rather than by hovering something else, because everything else
+       on this screen is layered and any target would be a second question. */
+    await page.mouse.move(0, 0);
     await expect(lit()).toHaveCount(0);
   });
 
   test("the flight never swallows a click meant for the board", async ({ page }) => {
     await page.goto("./?seed=11&mode=5v5&play=hotseat&actions=4");
+    await selectCarrier(page);
 
     const contested = page.getByRole("button", { name: /^Pass to .*\d+% chance/ }).first();
     await contested.hover();
