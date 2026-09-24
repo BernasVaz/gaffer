@@ -1,6 +1,6 @@
 {
   "name": "@gaffer/play",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "description": "Dev-only match viewer: plays a full match from a seed and prints it turn by turn. Never shipped.",
