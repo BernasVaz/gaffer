@@ -29,8 +29,13 @@ import { z } from "zod";
  * - **2** — a carrier may take the man on (ADR 0021), and a won dribble carries
  *   on a cell further (ADR 0023). Both change what a dribble *produces*, so a
  *   log from edition 1 replays silently to a board that never happened.
+ * - **3** — a pass finds any team-mate with a clear lane rather than only one
+ *   standing on a ray (ADR 0025). This changes what is *legal*, so an edition-2
+ *   log does not merely replay differently: a command in it can be refused
+ *   outright, or a board can offer a ball that was unimaginable when it was
+ *   written.
  */
-export const RULES_VERSION = 2;
+export const RULES_VERSION = 3;
 
 /** A validated rules edition. See {@link RULES_VERSION}. */
 export const RulesVersionSchema = z.number().int().min(1);

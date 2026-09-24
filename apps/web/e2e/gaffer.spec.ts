@@ -1064,3 +1064,60 @@ test.describe("dribbling past your man", () => {
     await expectNoRuleBug(page);
   });
 });
+
+/**
+ * Line-of-sight passing, and the flight the board draws for it.
+ *
+ * In a real browser because the flight is an overlay: cells drawn on top of the
+ * board, which jsdom will happily report as present whether or not they are
+ * visible or in the way of a click. The click-swallowing spotlight bug came from
+ * exactly that gap.
+ */
+test.describe("a pass finds anyone with a clear lane", () => {
+  test("offers the angled ball no ray could reach, with its odds", async ({ page }) => {
+    await page.goto("./?seed=11&mode=5v5&play=hotseat&actions=4");
+
+    /* The kickoff itself proves the rule: the striker's winger is two forward
+       and one across, which under ray lanes was not a pass at all. */
+    const passes = page.getByRole("button", { name: /^Pass to/ });
+    await expect(passes).toHaveCount(3);
+
+    /* Every pass says whether it is contested, and contested ones say the odds —
+       the promise is that you see them before you commit, not after. */
+    const labels = await passes.evaluateAll((nodes) =>
+      nodes.map((node) => node.getAttribute("aria-label") ?? ""),
+    );
+    expect(labels.filter((label) => /\d+% chance/.test(label)).length).toBeGreaterThan(0);
+  });
+
+  test("draws the ball's flight over the cells it crosses", async ({ page }) => {
+    await page.goto("./?seed=11&mode=5v5&play=hotseat&actions=4");
+
+    /* A contested pass has a lane with something beside it, so it certainly has
+       a lane to draw. Hovering it should light the cells in between. */
+    const contested = page.getByRole("button", { name: /^Pass to .*\d+% chance/ }).first();
+    await expect(contested).toBeVisible();
+
+    const lit = () => page.locator('[data-flight="true"]');
+    await expect(lit()).toHaveCount(0);
+
+    await contested.hover();
+    await expect(lit().first()).toBeVisible();
+
+    /* And it goes away again, rather than accumulating over a match. */
+    await page.getByRole("grid").hover({ position: { x: 2, y: 2 } });
+    await expect(lit()).toHaveCount(0);
+  });
+
+  test("the flight never swallows a click meant for the board", async ({ page }) => {
+    await page.goto("./?seed=11&mode=5v5&play=hotseat&actions=4");
+
+    const contested = page.getByRole("button", { name: /^Pass to .*\d+% chance/ }).first();
+    await contested.hover();
+
+    /* Committing while the flight is drawn must still reach the button under it. */
+    await contested.click();
+    await expectNoRuleBug(page);
+    await expect(page.getByRole("grid")).toBeVisible();
+  });
+});

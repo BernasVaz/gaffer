@@ -60,6 +60,19 @@ function opponentsBeside(state: MatchState, team: Player["team"], cells: Positio
 }
 
 /**
+ * Whether two cells sit on one of the eight straight lines a player walks.
+ *
+ * The geometry a lane used to be restricted to, kept only for
+ * {@link shotLaneCells} — see the note there for why a shot is still measured
+ * this way when a pass is not.
+ */
+function isOnRay(from: Position, to: Position): boolean {
+  const deltaX = Math.abs(to.x - from.x);
+  const deltaY = Math.abs(to.y - from.y);
+  return deltaX === 0 || deltaY === 0 || deltaX === deltaY;
+}
+
+/**
  * Which opponent leads the challenge.
  *
  * The strongest available defender contests and the rest cover, so a player is
@@ -73,20 +86,28 @@ function primaryDefender(candidates: Player[]): Player {
 /**
  * Cells a shot passes through on its way to goal.
  *
- * The mouth is three cells wide, so this is the union of the flights to all
- * three. An opponent standing on any of them is covering.
+ * The mouth is three cells wide and a shooter is rarely aligned with all three,
+ * so this is the union of the straight lanes to whichever mouth cells *are* on
+ * one of the shooter's rays. An opponent standing on any of them is covering.
  *
- * It used to be the union of the lanes to whichever mouth cells happened to lie
- * on one of the shooter's eight rays — and a shot aimed at a mouth cell that did
- * not could not be covered by a body in front of it **at all**, because there
- * was no lane to stand in. A defender could be square in the way and count for
- * nothing. Line-of-sight lanes remove the special case rather than patch it: the
- * flight is the flight, for a shot exactly as for a pass.
+ * **Deliberately still rays, now that passing is not.** ADR 0025 gave the ball a
+ * true flight between any two cells, and pointing this at it is a one-line
+ * change that makes the code more coherent and the game worse: measured over 600
+ * matches a side at 5-a-side it took shot conversion from 58.6% to 54.8%, goals
+ * from 1.44 to 1.37, and **doubled goalless matches from 3.8% to 6.5%**. More
+ * defenders end up in front of more shots, and the shot is the verb with the
+ * least slack in it.
+ *
+ * So the restriction stays, as a decision rather than an accident. The honest
+ * cost is that a shot at a mouth cell off every ray cannot be covered by a body
+ * standing in front of it — which is a real oddity, and a question for after the
+ * alpha rather than a thing to change in the same breath as passing.
  */
 function shotLaneCells(state: MatchState, shooter: Player): Position[] {
   const cells = new Map<string, Position>();
 
   for (const mouthCell of attackingGoalMouth(shooter.team, state.board)) {
+    if (!isOnRay(shooter.position, mouthCell)) continue;
     for (const cell of laneBetween(shooter.position, mouthCell)) {
       cells.set(cellKey(cell), cell);
     }

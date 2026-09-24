@@ -559,7 +559,11 @@ export function Pitch({
                       {flightCells.has(key) && (
                         <span
                           aria-hidden
-                          className="absolute inset-[38%] rounded-full bg-white/45"
+                          data-flight="true"
+                          /* Never in the way of the click underneath it: an
+                             overlay that eats its own board is the bug the
+                             guide spotlight already shipped once. */
+                          className="pointer-events-none absolute inset-[38%] rounded-full bg-white/45"
                         />
                       )}
 
