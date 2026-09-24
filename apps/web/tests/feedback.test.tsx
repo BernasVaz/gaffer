@@ -22,7 +22,13 @@ import {
 import { buildReport, replayLink, reportFilename } from "../src/feedback/report";
 import { openMore } from "./kickoff";
 
-const setup: MatchSetup = { ...DEFAULT_SETUP, play: "hotseat", seed: 42, actions: 2 };
+const setup: MatchSetup = {
+  ...DEFAULT_SETUP,
+  mode: "5v5",
+  play: "hotseat",
+  seed: 42,
+  actions: 2,
+};
 
 beforeEach(() => window.localStorage.clear());
 afterEach(() => cleanup());

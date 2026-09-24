@@ -18,7 +18,10 @@ import { takeKickoff } from "./kickoff";
 /* Four actions rather than 5-a-side's two, so there is still a turn left after
    the kickoff pass these tests have to get past (ADR 0018). */
 const hotseat = () => (
-  <Match setup={{ ...DEFAULT_SETUP, play: "hotseat", seed: 1, actions: 4 }} onLeave={() => {}} />
+  <Match
+    setup={{ ...DEFAULT_SETUP, mode: "5v5", play: "hotseat", seed: 1, actions: 4 }}
+    onLeave={() => {}}
+  />
 );
 
 /** The one DOM node representing a given player, wherever it currently is. */

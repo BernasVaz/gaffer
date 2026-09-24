@@ -69,8 +69,18 @@ function Choice({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
+      /*
+       * Spelled out rather than left to the concatenated text content, which
+       * would read "11v11Alpha4-4-2 · 13×9" — technically a name containing the
+       * word, and useless to listen to.
+       */
+      aria-label={tag ? `${title}, ${tag}${blurb ? `. ${blurb}` : ""}` : undefined}
       className={cx(
-        "chunky flex flex-1 cursor-pointer flex-col items-center gap-1 rounded-xl px-3 py-3 text-center",
+        /* `min-w-0` so a flex child may shrink below its content: without it a
+           three-across row of game types, each now carrying an Alpha pill,
+           pushes the setup screen sideways on a 320px phone (ADR 0019). The
+           title and its badge wrap rather than the row overflowing. */
+        "chunky flex min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 rounded-xl px-2 py-3 text-center",
         "focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none",
         selected
           ? "bg-(--color-panel-raised) text-white"
@@ -79,7 +89,7 @@ function Choice({
       style={{ ["--btn-edge" as string]: selected ? "#07200f" : "#04120a" }}
     >
       {children}
-      <span className="flex items-center gap-1.5 text-sm font-semibold">
+      <span className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-0.5 text-sm font-semibold">
         {title}
         {tag && (
           <span className="rounded-full bg-(--color-gold)/20 px-1.5 text-[0.55rem] font-extrabold tracking-[0.14em] text-(--color-gold) uppercase">
@@ -87,7 +97,9 @@ function Choice({
           </span>
         )}
       </span>
-      {blurb && <span className="text-[0.68rem] leading-tight opacity-70">{blurb}</span>}
+      {blurb && (
+        <span className="text-[0.68rem] leading-tight break-words opacity-70">{blurb}</span>
+      )}
     </button>
   );
 }
@@ -197,7 +209,13 @@ export function SetupScreen({ initial, onStart, onHowToPlay }: SetupScreenProps)
                   }}
                   title={option}
                   blurb={`${profile.shape} · ${profile.board.width}×${profile.board.height}`}
-                  tag={profile.status === "alpha" ? "Alpha" : undefined}
+                  /* Every game type carries it, including the settled one. The
+                     badge is about the build, not about which numbers have been
+                     measured — a tester picking 5-a-side is in the same alpha as
+                     one picking 11 (ADR 0027). Which formats have provisional
+                     *numbers* is still `profile.status`, and the note under the
+                     buttons is where that lives. */
+                  tag="Alpha"
                 />
               );
             })}
@@ -212,8 +230,11 @@ export function SetupScreen({ initial, onStart, onHowToPlay }: SetupScreenProps)
               </>
             ) : (
               <>
-                The settled game type: {squadSize(mode)} a side on a {chosen.board.width}×
-                {chosen.board.height} pitch, {chosen.rules.actionsPerTurn} actions a turn.
+                <span className="font-bold text-(--color-gold)">Alpha,</span> like everything here —
+                but the <span className="font-bold">settled</span> game type: {squadSize(mode)} a
+                side on a {chosen.board.width}×{chosen.board.height} pitch,{" "}
+                {chosen.rules.actionsPerTurn} actions a turn. Its numbers are the ones the balance
+                was measured against.
               </>
             )}
           </p>

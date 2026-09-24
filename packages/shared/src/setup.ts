@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { DEFAULT_FORMAT, FORMAT_PROFILES, MatchFormatSchema } from "./format.js";
+import { FORMAT_PROFILES, MatchFormatSchema } from "./format.js";
 import { SeedSchema, type Seed } from "./seed.js";
 import { TeamSchema, type Team } from "./team.js";
 
@@ -96,10 +96,11 @@ export type MatchSetup = z.infer<typeof MatchSetupSchema>;
 /**
  * What you get if you ask for nothing.
  *
- * 5-a-side, because it is the only game type whose balance is settled. Solo,
- * because the first thing anyone does with a link is play it alone. And
- * **`casual`**, because the first thing anyone does with a link is also the
- * first game they have ever played.
+ * **11-a-side**, because it is the game people picture when they picture
+ * football, and a bare link should open on the thing they came for rather than
+ * on the thing that is easiest to balance. Solo, because the first thing anyone
+ * does with a link is play it alone. And **`casual`**, because the first thing
+ * anyone does with a link is also the first game they have ever played.
  *
  * It was `pro` — the setting the balance was tuned against, which is a good
  * reason for a balance run and a poor one for somebody's first match. `pro`
@@ -109,9 +110,17 @@ export type MatchSetup = z.infer<typeof MatchSetupSchema>;
  * what you get when you ask for nothing (ADR 0026).
  */
 export const DEFAULT_SETUP: MatchSetup = {
-  mode: DEFAULT_FORMAT,
+  /*
+   * Deliberately not `DEFAULT_FORMAT`, which is the *engine's* default — what
+   * `createInitialState()` builds when nothing says otherwise, and what the test
+   * helpers pin rules against. That one stays 5-a-side: the smallest board a
+   * rule can be expressed on is the right one to express it on. This is the
+   * different question of what a person who opened a bare link should be looking
+   * at (ADR 0027).
+   */
+  mode: "11v11",
   play: "solo",
-  actions: FORMAT_PROFILES[DEFAULT_FORMAT].rules.actionsPerTurn,
+  actions: FORMAT_PROFILES["11v11"].rules.actionsPerTurn,
   side: "home",
   difficulty: "casual",
   seed: 1,
@@ -206,7 +215,15 @@ export function parseSetup(search: string): MatchSetup {
    */
   const legacyPlay = PlayModeSchema.safeParse(rawMode);
 
-  const mode = pick(MatchFormatSchema, rawMode, DEFAULT_SETUP.mode);
+  /*
+   * A legacy link resolves to **5-a-side**, not to today's default. When those
+   * links were written 5-a-side was the only game type there was, so that is
+   * what their sender meant — and since ADR 0027 the no-param default is
+   * 11-a-side, which would otherwise reinterpret every one of them into a
+   * different game on a different pitch. Only a link that says *nothing* gets
+   * the new default; a link that said something gets what it said.
+   */
+  const mode = legacyPlay.success ? "5v5" : pick(MatchFormatSchema, rawMode, DEFAULT_SETUP.mode);
 
   return {
     mode,

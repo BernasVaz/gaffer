@@ -1,4 +1,4 @@
-import { DEFAULT_SETUP, type MatchSetup, type Team } from "@gaffer/shared";
+import { DEFAULT_SETUP, FORMAT_PROFILES, type MatchSetup, type Team } from "@gaffer/shared";
 import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,6 +7,8 @@ import { Match } from "../src/match/Match";
 
 const solo = (side: Team = "home"): MatchSetup => ({
   ...DEFAULT_SETUP,
+  mode: "5v5",
+  actions: FORMAT_PROFILES["5v5"].rules.actionsPerTurn,
   play: "solo",
   side,
   difficulty: "pro",
@@ -105,7 +107,12 @@ describe("a hotseat match", () => {
   afterEach(() => vi.useRealTimers());
 
   it("never thinks, because nobody is at the other end", async () => {
-    render(<Match setup={{ ...DEFAULT_SETUP, play: "hotseat", seed: 7 }} onLeave={() => {}} />);
+    render(
+      <Match
+        setup={{ ...DEFAULT_SETUP, mode: "5v5", actions: 2, play: "hotseat", seed: 7 }}
+        onLeave={() => {}}
+      />,
+    );
 
     const before = turnShown();
     await letItThink(3);
@@ -115,7 +122,12 @@ describe("a hotseat match", () => {
   });
 
   it("offers whichever side is to move", async () => {
-    render(<Match setup={{ ...DEFAULT_SETUP, play: "hotseat", seed: 7 }} onLeave={() => {}} />);
+    render(
+      <Match
+        setup={{ ...DEFAULT_SETUP, mode: "5v5", actions: 2, play: "hotseat", seed: 7 }}
+        onLeave={() => {}}
+      />,
+    );
 
     expect(selectable().every((label) => label.includes("home"))).toBe(true);
 

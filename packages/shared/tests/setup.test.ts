@@ -23,9 +23,12 @@ describe("the setup contract", () => {
     expect(PLAY_MODES).toEqual(["solo", "hotseat"]);
   });
 
-  it("defaults to a solo match at the one settled game type", () => {
+  it("defaults to a solo 11-a-side match", () => {
+    /* Not `DEFAULT_FORMAT`, which is the engine's default and stays 5-a-side.
+       This is what a person who opened a bare link is looking at (ADR 0027). */
     expect(DEFAULT_SETUP.play).toBe("solo");
-    expect(DEFAULT_SETUP.mode).toBe(DEFAULT_FORMAT);
+    expect(DEFAULT_SETUP.mode).toBe("11v11");
+    expect(DEFAULT_SETUP.difficulty).toBe("casual");
     expect(MatchSetupSchema.parse(DEFAULT_SETUP)).toEqual(DEFAULT_SETUP);
   });
 
@@ -109,7 +112,14 @@ describe("setupToQuery", () => {
           // Hotseat has no opponent, so it carries neither side nor difficulty
           // and those come back as defaults. Everything that matters survives.
           if (play === "solo") expect(back).toEqual(setup);
-          else expect(back).toEqual({ ...DEFAULT_SETUP, play: "hotseat", seed: 1234 });
+          else
+            expect(back).toEqual({
+              ...DEFAULT_SETUP,
+              mode: "5v5",
+              actions: 2,
+              play: "hotseat",
+              seed: 1234,
+            });
         }
       }
     }
@@ -146,18 +156,25 @@ describe("the game type in a link", () => {
     expect(parseSetup(setupToQuery(setup))).toEqual(setup);
   });
 
-  it("falls back to the settled game type when a link names nonsense", () => {
-    expect(parseSetup("?seed=1&mode=9v9").mode).toBe(DEFAULT_FORMAT);
+  it("falls back to the default game type when a link names nonsense", () => {
+    expect(parseSetup("?seed=1&mode=9v9").mode).toBe(DEFAULT_SETUP.mode);
   });
 
   it("still understands a link written before game types existed", () => {
     /*
      * `mode` used to mean solo-or-hotseat. Those links are out in the world, and
-     * silently reinterpreting one as "5-a-side, solo" would change what somebody
-     * sent — a hotseat link would arrive as a match against the machine.
+     * silently reinterpreting one as "solo" would change what somebody sent — a
+     * hotseat link would arrive as a match against the machine.
+     *
+     * It also comes back as **5-a-side**, which is what it meant when it was
+     * written: 5-a-side was the only game type there was. A bare link opens on
+     * 11-a-side now (ADR 0027), and a legacy link must not be dragged along
+     * with it onto a different pitch.
      */
     expect(parseSetup("?seed=42&mode=hotseat")).toEqual({
       ...DEFAULT_SETUP,
+      mode: "5v5",
+      actions: 2,
       play: "hotseat",
       seed: 42,
     });
