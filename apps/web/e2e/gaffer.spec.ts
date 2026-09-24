@@ -8,11 +8,13 @@ import {
   playToTheEnd,
   result,
   selectable,
+  shootout,
   status,
   openMore,
   selectCarrier,
   step,
   takeKickoff,
+  takePenalties,
   targets,
 } from "./match";
 
@@ -156,14 +158,34 @@ test.describe("the seed in the link", () => {
    * The match runs out level and is settled from the seed, which means this
    * checks the tiebreaker cascade end to end through a real browser.
    */
+  /*
+   * Hand every turn straight over, which leaves the match goalless and sends it
+   * to penalties — so these now check that the *shootout* replays from the link
+   * too, which is the part of a match with the most dice in it.
+   */
   const endEveryTurn = async (page: import("@playwright/test").Page) => {
     for (let turn = 0; turn < 40; turn += 1) {
       if (await result(page).isVisible()) break;
+      if (
+        await shootout(page)
+          .isVisible()
+          .catch(() => false)
+      )
+        break;
       const endTurn = page.getByRole("button", { name: "End turn" });
       if (!(await endTurn.isEnabled())) break;
       await endTurn.click();
     }
-    return page.getByLabel("Scoreboard").textContent();
+
+    const penalties = (await shootout(page)
+      .isVisible()
+      .catch(() => false))
+      ? await shootout(page).textContent()
+      : null;
+
+    await takePenalties(page);
+    const board = await page.getByLabel("Scoreboard").textContent();
+    return `${board ?? ""}${penalties ?? ""}`;
   };
 
   test("plays out the same way twice", async ({ page }) => {
@@ -1143,18 +1165,18 @@ test.describe("penalties, taken one at a time", () => {
     test.slow();
     await page.goto("./?seed=11&mode=5v5&play=hotseat&actions=4");
 
-    const shootout = page.getByRole("region", { name: "Penalty shootout" });
+    const penalties = shootout(page);
     const endTurn = page.getByRole("button", { name: /^End turn/ });
 
     /* Regulation plus extra time at 5-a-side is 32 turns; the bound is generous
        so the test fails on "never got there" rather than on arithmetic. */
     for (let turn = 0; turn < 60; turn += 1) {
-      if (await shootout.isVisible().catch(() => false)) break;
+      if (await penalties.isVisible().catch(() => false)) break;
       if (!(await endTurn.isVisible().catch(() => false))) break;
       await endTurn.click();
     }
 
-    await expect(shootout).toBeVisible();
+    await expect(penalties).toBeVisible();
     await expectNoRuleBug(page);
 
     /* Every kick names its taker and its odds before it is taken. */
@@ -1171,7 +1193,7 @@ test.describe("penalties, taken one at a time", () => {
 
     /* The dice are on screen once a kick has been taken, in the same shape open
        play shows a duel. */
-    await expect(shootout).toContainText(/D\d+ \d+\+\d+ v \d+\+\d+/);
+    await expect(penalties).toContainText(/D\d+ \d+\+\d+ v \d+\+\d+/);
 
     await page.getByRole("button", { name: /See the result/ }).click();
 

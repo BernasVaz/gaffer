@@ -19,6 +19,37 @@ export const targets = (page: Page) =>
 /** The banner that only exists once a match has been decided. */
 export const result = (page: Page) => page.getByText(/decided by/);
 
+/** The shootout, which stands between a level match and its result (ADR 0026). */
+export const shootout = (page: Page) => page.getByRole("region", { name: "Penalty shootout" });
+
+/**
+ * Take the penalties, if the match went to them.
+ *
+ * A level match no longer announces a result the moment it ends — it hands over
+ * a shootout to be taken kick by kick, and the result waits behind it. So
+ * "played to the end" now includes pressing through the penalties, exactly as it
+ * does for a person.
+ *
+ * Does nothing when there is no shootout, which is about three matches in four.
+ */
+export async function takePenalties(page: Page): Promise<void> {
+  if (
+    !(await shootout(page)
+      .isVisible()
+      .catch(() => false))
+  )
+    return;
+
+  const take = page.getByRole("button", { name: /^Take the kick/ });
+  for (let kick = 0; kick < 40; kick += 1) {
+    if (!(await take.isVisible().catch(() => false))) break;
+    await take.click();
+  }
+
+  const see = page.getByRole("button", { name: /See the result/ });
+  if (await see.isVisible().catch(() => false)) await see.click();
+}
+
 /** The one line that reports what just happened — and what was refused. */
 export const status = (page: Page) => page.getByLabel("Match status");
 
@@ -43,6 +74,17 @@ export type Step = "acted" | "passed" | "over";
 export async function step(page: Page): Promise<Step> {
   if (await result(page).isVisible()) return "over";
 
+  /* A match that ran out level is not over — it is at penalties, and they have
+     to be taken before anything says who won (ADR 0026). */
+  if (
+    await shootout(page)
+      .isVisible()
+      .catch(() => false)
+  ) {
+    await takePenalties(page);
+    return "over";
+  }
+
   const mine = selectable(page);
   const count = await mine.count();
 
@@ -55,7 +97,9 @@ export async function step(page: Page): Promise<Step> {
 
       // A goal suspends the board while it is celebrated. Wait for it to come
       // back rather than clicking into an animation.
-      await expect(selectable(page).first().or(result(page))).toBeVisible({ timeout: 10_000 });
+      await expect(selectable(page).first().or(result(page)).or(shootout(page))).toBeVisible({
+        timeout: 10_000,
+      });
       return "acted";
     }
 
