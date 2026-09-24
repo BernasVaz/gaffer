@@ -1,6 +1,6 @@
 {
   "name": "@gaffer/ai",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "The solo opponent. Reads the engine and chooses commands; holds no rules of its own.",

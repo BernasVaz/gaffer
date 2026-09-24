@@ -1,6 +1,6 @@
 {
   "name": "@gaffer/engine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "The pure, deterministic rules engine. Framework-free: no DOM, no Node built-ins, no I/O, no clock, no unseeded randomness.",
