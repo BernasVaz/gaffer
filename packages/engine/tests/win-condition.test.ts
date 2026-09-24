@@ -146,7 +146,10 @@ describe("the shootout", () => {
     const state = endTurns(levelAtTheEnd(), 1);
     const shootout = state.result!.shootout!;
 
-    expect(shootout.kicks.length).toBeGreaterThanOrEqual(SHOOTOUT_KICKS * 2);
+    /* No lower bound of five each any more: best of five stops the moment one
+       side cannot be caught (ADR 0026). What must always hold is that the score
+       is exactly the kicks that beat the keeper. */
+    expect(shootout.kicks.length).toBeGreaterThan(0);
     expect(shootout.home + shootout.away).toBe(shootout.kicks.filter((kick) => kick.scored).length);
   });
 
@@ -396,5 +399,116 @@ describe("a full match", () => {
     };
 
     expect(playThrough(31337)).toBe(playThrough(31337));
+  });
+});
+
+describe("a shootout that is taken rather than tallied", () => {
+  const levelAtTheEnd = () => atTurn(TOTAL_TURNS, { home: 1, away: 1 });
+  const shootoutFrom = (seed: number) => {
+    const rng = createRng(parseSeed(seed));
+    const result = applyAction(levelAtTheEnd(), { type: "endTurn", team: "home" }, rng);
+    if (!result.ok) throw new Error(result.reason);
+    return result.state.result!.shootout!;
+  };
+
+  it("carries everything a client needs to play the kick out", () => {
+    /* The client shows the odds, then the dice, then the outcome. All three come
+       off the kick: recomputing any of them elsewhere is a second source of
+       truth that can drift from the one the die was compared against. */
+    for (const kick of shootoutFrom(20260924).kicks) {
+      expect(kick.takerId).not.toBe("");
+      expect(kick.keeperId).not.toBe("");
+      expect(kick.number).toBeGreaterThanOrEqual(1);
+      expect(kick.winChance).toBeGreaterThan(0);
+      expect(kick.winChance).toBeLessThanOrEqual(1);
+      expect(kick.attackerRoll).toBeGreaterThanOrEqual(1);
+      expect(kick.defenderRoll).toBeGreaterThanOrEqual(1);
+      // The outcome is the two totals, and a tie is a save.
+      expect(kick.scored).toBe(kick.attackerTotal > kick.defenderTotal);
+    }
+  });
+
+  it("takes its penalties in ATK order, a different player each time", () => {
+    const { kicks } = shootoutFrom(4242);
+    const away = kicks.filter((kick) => kick.team === "away" && !kick.suddenDeath);
+
+    const takers = away.map((kick) => kick.takerId);
+    expect(new Set(takers).size).toBe(takers.length);
+
+    /* And in descending ATK: the best penalty taker goes first. */
+    const state = levelAtTheEnd();
+    const atkOf = (id: string) => state.players.find((player) => player.id === id)!.stats.atk;
+    for (let index = 1; index < takers.length; index += 1) {
+      expect(atkOf(takers[index]!)).toBeLessThanOrEqual(atkOf(takers[index - 1]!));
+    }
+  });
+
+  it("stops once one side cannot be caught", () => {
+    /* Best of five means best of five. Nobody should be asked to press through
+       a penalty that cannot change the result. */
+    for (let seed = 1; seed <= 200; seed += 1) {
+      const shootout = shootoutFrom(seed);
+      const regulation = shootout.kicks.filter((kick) => !kick.suddenDeath);
+
+      const taken = { home: 0, away: 0 };
+      const scored = { home: 0, away: 0 };
+
+      for (const kick of regulation) {
+        const left = {
+          home: SHOOTOUT_KICKS - taken.home,
+          away: SHOOTOUT_KICKS - taken.away,
+        };
+        const settled =
+          scored.home > scored.away + left.away || scored.away > scored.home + left.home;
+        expect(settled, `seed ${seed}: a kick was taken after the result was settled`).toBe(false);
+
+        taken[kick.team] += 1;
+        if (kick.scored) scored[kick.team] += 1;
+      }
+    }
+  });
+
+  it("rotates back to the best taker in sudden death", () => {
+    /* Everyone takes one before anyone takes two. */
+    for (let seed = 1; seed <= 400; seed += 1) {
+      const { kicks } = shootoutFrom(seed);
+      const sudden = kicks.filter((kick) => kick.suddenDeath && kick.team === "away");
+      if (sudden.length === 0) continue;
+
+      const squadSize = levelAtTheEnd().players.filter((player) => player.team === "away").length;
+      const regulation = kicks.filter((kick) => !kick.suddenDeath && kick.team === "away").length;
+
+      // The next kick after the regulation ones continues the same rotation.
+      const order = kicks.filter((kick) => kick.team === "away").map((kick) => kick.takerId);
+      for (let index = 0; index < order.length; index += 1) {
+        expect(order[index]).toBe(order[index % squadSize]);
+      }
+      expect(regulation).toBeLessThanOrEqual(SHOOTOUT_KICKS);
+      return;
+    }
+  });
+
+  it("always terminates, and always names a winner", () => {
+    /* The property that matters most: a shootout is the last thing standing
+       between a level match and a draw, which GDD §10 forbids. */
+    for (let seed = 1; seed <= 400; seed += 1) {
+      const rng = createRng(parseSeed(seed));
+      const result = applyAction(levelAtTheEnd(), { type: "endTurn", team: "home" }, rng);
+      expect(result.ok).toBe(true);
+      if (!result.ok) continue;
+
+      const decided = result.state.result!;
+      expect(["home", "away"]).toContain(decided.winner);
+
+      const shootout = decided.shootout!;
+      const cap = (SHOOTOUT_KICKS + SHOOTOUT_SUDDEN_DEATH_ROUNDS) * 2;
+      expect(shootout.kicks.length).toBeLessThanOrEqual(cap);
+    }
+  });
+
+  it("replays byte-identically from the same seed", () => {
+    const once = JSON.stringify(shootoutFrom(31337));
+    const twice = JSON.stringify(shootoutFrom(31337));
+    expect(once).toBe(twice);
   });
 });

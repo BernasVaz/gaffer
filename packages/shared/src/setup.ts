@@ -97,15 +97,23 @@ export type MatchSetup = z.infer<typeof MatchSetupSchema>;
  * What you get if you ask for nothing.
  *
  * 5-a-side, because it is the only game type whose balance is settled. Solo,
- * because the first thing anyone does with a link is play it alone. And `pro`,
- * because that is the setting the balance was tuned against.
+ * because the first thing anyone does with a link is play it alone. And
+ * **`casual`**, because the first thing anyone does with a link is also the
+ * first game they have ever played.
+ *
+ * It was `pro` — the setting the balance was tuned against, which is a good
+ * reason for a balance run and a poor one for somebody's first match. `pro`
+ * plans a whole turn ahead and punishes a keeper left off its line; it is meant
+ * to be worth beating, not meant to be met cold. Every level stays selectable on
+ * the setup screen and in the link, so nothing is taken away — this only changes
+ * what you get when you ask for nothing (ADR 0026).
  */
 export const DEFAULT_SETUP: MatchSetup = {
   mode: DEFAULT_FORMAT,
   play: "solo",
   actions: FORMAT_PROFILES[DEFAULT_FORMAT].rules.actionsPerTurn,
   side: "home",
-  difficulty: "pro",
+  difficulty: "casual",
   seed: 1,
 };
 

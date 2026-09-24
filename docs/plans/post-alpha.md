@@ -59,7 +59,23 @@ and not one to start in the same breath.
 
 ---
 
-## 3 · Asynchronous multiplayer
+## 3 · Penalty aiming and a dive mini-game
+
+**Trigger:** only if playtest says the shootout is flat once people have taken a few.
+
+ADR 0026 made the kicks played rather than tallied, and stopped there on purpose. Aiming
+(the taker picks a corner, the keeper picks a dive) would add a decision to a mechanic
+whose appeal right now is that it is the game's existing duel at its most naked — and it
+would be a **new balance surface**, which is the one thing a freeze is for not having.
+
+It is also the change that would break the current design's best property: the engine
+resolves the whole shootout up front, so it replays from a seed with no client attached.
+Real aiming needs a command per kick, and every one of those guarantees would then need
+defending separately. Worth it only if the shootout turns out to need it.
+
+---
+
+## 4 · Asynchronous multiplayer
 
 Planned in [`async-multiplayer.md`](async-multiplayer.md), and unblocked now that the
 engine is versioned (ADR 0022, rules edition 3). Still after playtest: stored matches
@@ -67,7 +83,7 @@ multiply the cost of every rules change, and the alpha exists to produce rules c
 
 ---
 
-## 4 · Cards and discipline
+## 5 · Cards and discipline
 
 Deferred by decision. If it ever happens, a sin-bin is the preferred shape — it is a
 tempo mechanic rather than a punishment, which is the only version that fits a match this

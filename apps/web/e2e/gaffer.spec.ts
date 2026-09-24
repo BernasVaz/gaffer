@@ -1127,3 +1127,56 @@ test.describe("a pass finds anyone with a clear lane", () => {
     await expect(page.getByRole("grid")).toBeVisible();
   });
 });
+
+/**
+ * A shootout that is taken rather than tallied.
+ *
+ * Driven in a real browser because the whole point of ADR 0026 is that a person
+ * presses through it: the odds, then the dice, then the next taker. None of that
+ * is observable from the engine, which resolved the lot in one step.
+ *
+ * The match is reached by ending every turn, which leaves it goalless, through
+ * regulation and extra time and into penalties.
+ */
+test.describe("penalties, taken one at a time", () => {
+  test("plays a level match out to a shootout and decides it", async ({ page }) => {
+    test.slow();
+    await page.goto("./?seed=11&mode=5v5&play=hotseat&actions=4");
+
+    const shootout = page.getByRole("region", { name: "Penalty shootout" });
+    const endTurn = page.getByRole("button", { name: /^End turn/ });
+
+    /* Regulation plus extra time at 5-a-side is 32 turns; the bound is generous
+       so the test fails on "never got there" rather than on arithmetic. */
+    for (let turn = 0; turn < 60; turn += 1) {
+      if (await shootout.isVisible().catch(() => false)) break;
+      if (!(await endTurn.isVisible().catch(() => false))) break;
+      await endTurn.click();
+    }
+
+    await expect(shootout).toBeVisible();
+    await expectNoRuleBug(page);
+
+    /* Every kick names its taker and its odds before it is taken. */
+    const take = page.getByRole("button", { name: /^Take the kick/ });
+    await expect(take).toBeVisible();
+    expect(await take.getAttribute("aria-label")).toMatch(/\d+% chance/);
+
+    /* Take them all. Best of five stops early when it can, so this loops until
+       the button is gone rather than counting to ten. */
+    for (let kick = 0; kick < 40; kick += 1) {
+      if (!(await take.isVisible().catch(() => false))) break;
+      await take.click();
+    }
+
+    /* The dice are on screen once a kick has been taken, in the same shape open
+       play shows a duel. */
+    await expect(shootout).toContainText(/D\d+ \d+\+\d+ v \d+\+\d+/);
+
+    await page.getByRole("button", { name: /See the result/ }).click();
+
+    /* And the match is decided, by the penalties we just watched. */
+    await expect(page.getByText(/decided by shootout/)).toBeVisible();
+    await expectNoRuleBug(page);
+  });
+});

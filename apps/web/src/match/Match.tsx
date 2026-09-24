@@ -13,6 +13,7 @@ import { ActionBar } from "./ActionBar";
 import { InfoPanels } from "./InfoPanels";
 import { ViewControls, useShowOdds } from "../ui/ViewControls";
 import { Pitch } from "../board/Pitch";
+import { ShootoutScreen } from "./Shootout";
 import { Scoreboard } from "../board/Scoreboard";
 import { kitFor } from "../board/squads";
 import { StatusBar } from "../board/StatusBar";
@@ -141,6 +142,19 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
   const over = state.result !== null;
 
   /*
+   * The shootout, taken rather than tallied.
+   *
+   * The engine has already resolved every kick — this is only how many of them
+   * the players have chosen to look at (ADR 0026). It starts at zero the moment
+   * a match ends level, so the result is not spoiled before the penalties are
+   * taken, and `settled` is what lets the full-time banner appear.
+   */
+  const shootout = state.result?.shootout ?? null;
+  const [revealed, setRevealed] = useState(0);
+  const [settled, setSettled] = useState(false);
+  const takingPenalties = shootout !== null && !settled;
+
+  /*
    * Presentation lags the engine, never the reverse. While a goal is being
    * celebrated the pitch shows where everyone stood when the ball went in, even
    * though the engine has already reset them to the kickoff. Everything that is
@@ -210,7 +224,7 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
 
         <Scoreboard state={state} scoredBy={moment?.team ?? null} />
 
-        {over && state.result && (
+        {over && state.result && !takingPenalties && (
           <p className="shrink-0 rounded-xl bg-gradient-to-b from-(--color-gold)/25 to-(--color-gold)/10 px-4 py-2 text-sm ring-1 ring-(--color-gold)/45">
             <span className="font-extrabold text-(--color-gold) capitalize">
               {state.result.winner} win
@@ -226,8 +240,19 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
           </p>
         )}
 
+        {takingPenalties && shootout ? (
+          <ShootoutScreen
+            state={state}
+            kicks={shootout.kicks}
+            revealed={revealed}
+            onTake={() => setRevealed((shown) => shown + 1)}
+            onFinish={() => setSettled(true)}
+            seat={solo ? setup.side : null}
+          />
+        ) : null}
+
         {/* The one element allowed to give up its height. */}
-        <div className="pitch-slot">
+        <div className={takingPenalties ? "hidden" : "pitch-slot"}>
           <Pitch
             state={board}
             seat={seat}

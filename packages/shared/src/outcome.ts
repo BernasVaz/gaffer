@@ -27,8 +27,15 @@ export function isRegulationOver(turn: number, rules: MatchRules): boolean {
   return turn > rules.turnCap;
 }
 
-/** Penalties each side takes before the shootout goes to sudden death. */
-export const SHOOTOUT_KICKS = 3;
+/**
+ * Penalties each side takes before the shootout goes to sudden death.
+ *
+ * Five, as football has it. It was three while the shootout resolved itself in
+ * one step and nobody watched it — a number chosen to keep a statistical
+ * tiebreaker short. Now that the kicks are taken one at a time by a person, the
+ * familiar shape is worth more than the two saved rolls (ADR 0026).
+ */
+export const SHOOTOUT_KICKS = 5;
 
 /**
  * Sudden-death penalty rounds before the statistical backstop takes over.
@@ -84,12 +91,42 @@ export const ShootoutKickSchema = z.object({
   team: TeamSchema,
   /** Whether it beat the keeper. */
   scored: z.boolean(),
+  /** Which kick this is for that side, counting from one. */
+  number: z.number().int().min(1),
+  /** Whether it was taken in sudden death rather than the opening five. */
+  suddenDeath: z.boolean(),
+  /** The player who took it. */
+  takerId: z.string().min(1),
+  /** The player who faced it. */
+  keeperId: z.string().min(1),
+  /** The taker's ATK plus the die. */
+  attackerTotal: z.number().int(),
+  /** The keeper's DEF plus the die. */
+  defenderTotal: z.number().int(),
+  /** The die the taker rolled. */
+  attackerRoll: z.number().int().min(1),
+  /** The die the keeper rolled. */
+  defenderRoll: z.number().int().min(1),
+  /**
+   * The odds the taker had, worked out before the dice.
+   *
+   * Carried on the kick rather than recomputed by whoever is drawing it, so the
+   * number a player is shown before pressing is provably the number the kick was
+   * resolved at (GDD §9).
+   */
+  winChance: z.number().min(0).max(1),
 });
 
 /** A validated penalty. See {@link ShootoutKickSchema}. */
 export type ShootoutKick = z.infer<typeof ShootoutKickSchema>;
 
-/** How a shootout went, kick by kick, so a client can replay it for the players. */
+/**
+ * How a shootout went, kick by kick, so a client can play it out for the players.
+ *
+ * The engine resolves all of it at once and deterministically; the client walks
+ * this list one kick at a time. Presentation lags the engine and never leads it,
+ * which is what keeps a shootout replayable from a seed with no UI attached.
+ */
 export const ShootoutSchema = z.object({
   /** Penalties the home side converted. */
   home: z.number().int().min(0),

@@ -136,7 +136,10 @@ describe("which screen you land on", () => {
       mode: "5v5",
       play: "solo",
       side: "away",
-      difficulty: "pro",
+      /* The gentler default a first-time player gets (ADR 0026). Pinned rather
+         than read off DEFAULT_SETUP, because which level somebody meets first
+         is a decision and should not be able to drift silently. */
+      difficulty: "casual",
     });
     expect(window.location.search).toContain("seed=");
   });
