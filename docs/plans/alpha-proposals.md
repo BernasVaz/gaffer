@@ -298,6 +298,9 @@ than towards it. Of the two treatments, `off 5 / on 3` is the better: fewer goal
 matches than either, and less overshoot than off-ball alone — carrying the ball costing
 you something is doing real work.
 
+**Retired — see ADR 0024**, which records this decision and the playtest thread it cannot
+close.
+
 **Recommendation: do not ship it.** 11-a-side is on target, and the search cut this
 section asked for is not needed at 33 ms a decision. Revisit only if a big pitch still
 _feels_ untraversable in play, which is a judgement the numbers cannot make — and note
@@ -336,7 +339,7 @@ gained most from being able to.
 highest-scoring format before the change. It takes 4.4 shots a match against 5-a-side's
 2.5 — three actions a turn on a 9×7 board is a lot of pitch per action.
 
-Nothing is proposed here. 7-a-side is marked alpha, one number outside its target on a
+**Logged as a watch-item in ADR 0024.** Nothing is proposed here. 7-a-side is marked alpha, one number outside its target on a
 format nobody has played much is not an emergency, and the cheapest levers if it is
 wanted — `actionsPerTurn` or `turnCap`, both already per-format data (ADR 0012) — should
 not be pulled on 100 matches of self-play alone.
