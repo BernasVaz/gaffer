@@ -215,12 +215,45 @@ describe("legalActions", () => {
       expect(only(legalActions(state), "pass")).toHaveLength(0);
     });
 
-    it("does not offer a team-mate who is off any straight lane", () => {
+    it("offers a team-mate who is off every straight lane", () => {
+      /* Two forward and one across: the commonest shape on a football pitch,
+         and unreachable until line-of-sight lanes (ADR 0025). */
       const state = makeState([
         { team: "home", role: "midfielder", at: [1, 2], ball: true },
-        { team: "home", role: "winger", at: [3, 3] }, // knight-ish offset
+        { team: "home", role: "winger", at: [3, 3] },
       ]);
-      expect(only(legalActions(state), "pass")).toHaveLength(0);
+      expect(only(legalActions(state), "pass").map((pass) => pass.target)).toEqual([
+        "home-winger-1",
+      ]);
+    });
+
+    it("blocks that angled ball with a body under either half of its flight", () => {
+      /* The flight from (1,2) to (3,3) crosses both (2,2) and (2,3) — it is
+         over one square, then the other — so a body on either stops it. This is
+         what keeps the new angles from being free. */
+      for (const at of [
+        [2, 2],
+        [2, 3],
+      ] as const) {
+        const state = makeState([
+          { team: "home", role: "midfielder", at: [1, 2], ball: true },
+          { team: "home", role: "winger", at: [3, 3] },
+          { team: "away", role: "defender", at: [at[0], at[1]] },
+        ]);
+        expect(only(legalActions(state), "pass"), `a defender on ${at.join(",")}`).toHaveLength(0);
+      }
+    });
+
+    it("is blocked by a team-mate under the flight as surely as by an opponent", () => {
+      /* The ball does not know whose shirt it hits — it arrives at him instead. */
+      const state = makeState([
+        { team: "home", role: "midfielder", at: [1, 2], ball: true },
+        { team: "home", role: "winger", at: [3, 3] },
+        { team: "home", role: "striker", at: [2, 3] },
+      ]);
+      const targets = only(legalActions(state), "pass").map((pass) => pass.target);
+      expect(targets).toHaveLength(1);
+      expect(targets).not.toContain("home-winger-1");
     });
 
     it("does not pass through a player standing in the lane", () => {
@@ -406,15 +439,15 @@ describe("legalActions", () => {
       expect(legalActions(after.state).some((action) => action.type !== "pass")).toBe(true);
     });
 
-    it("offers two passes from the kickoff", () => {
-      // Striker PAS 2, so only players within two steps on one of its eight
-      // lanes can receive. The spread formation puts both the midfielder and the
-      // defender on one; the earlier central-column shape offered just one, which
-      // was flagged as a thin opening.
+    it("offers three passes from the kickoff", () => {
+      // Striker PAS 2, so any team-mate within two steps with a clear flight can
+      // receive. Under ray lanes this was two; the winger was two forward and one
+      // across and so could not be found at all (ADR 0025).
       const passes = only(legalActions(createInitialState()), "pass");
       expect(passes.map((pass) => pass.target).sort()).toEqual([
         "home-defender-1",
         "home-midfielder-1",
+        "home-winger-1",
       ]);
     });
 

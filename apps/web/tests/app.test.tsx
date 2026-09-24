@@ -11,7 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { Match } from "../src/match/Match";
-import { targetAt, targetsFor } from "../src/board/targets";
+import { cellKey, targetAt, targetsFor } from "../src/board/targets";
 import { selectCarrier, takeKickoff } from "./kickoff";
 
 /**
@@ -328,9 +328,16 @@ describe("the shared target lookup", () => {
 
   it("offers nothing on a cell the rules say nothing about", () => {
     const { state, targets } = boardFor(carrierAfterKickoff());
-    const keeper = state.players.find((player) => player.id === "home-goalkeeper-1")!;
 
-    expect(targetAt(state, targets, undefined, keeper.position)).toBeNull();
+    /* Somebody the carrier can do nothing with. Named by search rather than by
+       id: since ADR 0025 a pass finds anyone with a clear lane, so which
+       players are addressable is a fact about the position, not a constant. */
+    const unaddressed = state.players.find(
+      (player) => !targets.players.has(player.id) && !targets.cells.has(cellKey(player.position)),
+    );
+
+    expect(unaddressed, "every player on the board was a target").toBeDefined();
+    expect(targetAt(state, targets, undefined, unaddressed!.position)).toBeNull();
   });
 });
 

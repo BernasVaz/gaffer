@@ -10,6 +10,8 @@ import {
 import { m, useAnimationControls, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useRef } from "react";
 
+import { laneBetween } from "@gaffer/engine";
+
 import { GoalNet, PitchMarkings } from "../art/PitchMarkings";
 import { layoutFor, type Orientation } from "./orientation";
 import { GOAL, POP_SPRING, TURN_FLOURISH } from "../feel";
@@ -214,6 +216,15 @@ export interface PitchProps {
   /** Called as targets are hovered or focused, so a breakdown can be shown. */
   onFocusTarget: (target: Target | null) => void;
   /**
+   * The target currently under the cursor or keyboard focus, if any.
+   *
+   * The board draws the ball's flight for it. Since ADR 0025 a pass is legal to
+   * anyone with a clear lane rather than to whoever stands on a ray, so "why is
+   * this one contested and that one free?" is answered by where the ball goes —
+   * and that is worth showing rather than describing.
+   */
+  focused?: Target | null;
+  /**
    * Suspend every interaction while something is being shown.
    *
    * Presentation only: the engine has already resolved whatever is being
@@ -262,6 +273,7 @@ export function Pitch({
   onSelect,
   onCommit,
   onFocusTarget,
+  focused = null,
   frozen = false,
   goalFor = null,
   orientation = "landscape",
@@ -297,6 +309,26 @@ export function Pitch({
     targets.shot && selected ? attackingGoalMouth(selected.team, state.board).map(cellKey) : [],
   );
   const mouthCentre = height >> 1;
+
+  /**
+   * The cells the focused ball would fly over, drawn as its flight.
+   *
+   * Only for a pass or a launch, and only while one is focused. It is the same
+   * {@link laneBetween} the engine uses to decide both legality and who may
+   * contest it, so what is drawn is exactly what is being reasoned about — a
+   * defender lit beside this line is the defender in the odds.
+   */
+  const flightCells = new Set(
+    focused && (focused.action.type === "pass" || focused.action.type === "launch") && selected
+      ? laneBetween(
+          selected.position,
+          state.players.find((player) => player.id === focused.action.target)?.position ?? {
+            x: -1,
+            y: -1,
+          },
+        ).map(cellKey)
+      : [],
+  );
 
   /**
    * Cells a dribble would carry the ball on to, past the one it is aimed at.
@@ -523,6 +555,18 @@ export function Pitch({
                         actionable && "cursor-pointer",
                       )}
                     >
+                      {/* The flight of the ball being considered. */}
+                      {flightCells.has(key) && (
+                        <span
+                          aria-hidden
+                          data-flight="true"
+                          /* Never in the way of the click underneath it: an
+                             overlay that eats its own board is the bug the
+                             guide spotlight already shipped once. */
+                          className="pointer-events-none absolute inset-[38%] rounded-full bg-white/45"
+                        />
+                      )}
+
                       {/* Where a won dribble would carry on to. */}
                       {!cellTarget && carryCells.has(key) && (
                         <span

@@ -16,36 +16,12 @@ import {
   type Position,
 } from "@gaffer/shared";
 
+import { laneBetween } from "./lane.js";
+
 const cellKey = (position: Position): string => `${position.x},${position.y}`;
 
 const findPlayer = (state: MatchState, id: string): Player | undefined =>
   state.players.find((player) => player.id === id);
-
-/**
- * The cells strictly between two positions along a straight line, or null when
- * they do not sit on one of the 8 rays.
- *
- * Endpoints are excluded: a lane is what the ball travels *through*, not where
- * it starts or ends. Neighbouring cells therefore give an empty lane, which is
- * why a pass to an adjacent team-mate can never be intercepted.
- */
-function laneBetween(from: Position, to: Position): Position[] | null {
-  const deltaX = to.x - from.x;
-  const deltaY = to.y - from.y;
-  const steps = chebyshevDistance(from, to);
-
-  if (steps === 0) return null;
-  if (Math.abs(deltaX) !== 0 && Math.abs(deltaX) !== steps) return null;
-  if (Math.abs(deltaY) !== 0 && Math.abs(deltaY) !== steps) return null;
-
-  const stepX = Math.sign(deltaX);
-  const stepY = Math.sign(deltaY);
-
-  return Array.from({ length: steps - 1 }, (_unused, index) => ({
-    x: from.x + stepX * (index + 1),
-    y: from.y + stepY * (index + 1),
-  }));
-}
 
 /**
  * The opponent being gone *through*, when a dribble is taking somebody on.
@@ -84,6 +60,19 @@ function opponentsBeside(state: MatchState, team: Player["team"], cells: Positio
 }
 
 /**
+ * Whether two cells sit on one of the eight straight lines a player walks.
+ *
+ * The geometry a lane used to be restricted to, kept only for
+ * {@link shotLaneCells} — see the note there for why a shot is still measured
+ * this way when a pass is not.
+ */
+function isOnRay(from: Position, to: Position): boolean {
+  const deltaX = Math.abs(to.x - from.x);
+  const deltaY = Math.abs(to.y - from.y);
+  return deltaX === 0 || deltaY === 0 || deltaX === deltaY;
+}
+
+/**
  * Which opponent leads the challenge.
  *
  * The strongest available defender contests and the rest cover, so a player is
@@ -100,12 +89,26 @@ function primaryDefender(candidates: Player[]): Player {
  * The mouth is three cells wide and a shooter is rarely aligned with all three,
  * so this is the union of the straight lanes to whichever mouth cells *are* on
  * one of the shooter's rays. An opponent standing on any of them is covering.
+ *
+ * **Deliberately still rays, now that passing is not.** ADR 0025 gave the ball a
+ * true flight between any two cells, and pointing this at it is a one-line
+ * change that makes the code more coherent and the game worse: measured over 600
+ * matches a side at 5-a-side it took shot conversion from 58.6% to 54.8%, goals
+ * from 1.44 to 1.37, and **doubled goalless matches from 3.8% to 6.5%**. More
+ * defenders end up in front of more shots, and the shot is the verb with the
+ * least slack in it.
+ *
+ * So the restriction stays, as a decision rather than an accident. The honest
+ * cost is that a shot at a mouth cell off every ray cannot be covered by a body
+ * standing in front of it — which is a real oddity, and a question for after the
+ * alpha rather than a thing to change in the same breath as passing.
  */
 function shotLaneCells(state: MatchState, shooter: Player): Position[] {
   const cells = new Map<string, Position>();
 
   for (const mouthCell of attackingGoalMouth(shooter.team, state.board)) {
-    for (const cell of laneBetween(shooter.position, mouthCell) ?? []) {
+    if (!isOnRay(shooter.position, mouthCell)) continue;
+    for (const cell of laneBetween(shooter.position, mouthCell)) {
       cells.set(cellKey(cell), cell);
     }
   }
@@ -265,8 +268,10 @@ export function previewDuel(state: MatchState, action: Action): DuelPreview | nu
       const receiver = findPlayer(state, action.target);
       if (!receiver) return null;
 
+      /* The same lane enumeration used to decide the ball could be played at
+         all, so what blocks a pass and what contests it are one geometry. */
       const lane = laneBetween(actor.position, receiver.position);
-      if (!lane || lane.length === 0) return null;
+      if (lane.length === 0) return null;
 
       const candidates = opponentsBeside(state, actor.team, lane);
       /*
