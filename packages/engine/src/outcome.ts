@@ -1,4 +1,5 @@
 import {
+  duelWinChance,
   DUEL_DIE_SIDES,
   isExtraTime,
   opponentOf,
@@ -23,17 +24,20 @@ function leader(state: MatchState): Team | null {
 }
 
 /**
- * Who takes a side's penalties.
+ * The order a side takes its penalties in: best attacker first.
  *
- * The best attacker shoots and the keeper saves, which for a v1 squad is always
- * the Striker and the Goalkeeper. Chosen by stat rather than by role so a state
- * missing either role still resolves instead of throwing — a shootout must never
- * be the thing that crashes a match.
+ * The whole squad, sorted by ATK, ties broken on id so a replay is stable. Five
+ * different players take the opening five, as football requires — which at
+ * 5-a-side means the goalkeeper takes one, because there are exactly five of
+ * them and somebody has to.
+ *
+ * Sudden death **rotates**: kick six goes back to the best attacker and the
+ * order runs again. Everyone takes one before anyone takes two (ADR 0026).
  */
-function penaltyTaker(state: MatchState, team: Team): Player | undefined {
+function penaltyOrder(state: MatchState, team: Team): Player[] {
   return state.players
     .filter((player) => player.team === team)
-    .sort((a, b) => b.stats.atk - a.stats.atk || a.id.localeCompare(b.id))[0];
+    .sort((a, b) => b.stats.atk - a.stats.atk || a.id.localeCompare(b.id));
 }
 
 /** Who faces a side's penalties: their keeper, or the best defender available. */
@@ -46,15 +50,40 @@ function penaltyKeeper(state: MatchState, team: Team): Player | undefined {
 }
 
 /**
+ * Whether the shootout is already decided with kicks still to take.
+ *
+ * Best of five means exactly that: once one side cannot be caught, the rest are
+ * not taken. Before ADR 0026 every kick was taken regardless, which nobody saw
+ * because nobody watched it — but a person pressing through three dead penalties
+ * to reach a result already settled is a different thing entirely.
+ *
+ * @param scored - Penalties converted so far.
+ * @param taken - Penalties taken so far, per side.
+ */
+function alreadyDecided(scored: Record<Team, number>, taken: Record<Team, number>): boolean {
+  const left = (team: Team) => SHOOTOUT_KICKS - taken[team];
+  return scored.home > scored.away + left("away") || scored.away > scored.home + left("home");
+}
+
+/**
  * Run the shootout.
  *
  * Each penalty is the shot duel the rest of the engine already uses — taker ATK
- * against keeper DEF, an opposed d3, a tie going to the keeper — with no covering
- * defenders, because nobody else is on the pitch for it.
+ * against keeper DEF, an opposed die, a tie going to the keeper — with no
+ * covering defenders, because nobody else is on the pitch for it. **No new
+ * balance surface:** a penalty is priced by the same two stats and the same die
+ * as every other shot in the game.
  *
- * There is nothing for a player to decide here, so the whole shootout resolves in
- * one step and lands in the result for a client to animate. That also keeps it
- * replayable: it consumes the match's own seeded generator in a fixed order.
+ * The whole shootout resolves here, in one step, consuming the match's own
+ * seeded generator in a fixed order. That is what makes it replayable: a seed
+ * and a command log reproduce the same kicks in the same order with no client
+ * attached, and self-play runs it exactly as a person's match does. A client
+ * takes the resulting list and walks it one kick at a time, which is
+ * presentation and nothing more (ADR 0026).
+ *
+ * Every kick carries the odds it was resolved at, so the number shown before a
+ * player presses is provably the number the die was compared against rather than
+ * a second, parallel calculation that could drift.
  *
  * The side that did **not** take the opening kickoff goes first, the same
  * compensation the final tiebreaker rung applies.
@@ -63,31 +92,59 @@ function runShootout(state: MatchState, rng: Rng): Shootout {
   const first = opponentOf(state.kickedOff);
   const second = state.kickedOff;
 
+  const order: Record<Team, Player[]> = {
+    home: penaltyOrder(state, "home"),
+    away: penaltyOrder(state, "away"),
+  };
+
   const kicks: ShootoutKick[] = [];
   const scored: Record<Team, number> = { home: 0, away: 0 };
+  const taken: Record<Team, number> = { home: 0, away: 0 };
 
-  const take = (team: Team): void => {
-    const taker = penaltyTaker(state, team);
+  const take = (team: Team, suddenDeath: boolean): void => {
+    const squad = order[team];
+    const taker = squad.length > 0 ? squad[taken[team] % squad.length] : undefined;
     const keeper = penaltyKeeper(state, opponentOf(team));
 
-    const attack = (taker?.stats.atk ?? 0) + rng.int(1, DUEL_DIE_SIDES);
-    const defence = (keeper?.stats.def ?? 0) + rng.int(1, DUEL_DIE_SIDES);
+    const attack = taker?.stats.atk ?? 0;
+    const defence = keeper?.stats.def ?? 0;
+
+    const attackerRoll = rng.int(1, DUEL_DIE_SIDES);
+    const defenderRoll = rng.int(1, DUEL_DIE_SIDES);
+    const attackerTotal = attack + attackerRoll;
+    const defenderTotal = defence + defenderRoll;
 
     // Strictly higher, so a tie is a save (GDD §9).
-    const beat = attack > defence;
+    const beat = attackerTotal > defenderTotal;
+    taken[team] += 1;
     if (beat) scored[team] += 1;
-    kicks.push({ team, scored: beat });
+
+    kicks.push({
+      team,
+      scored: beat,
+      number: taken[team],
+      suddenDeath,
+      takerId: taker?.id ?? "",
+      keeperId: keeper?.id ?? "",
+      attackerTotal,
+      defenderTotal,
+      attackerRoll,
+      defenderRoll,
+      winChance: duelWinChance(attack, defence),
+    });
   };
 
   for (let kick = 0; kick < SHOOTOUT_KICKS; kick += 1) {
-    take(first);
-    take(second);
+    if (alreadyDecided(scored, taken)) break;
+    take(first, false);
+    if (alreadyDecided(scored, taken)) break;
+    take(second, false);
   }
 
   for (let round = 0; round < SHOOTOUT_SUDDEN_DEATH_ROUNDS; round += 1) {
     if (scored.home !== scored.away) break;
-    take(first);
-    take(second);
+    take(first, true);
+    take(second, true);
   }
 
   return { home: scored.home, away: scored.away, kicks };

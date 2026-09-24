@@ -1,4 +1,4 @@
-# Gaffer — Game Design Document (v1.16 — LOCKED, v1 baseline)
+# Gaffer — Game Design Document (v1.17 — LOCKED, v1 baseline)
 
 _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementable baseline**: the design is complete enough to build with no open questions. Values marked *(tunable)* are locked starting numbers we will refine in playtest — changing them is a data edit, not a redesign. This is the contract the engine (M2) is built and tested against._
 
@@ -12,6 +12,7 @@ _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementabl
 > - **v1.2 → v1.3:** bounded the win condition (§10, §13) — extra time is 4 turns, then a penalty shootout of 3 kicks plus 10 sudden-death rounds, then most shots, then most duels won, then the side that did not kick off. A tiebreaker cascade was needed because §10 forbids draws and no symmetric shootout terminates on its own.
 > - **v1.3 → v1.4:** made scoring possible. Keeper DEF 5 → 4; the keeper defends a shot only while standing in its own mouth, so drawing it out opens the goal; covering on a shot softened to +1; and only the defending keeper may occupy a goal mouth, which closes the hole where an attacker could stand in the net and shoot at it (§5, §6, §7, §9, §13). See ADR 0004.
 > - **v1.4 → v1.5:** brought feel into v1 scope (§14). Playtesting the first interactive build showed that an instant result reads as a state change rather than as football, which Pillar 1 depends on. Movement, the goal moment and the duel reveal are now in; animation stays presentation-only and may never affect the engine or its determinism. See ADR 0005.
+> - **v1.16 → v1.17:** the shootout is **taken rather than tallied** (§10). The penalties were always real — the same taker-ATK-against-keeper-DEF duel as any other shot — but the engine resolved all of them the instant the match went level and the client printed the aggregate, so the most dramatic thing the game can do arrived as a line of small text, already over, in roughly one match in four. Now the player presses for each kick and sees the odds, the dice and the result, with a running scoreboard and commentary. **Nothing about how a penalty resolves changed**, and no new balance surface was added. The engine still resolves the whole shootout in one deterministic step and the client walks the list: presentation lags the engine, so a shootout replays byte-identically from a seed with no UI attached and self-play takes the same kicks. Best of five rather than three, stopping once it cannot be caught, takers in ATK order rotating through sudden death. The **rules edition steps to 4**, because a level match now draws different dice in a different order and an edition-3 log would replay to a different winner. Folded in: a first-time solo player now meets **`casual`** rather than `pro` — every level stays selectable, this only changes what you get when you ask for nothing. See ADR 0026.
 > - **v1.15 → v1.16:** a **pass finds anyone with a clear lane** (§7). It used to go to the first team-mate standing on one of the carrier's eight rays, so a team-mate two forward and one across — the commonest shape in football — was not a hard pass or a risky pass but **not a pass at all**. A pass is now legal to any team-mate in PAS range whose flight is unblocked, and a launch is the same rule at `launchRange`. Every lane that was legal before still is, with the same blockers: a diagonal clips the corners of its neighbours rather than crossing them. This also re-reads ADR 0015 — the keeper's long ball was rare because **71% of its rays ended in empty grass**, which was a fact about eight lines through 35 cells and not about football. Measured over 600 matches a side at 5-a-side: goals per match **1.41 → 1.44**, passes offered per decision **0.71 → 0.85**, and passing's share of progression flat at 85%. Shots are still measured on rays, deliberately — pointing them at the new geometry doubled goalless matches. The **rules edition steps to 3**, because this changes what is _legal_ and not only what an action produces. See ADR 0025.
 > - **v1.14 → v1.15:** a **won dribble carries on** one cell further in the direction of travel, when that cell is free (§7). Taking the man on gave _one_ dribble an upside; every other was still paying a duel for ground a move covers for nothing, which cost about a tenth of the match's goals. Composing the two means beating the man in front carries you past him _and_ on — three cells from standing, the one run a Move can never make. Measured over 600 matches a side at 5-a-side: goals per match **1.45 → 1.43** (unchanged), dribbles **0.71 → 2.05**, passing still 85% of progression, and shot conversion up 54.1% → 58.8% because a dribble that buys ground finishes closer in. The **rules edition steps to 2** (§15), so a match stored under the old dribble says so rather than replaying to a board that never happened. See ADR 0023.
 > - **v1.13 → v1.14:** you can **take the man on** (§7). A carrier may dribble _through_ an adjacent opponent onto the cell beyond — the one destination a plain Move can never reach, and the reason dribbling was ornamental: before this every dribble ended somewhere a move could also have reached, so it was a duel with no upside. The duel is with the man being gone through, and the players either side cover at half rate (`THROUGH_COVERING_BONUS`). Never the goalkeeper. Measured at 5-a-side over 600 matches a side: dribbles per match **0.71 → 1.78**, passing still does 86% of progression — and goals per match **1.45 → 1.32**, which is inside the 1–3 target but below the 1.50 ADR 0007 settled on, which v1.15 then recovers. See ADR 0021.
@@ -147,7 +148,7 @@ Every contested action is a duel:
 - After every goal (regulation or extra time), **positions reset for a kickoff** to the conceding side.
 - **No flat draws.** Level after extra time goes to a decision cascade, tried in order:
 
-  1. **Penalty shootout** — 3 kicks a side, then sudden death capped at **10 rounds**. Each penalty is the ordinary shot duel (taker **ATK** vs keeper **DEF**, opposed d4, tie to the keeper) with no covering defenders, which converts at **81%** — close to real football's ~78%, and no longer the 33% that made shootouts run for 22 kicks. Nothing is chosen by the players, so the engine resolves the whole shootout in one step from the match's own seed and hands back the kicks for the client to play out. _(Auto-resolved in v1; interactive penalties are a possible later feature.)_
+  1. **Penalty shootout** — **5 kicks a side**, alternating, stopping as soon as one side cannot be caught; then sudden death capped at **10 rounds**. Each penalty is the ordinary shot duel (taker **ATK** vs keeper **DEF**, opposed d4, tie to the keeper) with no covering defenders, which converts at **81%** — close to real football's ~78%, and no longer the 33% that made shootouts run for 22 kicks. Takers are the squad in **ATK order, a different player each kick** — at 5-a-side that is all five, so the goalkeeper takes one — and sudden death rotates back to the top, so everyone takes one before anyone takes two. **The kicks are taken, not tallied:** the player presses for each one and sees the odds, then the dice, then the result, with a running shootout scoreboard. The engine still resolves the whole shootout in one step from the match's own seed; the press reveals a kick that is already decided, which is what keeps a shootout replayable from a seed with no client attached and identical in self-play. Aiming and a dive mini-game are deliberately **not** in v1. See ADR 0026.
   2. **Most shots attempted** across the match.
   3. **Most duels won** across the match.
   4. **The side that did not take the opening kickoff.** The kickoff is the game's only structural asymmetry — one side moves first with the ball — so the other takes a tie nothing else could settle. That side also kicks first in the shootout, for the same reason.
@@ -200,37 +201,37 @@ The goal mouth deliberately does **not** scale. A goal in football is a fixed ph
 
 The 5-a-side column below is unchanged from v1.7:
 
-| Parameter                   | v1 value                                                         |
-| --------------------------- | ---------------------------------------------------------------- |
-| Actions per turn            | 2 at 5-a-side (§12 for the rest)                                 |
-| Pitch (5-a-side)            | 7 × 5 cells (§12 for the rest)                                   |
-| Squad                       | 1 GK + 4 outfield                                                |
-| Stats / roles / move ranges | §6 table                                                         |
-| Mobility stat               | PAS (no separate PACE)                                           |
-| Movement & pass geometry    | straight lines, 8 directions, blocked by the first occupied cell |
-| Distance metric             | steps (Chebyshev — a diagonal costs 1)                           |
-| Adjacency                   | the 8 surrounding cells                                          |
-| Goal mouth                  | 3 cells, rows 1–3 of each end column                             |
-| **SHOT_RANGE**              | **2** cells from the goal mouth at 5-a-side                      |
-| **launchRange**             | **4** cells at 5-a-side (§12 for the rest), goalkeeper only      |
-| LAUNCH_INTERCEPT_BONUS      | **+1** to the defence on a launch's interception duel            |
-| Keeper DEF                  | **3** (was 4, was 5)                                             |
-| Keeper guards               | only while standing in its own mouth                             |
-| Goal-mouth occupancy        | defending keeper only                                            |
-| Undefended shot             | no duel — a certain goal                                         |
-| Dribble trigger             | carrier adjacent to an opponent at origin **or** destination     |
-| Tackle                      | atomic; the defender must already be adjacent                    |
-| Duel die                    | opposed **d4** (was d3)                                          |
-| Covering-defender modifier  | +2 DEF each in open play, **+1 on a shot**                       |
-| Turn cap                    | **24** turns (12 per side) at 5-a-side                           |
-| Extra time                  | **8** turns (4 per side) at 5-a-side, golden goal                |
-| Shootout                    | 3 kicks each, then sudden death                                  |
-| Shootout sudden-death cap   | 10 rounds                                                        |
-| Tiebreaker cascade          | shootout -> shots -> duels won -> non-kickoff side               |
-| Tie-breaker                 | golden-goal sudden death                                         |
-| Per-turn timer              | ≈ 25s _(client-side)_                                            |
-| Shot resolution             | single duel (ATK vs keeper DEF) — clean striker **81%**          |
-| Degrees of success          | none in v1                                                       |
+| Parameter                   | v1 value                                                                    |
+| --------------------------- | --------------------------------------------------------------------------- |
+| Actions per turn            | 2 at 5-a-side (§12 for the rest)                                            |
+| Pitch (5-a-side)            | 7 × 5 cells (§12 for the rest)                                              |
+| Squad                       | 1 GK + 4 outfield                                                           |
+| Stats / roles / move ranges | §6 table                                                                    |
+| Mobility stat               | PAS (no separate PACE)                                                      |
+| Movement & pass geometry    | straight lines, 8 directions, blocked by the first occupied cell            |
+| Distance metric             | steps (Chebyshev — a diagonal costs 1)                                      |
+| Adjacency                   | the 8 surrounding cells                                                     |
+| Goal mouth                  | 3 cells, rows 1–3 of each end column                                        |
+| **SHOT_RANGE**              | **2** cells from the goal mouth at 5-a-side                                 |
+| **launchRange**             | **4** cells at 5-a-side (§12 for the rest), goalkeeper only                 |
+| LAUNCH_INTERCEPT_BONUS      | **+1** to the defence on a launch's interception duel                       |
+| Keeper DEF                  | **3** (was 4, was 5)                                                        |
+| Keeper guards               | only while standing in its own mouth                                        |
+| Goal-mouth occupancy        | defending keeper only                                                       |
+| Undefended shot             | no duel — a certain goal                                                    |
+| Dribble trigger             | carrier adjacent to an opponent at origin **or** destination                |
+| Tackle                      | atomic; the defender must already be adjacent                               |
+| Duel die                    | opposed **d4** (was d3)                                                     |
+| Covering-defender modifier  | +2 DEF each in open play, **+1 on a shot**                                  |
+| Turn cap                    | **24** turns (12 per side) at 5-a-side                                      |
+| Extra time                  | **8** turns (4 per side) at 5-a-side, golden goal                           |
+| Shootout                    | 3 kicks each, then sudden death                                             |
+| Shootout sudden-death cap   | 10 rounds                                                                   |
+| Tiebreaker cascade          | shootout (5 kicks, taken by hand) -> shots -> duels won -> non-kickoff side |
+| Tie-breaker                 | golden-goal sudden death                                                    |
+| Per-turn timer              | ≈ 25s _(client-side)_                                                       |
+| Shot resolution             | single duel (ATK vs keeper DEF) — clean striker **81%**                     |
+| Degrees of success          | none in v1                                                                  |
 
 ### Balance watch-list (observed, not yet changed)
 

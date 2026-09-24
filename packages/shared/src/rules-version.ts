@@ -34,8 +34,12 @@ import { z } from "zod";
  *   log does not merely replay differently: a command in it can be refused
  *   outright, or a board can offer a ball that was unimaginable when it was
  *   written.
+ * - **4** — the penalty shootout is five kicks a side rather than three, stops
+ *   as soon as one side cannot be caught, and rotates its takers (ADR 0026). A
+ *   level match under edition 3 draws a different number of dice in a different
+ *   order, so the shootout — and therefore the winner — comes out differently.
  */
-export const RULES_VERSION = 3;
+export const RULES_VERSION = 4;
 
 /** A validated rules edition. See {@link RULES_VERSION}. */
 export const RulesVersionSchema = z.number().int().min(1);

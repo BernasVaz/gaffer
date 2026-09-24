@@ -44,8 +44,10 @@ describe.each([...FORMATS])("extra time at %s", (format: MatchFormat) => {
 });
 
 describe("the shootout", () => {
-  it("is 3 kicks a side then a bounded sudden death", () => {
-    expect(SHOOTOUT_KICKS).toBe(3);
+  it("is 5 kicks a side then a bounded sudden death", () => {
+    // Five since ADR 0026, when the kicks stopped being tallied and started
+    // being taken: the familiar shape is worth more than two saved rolls.
+    expect(SHOOTOUT_KICKS).toBe(5);
     expect(SHOOTOUT_SUDDEN_DEATH_ROUNDS).toBe(10);
   });
 
@@ -54,7 +56,7 @@ describe("the shootout", () => {
     // at most half the time, so "play until someone wins" has no upper bound.
     const mostKicksPossible = SHOOTOUT_KICKS * 2 + SHOOTOUT_SUDDEN_DEATH_ROUNDS * 2;
     expect(Number.isFinite(mostKicksPossible)).toBe(true);
-    expect(mostKicksPossible).toBe(26);
+    expect(mostKicksPossible).toBe(30);
   });
 });
 
@@ -92,8 +94,32 @@ describe("MatchResultSchema", () => {
         home: 1,
         away: 2,
         kicks: [
-          { team: "away", scored: true },
-          { team: "home", scored: false },
+          {
+            team: "away",
+            scored: true,
+            number: 1,
+            suddenDeath: false,
+            takerId: "away-striker-1",
+            keeperId: "home-goalkeeper-1",
+            attackerTotal: 8,
+            defenderTotal: 5,
+            attackerRoll: 3,
+            defenderRoll: 2,
+            winChance: 0.625,
+          },
+          {
+            team: "home",
+            scored: false,
+            number: 1,
+            suddenDeath: false,
+            takerId: "home-striker-1",
+            keeperId: "away-goalkeeper-1",
+            attackerTotal: 6,
+            defenderTotal: 6,
+            attackerRoll: 1,
+            defenderRoll: 3,
+            winChance: 0.625,
+          },
         ],
       },
     };
