@@ -10,7 +10,7 @@ If you change one, change the other.
 gaffer/
 ├── apps/
 │   ├── web/          Vite + React client        (added in M3)
-│   └── server/       Colyseus server            (added in M4)
+│                     (no server: M4 is Supabase, ADR 0028)
 ├── packages/
 │   ├── ai/           the solo opponent          (added M3)
 │   ├── engine/       pure deterministic rules   ← the game

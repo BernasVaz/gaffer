@@ -40,7 +40,7 @@ Full rules in [`docs/GDD.md`](docs/GDD.md).
 | [`packages/shared`](packages/shared) | Zod schemas, shared types and constants.                    |
 | [`packages/ai`](packages/ai)         | The solo opponent. Reads the engine; holds no rules.        |
 | [`apps/web`](apps/web)               | Vite + React + Tailwind client. Draws the engine.           |
-| `apps/server`                        | Colyseus multiplayer server — arrives in M4.                |
+| `supabase/`                          | Async multiplayer schema and policies — M4 (ADR 0028).      |
 | [`tools/play`](tools/play)           | Dev-only match viewer. Never shipped.                       |
 
 The engine knows nothing about rendering or networking. The web client draws its
