@@ -119,6 +119,31 @@ the lanes this rule adds have **more** cells under them than the ray lanes they 
 there is more for a defender to stand beside, not less. Whether a _human_ plays riskier
 balls than the opponent does is a playtest question.
 
+**At 7-a-side the duel is exercised properly**: 24–26% of passes contested, **9%
+intercepted**, and both essentially unchanged by this rule. That is the format where the
+invariant can actually be observed holding.
+
+#### The pre-identified 7-a-side lever
+
+7-a-side is the one format this rule moves the wrong way — 1.99 goals a match to **2.11**,
+about 1.7σ over 1,000 matches an arm, inside the envelope and under the ceiling but away
+from target rather than towards it. It was **not** tuned, because tuning a core duel
+mechanic to chase a tenth of a goal that self-play cannot resolve is the over-fit this
+project has twice decided against, and because ADR 0024 has just said 7-a-side belongs to
+real players. Fifteen to thirty humans will judge whether it feels goal-happy better than
+any self-play run can.
+
+But the remedy is known, and writing it down now is the point of this section.
+**Tightening interception is a lever that acts almost only on 7-a-side**: it fires on 9%
+of passes there and 0.3% at 5-a-side, so a change to the interception duel would bite the
+format that regressed and barely touch the one that did not. Nothing else available has
+that shape.
+
+**So: if playtest reports that 7-a-side feels goal-happy, tighten interception first.**
+Not `actionsPerTurn`, not `turnCap`, and not a pass nerf — those hit every format or
+change what a pass _is_. This is the first thing to reach for, and it is recorded here so
+the reasoning does not have to be rediscovered under time pressure.
+
 ### Shots stay on rays, deliberately
 
 Pointing `shotLaneCells` at the new geometry is a one-line change that makes the code
