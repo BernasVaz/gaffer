@@ -88,16 +88,24 @@ reopened with the right kind — and `off 5 / on 3` is the arm to reopen it with
 had both the fewest goalless matches and the least overshoot, which says the on-ball
 reduction is doing real work rather than acting as a tax.
 
-## Watch-item — 7-a-side at 2.13 goals a match
+## Watch-item — 7-a-side, and a correction to its number
 
 Recorded here because it comes from the same run and needs the same discipline.
 
-The dribble rules took 7-a-side from 1.73 goals a match to **2.13**. That is inside ADR
-0007's 1–3 envelope and well above the ~1.50 it is centred on, and 7-a-side was already
-the highest-scoring format before the change. It takes 4.4 shots a match against
-5-a-side's 2.5 — three actions a turn on a 9×7 board is a lot of pitch per action.
+The dribble rules raised 7-a-side, and it is the highest-scoring of the three formats.
+**How high was measured badly the first time.** Over 100 matches it read 2.13 goals a
+match; re-run over **1,000** it is **1.99**. A tenth of a goal is inside the noise of a
+hundred matches and this one was outside it, which is the second time a small sample has
+been quoted as though it were a measurement — the first cost a wrong baseline in ADR
+0021, and the discipline that follows is the same: **a tenth of a goal needs four figures
+of matches, not three.**
+
+So: 7-a-side sits at **1.99 goals a match** against the ~1.50 ADR 0007 is centred on. That
+is inside the 1–3 envelope and still the furthest of the three from target. It takes 4.1
+shots a match against 5-a-side's 2.5 — three actions a turn on a 9×7 board is a lot of
+pitch per action.
 
 **Left alone deliberately.** 7-a-side is marked alpha (ADR 0013), the cheapest levers —
 `actionsPerTurn` and `turnCap`, both already per-format data (ADR 0012) — are one-line
-edits available whenever they are wanted, and neither should be pulled on 100 matches of
-self-play against nobody. **Real players decide this one.**
+edits available whenever they are wanted, and neither should be pulled on self-play
+against nobody. **Real players decide this one.**

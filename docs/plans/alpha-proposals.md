@@ -334,7 +334,8 @@ dribbling measurement: the man in front is there for 28% of carrier moments at 5
 and **36% at 11-a-side**. The format that suffered most from being unable to beat him
 gained most from being able to.
 
-**7-a-side is now the format furthest from target.** At **2.13** it is inside ADR 0007's
+**7-a-side is now the format furthest from target.** At **2.13 over 100 matches** — later
+re-measured at **1.99 over 1,000**, see ADR 0024 — it is inside ADR 0007's
 1–3 envelope but well above the ~1.50 the envelope is centred on, and it was already the
 highest-scoring format before the change. It takes 4.4 shots a match against 5-a-side's
 2.5 — three actions a turn on a 9×7 board is a lot of pitch per action.
