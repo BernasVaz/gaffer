@@ -1,4 +1,10 @@
-import { DEFAULT_SETUP, type MatchSetup } from "@gaffer/shared";
+import {
+  DEFAULT_SETUP,
+  displayNameProblem,
+  MAX_DISPLAY_NAME,
+  normaliseDisplayName,
+  type MatchSetup,
+} from "@gaffer/shared";
 import { useCallback, useEffect, useState } from "react";
 
 import { currentIdentity, hasBeenWarned, rememberWarned, signIn, type Identity } from "./identity";
@@ -10,6 +16,72 @@ export function inviteLink(matchId: string): string {
   const url = new URL(window.location.href);
   url.search = `?online=1&match=${matchId}`;
   return url.toString();
+}
+
+/**
+ * The invite, with the one-tap share a phone actually has.
+ *
+ * `navigator.share` opens the sheet somebody already sends things with, which
+ * on a phone is the difference between an invite being sent and a long URL
+ * being squinted at. It does not exist on most desktop browsers, so copy is the
+ * fallback and the raw link is always visible — a tester who cannot get either
+ * to work can still select it by hand.
+ */
+function Invite({ matchId }: { matchId: string }) {
+  const link = inviteLink(matchId);
+  const [copied, setCopied] = useState(false);
+
+  const share = useCallback(async () => {
+    const sheet = navigator.share?.bind(navigator);
+    if (sheet !== undefined) {
+      try {
+        await sheet({ title: "Gaffer", text: "Your move.", url: link });
+        return;
+      } catch {
+        /* Dismissed, or refused. Fall through to copying. */
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      /* No clipboard permission: the link is on screen to be copied by hand. */
+    }
+  }, [link]);
+
+  return (
+    <section aria-label="Invite" className="flex flex-col gap-2">
+      <h2 className="text-sm font-extrabold">Send this to your opponent</h2>
+
+      <button
+        type="button"
+        onClick={() => void share()}
+        className="chunky rounded-xl bg-(--color-gold) px-4 py-3 font-extrabold text-black"
+      >
+        {copied ? "Copied" : "Share the link"}
+      </button>
+
+      <input
+        readOnly
+        aria-label="Invite link"
+        value={link}
+        onFocus={(event) => event.currentTarget.select()}
+        className="rounded-lg bg-black/30 px-3 py-2 font-mono text-xs ring-1 ring-white/15"
+      />
+
+      {/*
+        The link is a bearer capability and the copy has to say so: there is no
+        per-invite token in Phase 1, so whoever opens it first takes the seat
+        (docs/SECURITY.md).
+      */}
+      <p className="text-xs text-white/60">
+        Anyone who opens this link takes the second seat — the first person to open it is your
+        opponent. Send it to one person.
+      </p>
+    </section>
+  );
 }
 
 /**
@@ -57,6 +129,8 @@ export default function OnlineScreen(): React.JSX.Element {
     })();
   }, [identity, wanted, match]);
 
+  const nameProblem = name === "" ? null : displayNameProblem(name);
+
   const start = useCallback(async () => {
     if (identity === null) return;
     setBusy(true);
@@ -85,9 +159,16 @@ export default function OnlineScreen(): React.JSX.Element {
     setBusy(true);
     setError(null);
     try {
+      const tidy = normaliseDisplayName(name);
+      const problem = displayNameProblem(tidy);
+      if (problem !== null) {
+        setError(problem);
+        return;
+      }
+
       rememberWarned();
       setWarned(true);
-      setIdentity(await signIn(name.trim() === "" ? "Player" : name.trim()));
+      setIdentity(await signIn(tidy));
     } catch (thrown) {
       setError(thrown instanceof Error ? thrown.message : "could not sign in");
     } finally {
@@ -99,26 +180,8 @@ export default function OnlineScreen(): React.JSX.Element {
     return (
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
         <h1 className="text-lg font-extrabold">Online match</h1>
-        {match.awayUser === null && (
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-semibold">Send this to your opponent</span>
-            <input
-              readOnly
-              aria-label="Invite link"
-              value={inviteLink(match.id)}
-              className="rounded-lg bg-black/30 px-3 py-2 font-mono text-xs ring-1 ring-white/15"
-            />
-            {/*
-              The link is a bearer capability and the copy has to say so: there
-              is no per-invite token in Phase 1, so whoever opens it first takes
-              the seat (docs/SECURITY.md).
-            */}
-            <span className="text-xs text-white/60">
-              Anyone who opens this link takes the second seat — the first person to open it is your
-              opponent. Send it to one person.
-            </span>
-          </label>
-        )}
+        {match.awayUser === null && <Invite matchId={match.id} />}
+
         <OnlineMatch match={match} userId={identity.id} />
       </main>
     );
@@ -165,15 +228,28 @@ export default function OnlineScreen(): React.JSX.Element {
               aria-label="Display name"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              maxLength={40}
+              maxLength={MAX_DISPLAY_NAME}
+              aria-invalid={nameProblem !== null}
+              aria-describedby="name-note"
               className="rounded-lg bg-black/30 px-3 py-2 ring-1 ring-white/15"
             />
+            {nameProblem !== null && (
+              <span role="alert" className="text-xs font-semibold text-amber-300">
+                {nameProblem}
+              </span>
+            )}
+            {/* Said where the name is typed, because that is where somebody is
+                deciding what to type (ADR 0031). */}
+            <span id="name-note" className="text-xs text-white/50">
+              Your opponent sees this name. Nothing else about you is stored — no email, no
+              password, no account.
+            </span>
           </label>
 
           <button
             type="button"
             onClick={() => void enter()}
-            disabled={busy}
+            disabled={busy || nameProblem !== null || normaliseDisplayName(name) === ""}
             className="chunky rounded-xl bg-(--color-gold) px-4 py-3 font-extrabold text-black disabled:opacity-40"
           >
             {warned ? "Continue" : "I understand — continue"}
