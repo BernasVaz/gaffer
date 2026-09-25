@@ -13,7 +13,8 @@
     "test:e2e:install": "playwright install --with-deps chromium",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
-    "test:e2e:online": "playwright test --config playwright.online.config.ts"
+    "test:e2e:online": "playwright test --config playwright.online.config.ts",
+    "test:e2e:cloud": "playwright test --config playwright.cloud.config.ts"
   },
   "dependencies": {
     "@gaffer/ai": "workspace:*",

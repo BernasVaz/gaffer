@@ -72,12 +72,36 @@ export function OnlineMatch({ match, userId }: OnlineMatchProps): React.JSX.Elem
       setSelectedId(null);
     };
 
-    const stop = watchMatch(match.id, accept);
-    void fetchMatch(match.id).then((fresh) => {
-      if (fresh !== null) accept(fresh);
-    });
+    const refresh = () => {
+      void fetchMatch(match.id).then((fresh) => {
+        if (fresh !== null) accept(fresh);
+      });
+    };
 
-    return stop;
+    const stop = watchMatch(match.id, accept);
+    refresh();
+
+    /*
+     * Realtime is an enhancement, and it has to survive being treated as one.
+     * A dropped event in a game where a missed message means "wait forever" is
+     * not a glitch, it is a stuck match — and a phone backgrounding the tab
+     * will drop the socket as a matter of routine.
+     *
+     * So: read again whenever the tab comes back, and slowly on a timer. The
+     * timer is deliberately lazy, because it exists to unstick a match rather
+     * than to deliver moves.
+     */
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    const timer = window.setInterval(refresh, 20_000);
+
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(timer);
+    };
   }, [match.id]);
 
   const { state: confirmed, blocked } = useMemo(() => reconstruct(row), [row]);
@@ -140,7 +164,23 @@ export function OnlineMatch({ match, userId }: OnlineMatchProps): React.JSX.Elem
 
   return (
     <section aria-label="Online match" className="flex flex-col gap-3">
-      <p aria-live="polite" data-testid="turn-state" className="text-sm font-semibold">
+      {/*
+        The one thing a player opening a link wants to know, said loudly enough
+        to be read across a room and marked live so a screen reader announces it
+        when the opponent's move arrives rather than staying silent.
+      */}
+      <p
+        aria-live="polite"
+        data-testid="turn-state"
+        className={[
+          "rounded-xl px-4 py-3 text-center text-lg font-extrabold",
+          blocked !== null
+            ? "bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/40"
+            : yours
+              ? "bg-(--color-gold)/20 text-(--color-gold) ring-1 ring-(--color-gold)/50"
+              : "bg-black/30 text-white/70 ring-1 ring-white/10",
+        ].join(" ")}
+      >
         {blocked !== null
           ? "This match is stopped"
           : row.status === "awaiting_opponent"

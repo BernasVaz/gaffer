@@ -107,6 +107,33 @@ Supabase keys, the client library, or any online code.
 
 ---
 
+## Exposure — where this actually is
+
+**Invited alpha, from Wave 1** (ADR 0033). Phase 1 trust model, no Phase 2 referee. Public
+matchmaking, open lobbies and anything ranked stay shut.
+
+That is a deliberate step up from "dark", and it changes what the controls are for. The
+honest summary: **an invited alpha's real access control is the invitation.** Every
+technical control below is sized to bound accidents and casual mischief among people we
+asked to play — not to stop an adversary, which is what Phase 2 is for.
+
+### Rules changes wait for a wave boundary
+
+An engine-edition bump **seals every match in flight** (ADR 0029) — a command log does not
+survive a rules change, and replaying one under new rules is a different match that never
+happened. Until multiplayer shipped, that cost was hypothetical. It is now somebody's
+actual game.
+
+So bumps are **batched to wave boundaries and never shipped mid-wave**. Rules work still
+lands on `main` whenever it is ready; it reaches testers when a freeze is cut between
+waves. The live site is pinned to an `alpha-freeze-*` tag rather than to `main`, so this is
+enforced by how deployment works rather than by remembering.
+
+A wave boundary therefore means **telling people to finish their matches**, not just
+tagging a commit.
+
+---
+
 ## Known and accepted
 
 ### Anonymous sign-in is a spam vector
@@ -127,6 +154,8 @@ row in `auth.users`, and each of which may create matches.
   radius is storage and noise, not other people's games.
 - The alpha is not publicly linkable: there is no lobby, no matchmaking, and no discovery.
   A match is reachable only by a link somebody was sent.
+- **Match creation is capped in the database** — 30 an hour and 50 unfinished per player
+  (ADR 0032). Per player rather than globally, so one abuser cannot lock anybody else out.
 
 **What must land before anything is publicly linkable** — open matchmaking, a public lobby,
 a link posted anywhere anyone can find it:
@@ -134,9 +163,13 @@ a link posted anywhere anyone can find it:
 1. **CAPTCHA on sign-in.** Supabase supports hCaptcha and Turnstile natively; it is
    configuration plus a client widget, not a build.
 2. **Tighten `anonymous_users`** well below the default, and alert on the rate.
-3. **A per-user match-creation cap**, enforced in the database rather than the client.
+3. ~~**A per-user match-creation cap**~~ — **done** (ADR 0032), ahead of exposure rather
+   than after it.
 4. **Reap unused identities** — an anonymous user with no match and no activity after some
    window is deletable, and `auth.users` will otherwise grow forever.
+5. **Move the display-name check server-side** (ADR 0031). It is enforced in the client
+   today, which is the right ceiling while every player was invited by name and the wrong
+   one the moment they were not.
 
 **The trigger for doing this is exposure, not a date.** A private alpha among invited
 testers does not need it; the first public link does.
