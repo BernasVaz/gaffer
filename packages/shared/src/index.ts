@@ -27,4 +27,5 @@ export * from "./roles.js";
 export * from "./rules-version.js";
 export * from "./seed.js";
 export * from "./setup.js";
+export { displayNameProblem, MAX_DISPLAY_NAME, normaliseDisplayName } from "./display-name.js";
 export * from "./team.js";

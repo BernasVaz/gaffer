@@ -1,7 +1,13 @@
 # Plan — asynchronous multiplayer
 
-**Status:** plan only. Nothing here is built, and nothing here should be built until
-Wave 1 has been through the alpha and the rules have stopped moving.
+**Status:** **Phase 1 is built and exposed to invited testers from Wave 1** (ADR 0033).
+Phase 2 is not built. This document is kept as the reasoning behind what exists.
+
+The original status read "nothing here should be built until Wave 1 has been through the
+alpha and the rules have stopped moving". That was superseded rather than ignored: the
+layer turned out to be **rules-independent**, so it could be built during the alpha behind
+a flag, and the risk the sequencing protected against — a rules change ending live matches
+— is handled by **batching engine-edition bumps to wave boundaries** instead of by delay.
 
 **Revision, 2026-09-25:** reorganised around a **trust ladder** — Phase 1 trust-based,
 Phase 2 authoritative — with a single-row command log replacing the two-table design, and
@@ -280,9 +286,11 @@ and none of the product.
 **Phase 1 first**, because a trust-based log with RLS and a state hash is a working game,
 and Phase 2 is half a day on top of it whenever the evidence says it is needed.
 
-**Not yet**, because async multiplayer multiplies the cost of every rules change. Today a
-rule changes and every match is regenerated from its seed. Once matches are stored and
-shared, a rules change **ends them**.
+**Not yet** — _superseded, see ADR 0033._ The reasoning still holds and the conclusion
+changed: async multiplayer does multiply the cost of every rules change, and once matches
+are stored and shared a rules change **ends them**. What that argues for turns out to be a
+_release policy_ — bumps batched to wave boundaries, never mid-wave — rather than a delay
+in building. Phase 1 shipped to invited testers at Wave 1.
 
 The sequencing that follows:
 

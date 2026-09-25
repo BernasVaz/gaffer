@@ -22,6 +22,10 @@ async function enterAs(page: Page, name: string): Promise<void> {
   await expect(warning).toContainText(/clear this browser's storage/i);
   await expect(warning).toContainText(/attach an email later/i);
 
+  /* The privacy line sits with the field somebody is filling in. */
+  await expect(page.getByText(/Your opponent sees this name/i)).toBeVisible();
+  await expect(page.getByText(/no email, no password, no account/i)).toBeVisible();
+
   await page.getByLabel("Display name").fill(name);
   await page.getByRole("button", { name: /I understand/ }).click();
   await expect(page.getByText(new RegExp(`Signed in as\\s*${name}`))).toBeVisible();
@@ -44,6 +48,10 @@ test("create, invite, join, take a turn, and notify", async ({ browser }) => {
 
   const invite = home.getByLabel("Invite link");
   await expect(invite).toBeVisible();
+
+  /* One tap to send it, which on a phone is the difference between an invite
+     being sent and a long URL being squinted at. */
+  await expect(home.getByRole("button", { name: /Share the link/ })).toBeVisible();
 
   /* The link is a bearer capability, and the copy has to say so out loud. */
   await expect(home.getByText(/Anyone who opens this link takes the second seat/i)).toBeVisible();
@@ -112,4 +120,53 @@ test("a stranger cannot open somebody else's match", async ({ browser }) => {
   await ownerContext.close();
   await firstContext.close();
   await strangerContext.close();
+});
+
+test("refuses a name an opponent should not have to read", async ({ browser }) => {
+  /* The name is shown to somebody else, which is the whole reason it is
+     checked (ADR 0031). */
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.goto("./?online=1");
+
+  const go = page.getByRole("button", { name: /I understand/ });
+  await expect(go).toBeDisabled();
+
+  await page.getByLabel("Display name").fill("fuck");
+  await expect(page.getByRole("alert")).toContainText(/happy for your opponent/i);
+  await expect(go).toBeDisabled();
+
+  /* And an innocent name that merely contains one is fine. */
+  await page.getByLabel("Display name").fill("Scunthorpe");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(go).toBeEnabled();
+
+  await ctx.close();
+});
+
+test("reads on a phone", async ({ browser }) => {
+  /* 320px, the narrowest phone the setup screen promises to fit (ADR 0019).
+     An invited tester opening this on a phone is the only way it gets used. */
+  const ctx = await browser.newContext({ viewport: { width: 320, height: 640 } });
+  const page = await ctx.newPage();
+
+  await page.goto("./?online=1");
+  await page.getByLabel("Display name").fill("Mobile");
+  await page.getByRole("button", { name: /I understand/ }).click();
+  await page.getByRole("button", { name: /Start a match/ }).click();
+
+  await expect(page.getByRole("region", { name: "Online match" })).toBeVisible();
+
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow, "the online screen scrolls sideways on a phone").toBeLessThanOrEqual(0);
+
+  /* The turn banner has to be findable without hunting for it. */
+  const banner = page.getByTestId("turn-state");
+  await expect(banner).toBeVisible();
+  const box = await banner.boundingBox();
+  expect(box!.height).toBeGreaterThan(30);
+
+  await ctx.close();
 });
