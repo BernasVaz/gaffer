@@ -50,6 +50,63 @@ get exercised by a player until it is tested.
 
 ---
 
+## G2 — the alpha build carries no multiplayer
+
+**Status:** enforced in CI, on every push.
+
+### What went wrong
+
+The online layer is gated on `ASYNC_MULTIPLAYER`, a build-time constant, on the promise
+that the bundler removes everything behind it — so the code is **absent** from a tester's
+build rather than merely unreachable in it.
+
+For one commit that promise was false. The flag read
+`import.meta.env["VITE_ASYNC_MULTIPLAYER"]`, and **Vite substitutes only the dot form at
+build time**. The bracket form survives into the bundle as a runtime lookup, so nothing
+behind it was dead code and nothing was tree-shaken. A flag-off build contained the whole
+online layer: `signInAnonymously`, the invite copy, and 214 KB of Supabase client.
+
+**Nothing about this was detectable by the tools we had.** The code type-checked. Every
+unit test passed. Every other end-to-end test passed. The code was _correct_ — it was
+simply also _present_. It was found by grepping the built file by hand.
+
+Had that build been deployed with a `.env` on the machine, the project URL and the anon
+key would have been inlined with it. Reintroducing the bug deliberately confirms exactly
+that: the guard below reports `tptglnkxxajaylispgki` and `sb_publishable` among its hits.
+
+### The control
+
+`apps/web/e2e/bundle-isolation.spec.ts`, in the offline suite, which needs no Supabase and
+no network. It reads the **built artifact** — not the source, because the artifact is what
+a tester downloads and the build is where the mistake lives — and fails if any of these
+appear:
+
+`supabase` · `gotrue` · `VITE_SUPABASE` · `sb_publishable` · `sb_secret` · `service_role` ·
+the project ref · `signInAnonymously` · `OnlineScreen` · `Invite link` · `clear this
+browser`
+
+Two further assertions stop the guard rotting: **no chunk** may be emitted for the online
+screen (a lazily imported module still ships if anything references it), and the bundle it
+read must actually be the app — a check that silently passes on an empty directory guards
+nothing.
+
+**The guard is verified to fail.** Reintroducing the bracket-notation bug makes it report
+all eleven strings; restoring the fix makes it pass. A gate that has never failed is a
+gate nobody has tested.
+
+### Verified against what testers actually received
+
+`alpha-freeze-2` (`e70451f`) was checked two independent ways, assuming nothing:
+
+1. **The live artifact**, downloaded from GitHub Pages — `index.html`, `index.js`,
+   `index.css`.
+2. **A clean-room rebuild** of the tag in a fresh worktree with no `.env` present.
+
+Both contain **zero** occurrences of every string above. No tester has received the
+Supabase keys, the client library, or any online code.
+
+---
+
 ## Known and accepted
 
 ### Anonymous sign-in is a spam vector
