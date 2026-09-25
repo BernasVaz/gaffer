@@ -163,7 +163,7 @@ export function OnlineMatch({ match, userId }: OnlineMatchProps): React.JSX.Elem
   const actionsLeft = legalActions(local).length;
 
   return (
-    <section aria-label="Online match" className="flex flex-col gap-3 text-white">
+    <section aria-label="Online match" className="flex min-h-0 flex-1 flex-col gap-3 text-white">
       {/*
         The one thing a player opening a link wants to know, said loudly enough
         to be read across a room and marked live so a screen reader announces it
@@ -173,7 +173,7 @@ export function OnlineMatch({ match, userId }: OnlineMatchProps): React.JSX.Elem
         aria-live="polite"
         data-testid="turn-state"
         className={[
-          "rounded-xl px-4 py-3 text-center text-lg font-extrabold",
+          "shrink-0 rounded-xl px-4 py-3 text-center text-lg font-extrabold",
           blocked !== null
             ? "bg-(--color-gold)/15 text-(--color-gold) ring-1 ring-(--color-gold)/40"
             : yours
@@ -225,7 +225,7 @@ export function OnlineMatch({ match, userId }: OnlineMatchProps): React.JSX.Elem
         type="button"
         onClick={() => void endTurn()}
         disabled={!yours || sending || actionsLeft === 0}
-        className="chunky rounded-xl bg-(--color-gold) px-4 py-3 font-extrabold text-black disabled:opacity-40"
+        className="chunky shrink-0 rounded-xl bg-(--color-gold) px-4 py-3 font-extrabold text-black disabled:opacity-40"
       >
         {sending ? "Sending…" : `End turn${pending.length > 0 ? ` (${pending.length})` : ""}`}
       </button>

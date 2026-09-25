@@ -52,7 +52,7 @@ function Invite({ matchId }: { matchId: string }) {
   }, [link]);
 
   return (
-    <section aria-label="Invite" className="flex flex-col gap-2">
+    <section aria-label="Invite" className="flex shrink-0 flex-col gap-2">
       <h2 className="text-sm font-extrabold">Send this to your opponent</h2>
 
       <button
@@ -178,8 +178,17 @@ export default function OnlineScreen(): React.JSX.Element {
 
   if (match !== null && identity !== null) {
     return (
-      <main className="screen mx-auto flex max-w-3xl flex-col gap-4 p-4">
-        <h1 className="text-lg font-extrabold">Online match</h1>
+      <main
+        /*
+         * A definite height, not just a minimum. `.pitch-slot` is a size
+         * container and takes its height from this column — given only a
+         * `min-height` it has nothing to measure and collapses to nothing,
+         * which is exactly what the board did here (ADR 0019 covers the same
+         * trap on the match screen).
+         */
+        className="screen mx-auto flex h-dvh max-w-3xl flex-col gap-3 overflow-hidden p-4"
+      >
+        <h1 className="shrink-0 text-lg font-extrabold">Online match</h1>
         {match.awayUser === null && <Invite matchId={match.id} />}
 
         <OnlineMatch match={match} userId={identity.id} />

@@ -199,6 +199,22 @@ test.describe("light mode, all the way through a match", () => {
       "the invite view is unreadable in light mode",
     ).toEqual([]);
 
+    /*
+     * The board is on screen and has real size.
+     *
+     * `.pitch-slot` is a size container: given a parent with only a minimum
+     * height it has nothing to measure and collapses to zero, which is what it
+     * did here — an online match with no visible pitch, every test passing.
+     * Measured rather than merely queried, because a 0×0 element is still
+     * "in the document".
+     */
+    const board = page.getByRole("grid");
+    await expect(board).toBeVisible();
+    const box = await board.boundingBox();
+    expect(box, "the board has no box at all").not.toBeNull();
+    expect(box!.height, "the board collapsed to nothing").toBeGreaterThan(120);
+    expect(box!.width, "the board collapsed to nothing").toBeGreaterThan(120);
+
     /* The take-turn view: the turn banner is the thing a player looks for. */
     await expect(page.getByTestId("turn-state")).toBeVisible();
     const banner = (await measureContrast(page, '[data-testid="turn-state"]')).at(0);
