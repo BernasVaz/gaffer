@@ -68,7 +68,7 @@ function Invite({ matchId }: { matchId: string }) {
         aria-label="Invite link"
         value={link}
         onFocus={(event) => event.currentTarget.select()}
-        className="rounded-lg bg-black/30 px-3 py-2 font-mono text-xs ring-1 ring-white/15"
+        className="rounded-lg bg-(--color-panel) px-3 py-2 font-mono text-xs text-white/80 ring-1 ring-(--color-edge)/40"
       />
 
       {/*
@@ -178,7 +178,7 @@ export default function OnlineScreen(): React.JSX.Element {
 
   if (match !== null && identity !== null) {
     return (
-      <main className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
+      <main className="screen mx-auto flex max-w-3xl flex-col gap-4 p-4">
         <h1 className="text-lg font-extrabold">Online match</h1>
         {match.awayUser === null && <Invite matchId={match.id} />}
 
@@ -188,11 +188,14 @@ export default function OnlineScreen(): React.JSX.Element {
   }
 
   return (
-    <main className="mx-auto flex max-w-lg flex-col gap-4 p-4">
+    <main className="screen mx-auto flex max-w-lg flex-col gap-4 p-4">
       <h1 className="text-lg font-extrabold">Play someone else</h1>
 
       {error !== null && (
-        <p role="alert" className="rounded-lg bg-red-500/15 p-3 text-sm ring-1 ring-red-400/40">
+        <p
+          role="alert"
+          className="rounded-lg bg-(--color-gold-deep)/25 p-3 text-sm text-white ring-1 ring-(--color-gold-deep)/60"
+        >
           {error}
         </p>
       )}
@@ -206,9 +209,9 @@ export default function OnlineScreen(): React.JSX.Element {
           */}
           <section
             aria-label="About your identity"
-            className="rounded-xl bg-amber-500/10 p-3 text-sm ring-1 ring-amber-400/40"
+            className="rounded-xl bg-(--color-gold)/10 p-3 text-sm ring-1 ring-(--color-gold)/40"
           >
-            <p className="font-bold text-amber-200">Your matches live in this browser</p>
+            <p className="font-bold text-(--color-gold)">Your matches live in this browser</p>
             <p className="mt-1 text-white/80">
               There is no email and no password — just a name. That means nothing to sign up for,
               and nothing to recover with:{" "}
@@ -231,10 +234,10 @@ export default function OnlineScreen(): React.JSX.Element {
               maxLength={MAX_DISPLAY_NAME}
               aria-invalid={nameProblem !== null}
               aria-describedby="name-note"
-              className="rounded-lg bg-black/30 px-3 py-2 ring-1 ring-white/15"
+              className="rounded-lg bg-(--color-panel) px-3 py-2 text-white ring-1 ring-(--color-edge)/40"
             />
             {nameProblem !== null && (
-              <span role="alert" className="text-xs font-semibold text-amber-300">
+              <span role="alert" className="text-xs font-semibold text-(--color-gold)">
                 {nameProblem}
               </span>
             )}

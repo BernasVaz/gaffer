@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
     "test:e2e:online": "playwright test --config playwright.online.config.ts",
-    "test:e2e:cloud": "playwright test --config playwright.cloud.config.ts"
+    "test:e2e:cloud": "playwright test --config playwright.cloud.config.ts",
+    "test:e2e:theme": "playwright test --config playwright.theme.config.ts"
   },
   "dependencies": {
     "@gaffer/ai": "workspace:*",

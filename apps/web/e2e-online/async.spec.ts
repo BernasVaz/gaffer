@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { measureContrast } from "../e2e-theme/contrast";
+
 /**
  * Create → invite → join → take a turn → the other side is notified.
  *
@@ -169,4 +171,40 @@ test("reads on a phone", async ({ browser }) => {
   expect(box!.height).toBeGreaterThan(30);
 
   await ctx.close();
+});
+
+test.describe("light mode, all the way through a match", () => {
+  /* The sign-in screen is guarded without a database (e2e-theme); the invite
+     and take-turn views need one, so they are guarded here. Light mode
+     deliberately — dark mode hid this bug completely. */
+  test.use({ colorScheme: "light" });
+
+  test("the invite and the board stay legible", async ({ browser }) => {
+    const ctx = await browser.newContext({
+      colorScheme: "light",
+      viewport: { width: 320, height: 640 },
+    });
+    const page = await ctx.newPage();
+
+    await page.goto("./?online=1");
+    await page.getByLabel("Display name").fill("Light");
+    await page.getByRole("button", { name: /I understand/ }).click();
+    await page.getByRole("button", { name: /Start a match/ }).click();
+
+    /* The invite view: the link, the share button and the bearer-link warning. */
+    await expect(page.getByLabel("Invite link")).toBeVisible();
+    const invite = (await measureContrast(page, "main *")).filter((item) => item.ratio < 4.5);
+    expect(
+      invite.map((item) => `${item.ratio}:1 — "${item.label}"`),
+      "the invite view is unreadable in light mode",
+    ).toEqual([]);
+
+    /* The take-turn view: the turn banner is the thing a player looks for. */
+    await expect(page.getByTestId("turn-state")).toBeVisible();
+    const banner = (await measureContrast(page, '[data-testid="turn-state"]')).at(0);
+    expect(banner, "the turn banner was not measured").toBeDefined();
+    expect(banner!.ratio, `the turn banner is ${banner!.ratio}:1`).toBeGreaterThanOrEqual(4.5);
+
+    await ctx.close();
+  });
 });
