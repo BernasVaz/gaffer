@@ -1,5 +1,67 @@
 # @gaffer/web
 
+## 0.3.0
+
+### Minor Changes
+
+- 53d087e: Asynchronous multiplayer, Phase 1: two people can start a match, send a link, join, take
+  turns and be told when it is their turn. Behind `ASYNC_MULTIPLAYER`, absent from the alpha
+  bundle.
+
+  The engine gains `stateHash`, a canonical fingerprint of a board. Phase 1 does not run the
+  engine on the server, so it cannot tell a legal command from an illegal one — what it can
+  do is notice that the two players are no longer looking at the same match and say which
+  command it diverged at.
+
+  A match on another rules edition is sealed and view-only rather than silently replayed
+  into a different game. Realtime carries "your turn", and a read on subscribe covers what
+  Realtime misses.
+
+- 53d087e: Groundwork for asynchronous multiplayer, Phase 1 — behind `ASYNC_MULTIPLAYER = false`, a
+  build-time constant so the online code is absent from the alpha bundle rather than merely
+  hidden in it. No engine change, no rules edition bump: multiplayer changes no rule.
+
+  Adds the checked-in Supabase schema — one row per match holding the command log as jsonb
+  with an optimistic `log_version`, row-level security deciding who may append, and a trigger
+  deciding what an append may change. `buildMatch` now reports where a replay stopped short
+  instead of breaking quietly, which is what turns a desync into "diverged at command N".
+
+  See ADR 0028 (Supabase rather than Colyseus) and ADR 0029 (the match row).
+
+- 48c5fbf: A deployed release carries multiplayer and points at the Supabase project, and the setup
+  screen offers a way in — a tester cannot be expected to type a query parameter. Both are
+  gated on the build-time flag, so a build without it has neither the code nor the door, and
+  the bundle-isolation gate now checks for the door as well.
+- d608d9d: Ready multiplayer for invited testers: a display name is checked before it is shown to an
+  opponent, match creation is capped in the database, and the invite has a one-tap share with
+  the turn state readable across a room. Realtime is now a true enhancement — the client also
+  re-reads when the tab comes back and on a slow timer, so a dropped socket on a phone
+  unsticks itself rather than leaving somebody waiting forever.
+
+  See ADR 0031 (display names), ADR 0032 (match cap) and ADR 0033 (invited exposure, and
+  batching engine-edition bumps to wave boundaries).
+
+### Patch Changes
+
+- 53d087e: Make the multiplayer bundle isolation a CI gate. The flag-off build is grepped for the
+  Supabase client, the environment variable names, the project ref, the keys, the online
+  chunk and two strings only the online screen has — and CI fails if any appear.
+
+  The leak this guards against type-checked and passed every test, because the code was
+  correct and merely present: `import.meta.env["VITE_X"]` behaves identically to the dot
+  form at runtime, but only the dot form is substituted at build time, so nothing behind it
+  is ever tree-shaken. A bundle assertion is the only thing that catches it.
+
+- 9324064: The live site is a pinned release tag rather than the tip of main. Main can now advance —
+  multiplayer behind a flag, the next rules change — without moving the ground under a wave
+  of testers. The deploy runs when an `alpha-freeze-*` tag is pushed, or by hand against a
+  named tag.
+- Updated dependencies [53d087e]
+- Updated dependencies [d608d9d]
+  - @gaffer/engine@0.3.0
+  - @gaffer/shared@0.3.0
+  - @gaffer/ai@0.1.2
+
 ## 0.2.0
 
 ### Minor Changes

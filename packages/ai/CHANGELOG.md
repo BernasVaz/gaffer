@@ -1,5 +1,14 @@
 # @gaffer/ai
 
+## 0.1.2
+
+### Patch Changes
+
+- Updated dependencies [53d087e]
+- Updated dependencies [d608d9d]
+  - @gaffer/engine@0.3.0
+  - @gaffer/shared@0.3.0
+
 ## 0.1.1
 
 ### Patch Changes
