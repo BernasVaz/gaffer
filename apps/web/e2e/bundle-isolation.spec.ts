@@ -41,6 +41,8 @@ const FORBIDDEN = [
   "OnlineScreen",
   "Invite link",
   "clear this browser",
+  // The way in. A build with the flag off must not even offer the door.
+  "Play someone else",
 ] as const;
 
 const DIST = join(import.meta.dirname, "..", "dist");

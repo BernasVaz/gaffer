@@ -398,6 +398,25 @@ export function SetupScreen({ initial, onStart, onHowToPlay }: SetupScreenProps)
           Kick off
         </Button>
 
+        {/*
+          The way in to online play, for a build that has it.
+          `import.meta.env` is read inline rather than through a constant from
+          another module, because only the inline dot form is substituted at
+          build time — which is what keeps this branch, and everything it
+          reaches, out of a build with multiplayer off (docs/SECURITY.md, G2).
+        */}
+        {import.meta.env.VITE_ASYNC_MULTIPLAYER === "true" && (
+          <a
+            href="?online=1"
+            className="chunky rounded-xl bg-(--color-panel-raised) px-4 py-3 text-center font-extrabold text-white/90 ring-1 ring-(--color-edge)/40"
+          >
+            Play someone else
+            <span className="mt-0.5 block text-xs font-semibold text-white/50">
+              Send a link. Take a turn each, whenever you like.
+            </span>
+          </a>
+        )}
+
         {/* Notes outlive the match they were taken in, so the way back to them
             has to live somewhere that is not inside a match. This screen is the
             front door and the place "New match" returns to. */}

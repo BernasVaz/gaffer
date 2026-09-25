@@ -72,8 +72,37 @@ jobs:
 
       # Builds the engine, shared and ai first — the client imports them from
       # their `dist`, so `--filter=@gaffer/web...` pulls the whole chain in.
+      # Multiplayer is on in a deployed release and off everywhere else.
+      #
+      # These are repository **variables**, not secrets, and deliberately so:
+      # the anon key is compiled into the bundle and is public by design — row
+      # level security, not secrecy, is what stops one player writing to
+      # another's match (docs/SECURITY.md). Masking it in logs would imply a
+      # confidentiality it does not have and never had. The service-role key is
+      # the one that must never come near this file.
+      #
+      # The flag-off build is still what CI's own job produces, so the
+      # bundle-isolation gate keeps testing the thing it exists to test.
       - name: Build
         run: pnpm build --filter=@gaffer/web...
+        env:
+          VITE_ASYNC_MULTIPLAYER: "true"
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+
+      # A release that says it has multiplayer and does not is worse than one
+      # without it: the tester finds a dead link instead of a missing feature.
+      - name: Check the release really carries multiplayer
+        run: |
+          if ! grep -rqi "supabase" apps/web/dist/assets/*.js; then
+            echo "::error::the release was built without multiplayer"
+            exit 1
+          fi
+          if ! grep -rqF "${{ vars.VITE_SUPABASE_URL }}" apps/web/dist/assets/*.js; then
+            echo "::error::the release is not pointed at the Supabase project"
+            exit 1
+          fi
+          echo "multiplayer is in the bundle and points at the project"
 
       # Pages serves 404.html for any path it does not have a file for. The app
       # keeps its whole state in the query string and never uses the path, so
