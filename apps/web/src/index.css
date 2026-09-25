@@ -47,6 +47,43 @@
   /* The one accent. Used for the ball, for odds, and for anything urgent. */
   --color-gold: #fbbf24;
   --color-gold-deep: #b45309;
+
+  /* What is written on all of it. */
+  --color-ink: #ffffff;
+}
+
+/*
+ * Gaffer is one theme, and it is a night match.
+ *
+ * Declaring it means the browser stops guessing: form controls, scrollbars,
+ * carets and autofill all render for a dark page instead of being styled for
+ * whatever the operating system happens to prefer. Without this a light-mode
+ * phone gives a white input with a white caret in it.
+ */
+:root {
+  color-scheme: dark;
+}
+
+/*
+ * The page surface every full screen sits on.
+ *
+ * Each screen paints its own background — there is no body-level one — and
+ * that is fine until a screen forgets, at which point it inherits whatever the
+ * operating system thinks a page should look like. The online screens forgot,
+ * and on a light-mode phone they were white text on a white page.
+ *
+ * So the surface is one class rather than a line of utilities copied per
+ * screen. Copying it is what let a screen be built without it.
+ */
+.screen {
+  min-height: 100dvh;
+  color: var(--color-ink);
+  background-color: var(--color-night);
+  background-image: radial-gradient(
+    120% 70% at 50% 0%,
+    var(--color-night-soft),
+    var(--color-night)
+  );
 }
 
 /*

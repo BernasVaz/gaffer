@@ -163,7 +163,7 @@ export function OnlineMatch({ match, userId }: OnlineMatchProps): React.JSX.Elem
   const actionsLeft = legalActions(local).length;
 
   return (
-    <section aria-label="Online match" className="flex flex-col gap-3">
+    <section aria-label="Online match" className="flex flex-col gap-3 text-white">
       {/*
         The one thing a player opening a link wants to know, said loudly enough
         to be read across a room and marked live so a screen reader announces it
@@ -175,10 +175,10 @@ export function OnlineMatch({ match, userId }: OnlineMatchProps): React.JSX.Elem
         className={[
           "rounded-xl px-4 py-3 text-center text-lg font-extrabold",
           blocked !== null
-            ? "bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/40"
+            ? "bg-(--color-gold)/15 text-(--color-gold) ring-1 ring-(--color-gold)/40"
             : yours
               ? "bg-(--color-gold)/20 text-(--color-gold) ring-1 ring-(--color-gold)/50"
-              : "bg-black/30 text-white/70 ring-1 ring-white/10",
+              : "bg-(--color-panel) text-white/75 ring-1 ring-(--color-edge)/35",
         ].join(" ")}
       >
         {blocked !== null
@@ -191,13 +191,19 @@ export function OnlineMatch({ match, userId }: OnlineMatchProps): React.JSX.Elem
       </p>
 
       {blocked !== null && (
-        <p role="alert" className="rounded-lg bg-amber-500/15 p-3 text-sm ring-1 ring-amber-400/40">
+        <p
+          role="alert"
+          className="rounded-lg bg-(--color-gold)/15 p-3 text-sm text-white ring-1 ring-(--color-gold)/40"
+        >
           {blockedMessage(blocked)}
         </p>
       )}
 
       {error !== null && (
-        <p role="alert" className="rounded-lg bg-red-500/15 p-3 text-sm ring-1 ring-red-400/40">
+        <p
+          role="alert"
+          className="rounded-lg bg-(--color-gold-deep)/25 p-3 text-sm text-white ring-1 ring-(--color-gold-deep)/60"
+        >
           {error}
         </p>
       )}

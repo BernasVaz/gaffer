@@ -170,7 +170,7 @@ export function SetupScreen({ initial, onStart, onHowToPlay }: SetupScreenProps)
   const chosen = FORMAT_PROFILES[mode];
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-(--color-night) bg-[radial-gradient(120%_70%_at_50%_0%,var(--color-night-soft),var(--color-night))] px-4 py-10 text-white">
+    <main className="screen flex items-center justify-center px-4 py-10">
       <div className="flex w-full max-w-md flex-col gap-4">
         <header className="text-center">
           <h1 className="text-5xl leading-none">

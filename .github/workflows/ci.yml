@@ -92,6 +92,16 @@ jobs:
       - name: Play a match in a browser
         run: pnpm --filter @gaffer/web test:e2e
 
+      # A build with multiplayer *on*, checked for the one thing the offline
+      # suite cannot see: what the online screens actually look like. They
+      # shipped as white text on a white page in light mode, which every test
+      # we had passed straight through, because none of them asserted a colour.
+      #
+      # Needs no database — the sign-in screen renders before anything is
+      # fetched — which is what makes it cheap enough to run on every push.
+      - name: Check the online screens in light mode
+        run: pnpm --filter @gaffer/web test:e2e:theme
+
       # Only on failure: a trace is large, and a green run has nothing to look at.
       - name: Keep the report when something broke
         if: failure()
