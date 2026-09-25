@@ -68,6 +68,15 @@ export interface Built {
   rng: Rng;
   /** The history that produced it. */
   log: RecordedEvent[];
+  /**
+   * Where the replay stopped short, when it did.
+   *
+   * `null` for the ordinary case of a log that played out in full. Otherwise
+   * the index of the command the engine refused and the reason it gave — which
+   * is the difference between a shared match reporting "diverged at command 37,
+   * pass to a player who is not there" and simply drawing the wrong board.
+   */
+  diverged: { index: number; reason: string } | null;
 }
 
 /**
@@ -86,10 +95,22 @@ export function buildMatch({ seed, format, actionsPerTurn, replay }: MatchOption
   const rng = createRng(parseSeed(seed));
   let state = createInitialState({ format, rules: { actionsPerTurn } });
   const log: RecordedEvent[] = [];
+  let diverged: Built["diverged"] = null;
 
   for (const command of replay ?? []) {
     const result = applyAction(state, command, rng);
-    if (!result.ok) break;
+
+    /*
+     * A refused command means the log and the engine disagree about this match.
+     * Locally that is a stale archive and stopping quietly is fine. Shared, it
+     * is a **desync** — and "the board just looks wrong" is the least useful
+     * thing we could say about one, so the index and the reason are kept for a
+     * caller that wants to report it (docs/plans/async-multiplayer.md).
+     */
+    if (!result.ok) {
+      diverged = { index: log.length, reason: result.reason };
+      break;
+    }
 
     const scored =
       result.state.score.home !== state.score.home || result.state.score.away !== state.score.away;
@@ -106,5 +127,5 @@ export function buildMatch({ seed, format, actionsPerTurn, replay }: MatchOption
     state = result.state;
   }
 
-  return { state, rng, log };
+  return { state, rng, log, diverged };
 }

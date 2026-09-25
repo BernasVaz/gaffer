@@ -42,8 +42,10 @@ honours them.
 - `apps/web` — Vite + React + Tailwind. Renders engine state via DOM + CSS-grid, not
   canvas. Holds no game rules. Unlike every other package it uses **Bundler** module
   resolution, so relative imports there carry no `.js` extension.
-- `apps/server` (from M4) — Colyseus. Runs the engine as authoritative referee.
-  Holds no game rules of its own.
+- **No `apps/server`.** Multiplayer is **asynchronous on Supabase**, not a Colyseus
+  server (ADR 0028). Phase 1 stores a command log per match and lets row-level security
+  decide who may append; Phase 2 runs the engine as referee in an edge function. Neither
+  is a service of ours, and neither holds a game rule.
 
 Dependency direction is one-way: `shared` ← `engine` ← `{ apps, ai, tools }`. Never the
 reverse.
@@ -166,4 +168,5 @@ Use **pnpm** — never `npm` or `yarn`. Node comes from fnm; the version is pinn
   M3 is complete, and a multi-format alpha ships on top of it: three game types, chosen
   before kickoff and carried in the link, with 7v7 and 11v11 marked alpha (ADR 0013).
   `pnpm play -- --format 11v11 --matches 50` is the balance run for one.
-  Next is M4: a Colyseus server running the same engine as referee.
+  Next is M4: **asynchronous multiplayer on Supabase** (ADR 0028), built behind
+  `ASYNC_MULTIPLAYER = false` so the alpha build is untouched.
