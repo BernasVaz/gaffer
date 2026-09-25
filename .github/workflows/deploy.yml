@@ -1,13 +1,31 @@
 name: Deploy
 
-# Every green push to main becomes the live site. There is no manual step and no
-# separate "release" — Master Plan M3 is "anyone with the link plays a full
-# match", and a link that lags main by a deploy someone forgot to run is a link
-# that misrepresents the game.
+# The live site is a **pinned release**, not the tip of main.
+#
+# It used to be every green push to main, on the reasoning that a link lagging
+# main by a forgotten deploy misrepresents the game. That was right while main
+# and the tester build were the same thing. They are not any more: the alpha is
+# frozen at a tag while work continues — multiplayer is being built behind a
+# flag, and the next rules change will start the same way. A push to main must
+# not be able to move the ground under fifteen testers mid-wave.
+#
+# So main advances freely and the deploy only moves when somebody cuts a tag.
+# `alpha-freeze-2` is what testers are playing; pushing `alpha-freeze-3` is what
+# hands them the next one.
+#
+# One wrinkle worth knowing: a tag push runs the workflow **as it exists at that
+# tag**, so this file has to be on main *before* the next freeze is cut for that
+# freeze to deploy itself. Running it by hand always uses main's copy.
 on:
   push:
-    branches: [main]
+    tags: ["alpha-freeze-*"]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: The release tag to publish.
+        required: true
+        default: alpha-freeze-2
+        type: string
 
 # The minimum Pages needs: read the code, write the site, and prove who we are.
 permissions:
@@ -27,8 +45,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out the repository
+      # The pinned ref, never the branch this happened to run from. On a tag
+      # push it is that tag; run by hand it is whatever was asked for.
+      - name: Check out the release
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.ref_name }}
+
+      - name: Say what is being published
+        run: |
+          echo "ref:    ${{ inputs.ref || github.ref_name }}"
+          echo "commit: $(git rev-parse HEAD)"
+          echo "$(git log -1 --pretty=%s)"
 
       - name: Enable corepack (provides pnpm)
         run: corepack enable
