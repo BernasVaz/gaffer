@@ -1,6 +1,6 @@
 import { MAX_SEED, parseReplayTo, parseSetup, setupToQuery, type MatchSetup } from "@gaffer/shared";
 import { domAnimation, LazyMotion } from "motion/react";
-import { useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useState } from "react";
 
 import { Guide } from "./guide/Guide";
 import { shouldAutorun } from "./guide/seen";
@@ -50,7 +50,51 @@ function publish(setup: MatchSetup) {
  * a restart is the kind of bug that only shows up as "that replay doesn't match"
  * three weeks later.
  */
+/**
+ * The online screen, loaded only by a build that has online play.
+ *
+ * A module-level ternary on a build-time constant: with `ASYNC_MULTIPLAYER`
+ * folded to `false`, the `import()` is removed along with the branch, so the
+ * Supabase library never enters the alpha bundle's module graph at all. A
+ * static import would have kept it — dead code can be dropped, but an imported
+ * module with side effects cannot.
+ *
+ * The first cut of this shipped `signInAnonymously` and 214 KB of client
+ * library into the alpha bundle. It was found by grepping the built file, which
+ * is now a test.
+ */
+const OnlineScreen =
+  import.meta.env.VITE_ASYNC_MULTIPLAYER === "true"
+    ? lazy(() => import("./online/OnlineScreen"))
+    : null;
+
+/**
+ * Which app this is.
+ *
+ * Online play, when a build has it. `ASYNC_MULTIPLAYER` is a build-time
+ * constant, so in the alpha bundle this branch — and `OnlineScreen` with it —
+ * is dead code the bundler removes: absent rather than merely unreachable,
+ * which is the property that lets multiplayer be built during a freeze
+ * (ADR 0028).
+ *
+ * A wrapper rather than an early return inside {@link LocalApp}, because a
+ * component that returns before its hooks is a component whose hooks run in a
+ * different order on the next render.
+ */
 export function App() {
+  if (OnlineScreen !== null && new URLSearchParams(search()).get("online") === "1") {
+    return (
+      <Suspense fallback={null}>
+        <OnlineScreen />
+      </Suspense>
+    );
+  }
+
+  return <LocalApp />;
+}
+
+/** A match played on this device: hotseat, or against the machine. */
+function LocalApp() {
   const [initial] = useState<MatchSetup>(() => {
     const parsed = parseSetup(search());
     return wasSentAMatch() ? parsed : { ...parsed, seed: freshSeed() };

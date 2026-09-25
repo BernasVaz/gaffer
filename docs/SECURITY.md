@@ -84,6 +84,34 @@ a link posted anywhere anyone can find it:
 **The trigger for doing this is exposure, not a date.** A private alpha among invited
 testers does not need it; the first public link does.
 
+### The invite link is a bearer capability
+
+**Status:** accepted for an invited alpha. **Per-invite tokens are Phase 2 hardening.**
+
+A match is invited by sending its link. There is no per-invite token and no addressee:
+**whoever opens the link first takes the away seat.** Forward it to two people and the
+faster one is your opponent; paste it anywhere public and a stranger is.
+
+**What bounds it:**
+
+- The seat is claimed **once**. The `matches_guard_update` trigger refuses to trade an
+  occupied seat, so the second opener is told the seat is taken rather than silently
+  displacing anyone. There is no race in which two people both become the away player —
+  the optimistic `log_version` makes the second claim match zero rows.
+- The exposure is **one match**, not an account. A link leaks the match it names and
+  nothing else: not the creator's other matches, not their identity beyond a display name.
+- Match ids are v4 uuids, so they cannot be guessed or enumerated.
+
+**The UI is required to say so**, and does: the invite field carries _"Anyone who opens
+this link takes the second seat — the first person to open it is your opponent. Send it to
+one person."_ That copy is asserted by the end-to-end suite, so it cannot quietly go
+missing.
+
+**Phase 2 hardening:** a per-invite token, single-use and revocable, so an invite can be
+addressed to one person, withdrawn after sending, and expired if unused. That is the right
+shape once matches are made between strangers; it is over-built for an alpha where every
+link is sent to a friend by hand.
+
 ### Anonymous identity is unrecoverable
 
 **Status:** accepted, and must be said in the UI.
@@ -129,6 +157,10 @@ list; it cannot be made to play a wrong match.
 - **The client's rules checks.** The client refuses illegal moves because it is playing the
   game, not because it is policing it. Phase 1 trusts it and checks the result; Phase 2
   stops trusting it.
+- **The state hash.** FNV-1a over a canonical rendering of the board: fast, stable, and
+  enough that accidental divergence cannot go unnoticed. It is **not** collision-resistant
+  against somebody deliberately constructing a board to match a hash. It is an integrity
+  check, and Phase 2's referee is the answer to the adversarial version of the question.
 
 ---
 
