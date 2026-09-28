@@ -21,6 +21,13 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL?: string;
   /** The project's anon key — public by design; see `docs/SECURITY.md`. */
   readonly VITE_SUPABASE_ANON_KEY?: string;
+  /**
+   * The release this build is, stamped by the deploy from the tag it published.
+   *
+   * On every piece of feedback, because "the board was invisible" is a
+   * different conversation depending on which freeze the tester was holding.
+   */
+  readonly VITE_BUILD_TAG?: string;
 }
 
 interface ImportMeta {

@@ -134,6 +134,77 @@ tagging a commit.
 
 ---
 
+## Feedback is sent, and what that means
+
+**Status:** live from Wave 1.
+
+Feedback used to live in one browser's local storage and leave it only if the tester
+exported a Markdown file and sent it. Across a wave that makes silence indistinguishable
+from "nothing to report", which is a poor thing for an alpha to be unable to tell apart.
+It is now written to `public.feedback` as it is typed.
+
+### What is sent
+
+The note or rating somebody wrote, and a `meta` object of everything they should not have
+to type: **seed, game type, difficulty, side, actions per turn, rules edition, the online
+match id if there is one, the turn and score it happened at, the build tag, the user
+agent, the viewport, the language, and whether the phone is in light or dark mode.**
+
+The tester types at most a sentence. Asking somebody mid-match which seed they are on is
+asking them to do the computer's job, and what comes back is a sentence with none of it.
+
+### What is not
+
+No email, no name beyond the display name a multiplayer player chose, no location, no
+analytics of any kind. The author is the **anonymous `auth.uid()`** — a browser, not a
+person, and the same identity multiplayer uses so a tester is not signed in twice.
+
+### Nobody can read it back
+
+`feedback` has **no `select` policy at all**, which with RLS on means the API returns
+nothing to anybody — not even to the person who wrote it.
+
+That is deliberate and worth defending. Feedback is free text, and what somebody types
+about a game they are annoyed with is not always what they would want another player to
+find. There is no feature that needs a client to read it, so there is no policy that lets
+one. It is read in the Supabase dashboard, which goes through the service role and bypasses
+RLS by design.
+
+Deliberately **not** "you may read your own" either: that is one policy edit from "you may
+read", and all it would buy is a history screen nobody asked for.
+
+There is no `update` and no `delete` policy either, for the reason a command log is
+append-only — feedback is a record of what somebody thought at a moment, and a record that
+can be quietly revised is not one.
+
+### It is said where it is written
+
+A one-line notice sits with the rating at full time, not in a help page:
+
+> _Your feedback and match details are sent to us to help improve the game — anonymous, no
+> email._
+
+Asserted by the end-to-end suite, so it cannot quietly go missing.
+
+### Nothing is lost when the network is
+
+A note is queued in local storage if it cannot be sent, and flushed when the browser says
+it is back online — started at application startup rather than in a component, so a tester
+who flags a moment in a tunnel and closes the tab has still sent it next time they open
+the game. The Markdown download remains, and a build without multiplayer has no client at
+all, so for that build the download is still the only way out. **A failed send is never a
+lost note.**
+
+### Still open
+
+**Free text will eventually contain something personal.** Somebody will type a name, an
+email, or something about their day into a box that says "what happened?". Nothing here
+scrubs it, and nothing should pretend to — what it needs is a retention decision and
+somebody willing to delete rows, and neither exists yet. Worth having before the tester
+count grows past people we know.
+
+---
+
 ## Known and accepted
 
 ### Anonymous sign-in is a spam vector

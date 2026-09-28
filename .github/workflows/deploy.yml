@@ -89,6 +89,9 @@ jobs:
           VITE_ASYNC_MULTIPLAYER: "true"
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          # Stamped onto every piece of feedback, so a report says which build
+          # it came from without the tester having to know.
+          VITE_BUILD_TAG: ${{ inputs.ref || github.ref_name }}
 
       # A release that says it has multiplayer and does not is worse than one
       # without it: the tester finds a dead link instead of a missing feature.

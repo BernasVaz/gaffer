@@ -13,6 +13,7 @@ import { ActionBar } from "./ActionBar";
 import { InfoPanels } from "./InfoPanels";
 import { ViewControls, useShowOdds } from "../ui/ViewControls";
 import { Pitch } from "../board/Pitch";
+import { HowWasThat } from "../feedback/HowWasThat";
 import { ShootoutScreen } from "./Shootout";
 import { Scoreboard } from "../board/Scoreboard";
 import { kitFor } from "../board/squads";
@@ -269,6 +270,14 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
             orientation={orientation}
           />
         </div>
+
+        {over && !takingPenalties && (
+          <HowWasThat
+            setup={setup}
+            turn={state.turn}
+            score={`${state.score.home}–${state.score.away}`}
+          />
+        )}
 
         <StatusBar
           state={state}

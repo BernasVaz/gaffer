@@ -1215,6 +1215,17 @@ test.describe("penalties, taken one at a time", () => {
     /* And the match is decided, by the penalties we just watched. */
     await expect(page.getByText(/decided by shootout/)).toBeVisible();
     await expectNoRuleBug(page);
+
+    /*
+     * Full time is the one moment a tester has an opinion and nothing to do,
+     * which is the only place a rating costs them nothing. One tap, a sentence
+     * only if they want one, and a line saying where it goes.
+     */
+    const asked = page.getByRole("region", { name: "How was that match" });
+    await expect(asked).toBeVisible();
+    await expect(asked.getByRole("button", { name: "Great" })).toBeVisible();
+    await expect(asked).toContainText(/sent to us to help improve the game/i);
+    await expect(asked).toContainText(/anonymous, no email/i);
   });
 });
 

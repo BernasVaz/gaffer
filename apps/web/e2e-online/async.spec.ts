@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+
 import { expect, test, type Page } from "@playwright/test";
 
 import { measureContrast } from "../e2e-theme/contrast";
@@ -222,5 +224,75 @@ test.describe("light mode, all the way through a match", () => {
     expect(banner!.ratio, `the turn banner is ${banner!.ratio}:1`).toBeGreaterThanOrEqual(4.5);
 
     await ctx.close();
+  });
+});
+
+/**
+ * Feedback reaches us, rather than waiting on a download somebody may never send.
+ *
+ * Verified by reading the table back with the **service key**, which is how
+ * Bernardo reads it: row-level security lets a tester write feedback and read
+ * none, so a test that checked through the client would be asserting that
+ * nothing is visible — which is true, and not the question.
+ *
+ * The key is asked of the running stack rather than written here. It is the
+ * CLI's fixed local one and worth nothing outside a container on 127.0.0.1 —
+ * and GitHub's push protection still refused a file containing it, correctly.
+ * A string shaped like a service key sitting in a repository is how people
+ * learn to wave secret scanners through.
+ */
+test.describe("feedback is sent, not downloaded", () => {
+  const SERVICE_KEY = (() => {
+    try {
+      const status: unknown = JSON.parse(
+        execFileSync("supabase", ["status", "-o", "json"], { encoding: "utf8" }),
+      );
+      const key = (status as Record<string, unknown>)["SECRET_KEY"];
+      return typeof key === "string" ? key : "";
+    } catch {
+      return "";
+    }
+  })();
+
+  const API = "http://127.0.0.1:54321";
+
+  const readFeedback = async (body: string) => {
+    const response = await fetch(
+      `${API}/rest/v1/feedback?select=kind,body,rating,meta&body=eq.${encodeURIComponent(body)}`,
+      { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } },
+    );
+    return (await response.json()) as Array<{
+      kind: string;
+      body: string;
+      rating: number | null;
+      meta: Record<string, unknown>;
+    }>;
+  };
+
+  test("a flagged note lands in the table, with the context nobody typed", async ({ page }) => {
+    expect(SERVICE_KEY, "no local Supabase stack to read the table with").not.toBe("");
+
+    const body = `flagged at ${Date.now()}`;
+
+    await page.goto("./?seed=4242&mode=5v5&play=hotseat&actions=4");
+    await page.getByRole("button", { name: /Flag moment/ }).click();
+
+    await page.getByRole("button", { name: /^Balance$/ }).click();
+    await page.getByPlaceholder(/What happened/).fill(body);
+    await page.getByRole("button", { name: /^Save note$/ }).click();
+
+    await expect.poll(async () => (await readFeedback(body)).length, { timeout: 15_000 }).toBe(1);
+
+    const [row] = await readFeedback(body);
+    expect(row!.kind).toBe("note");
+
+    /* The whole point: the tester typed a sentence and we got the match. */
+    expect(row!.meta["seed"]).toBe(4242);
+    expect(row!.meta["mode"]).toBe("5v5");
+    expect(row!.meta["rulesVersion"]).toBeGreaterThan(0);
+    expect(row!.meta["build"]).toBeTruthy();
+    expect(row!.meta["turn"]).toBeGreaterThan(0);
+    expect(row!.meta["userAgent"]).toBeTruthy();
+    expect(row!.meta["theme"]).toMatch(/light|dark/);
   });
 });
