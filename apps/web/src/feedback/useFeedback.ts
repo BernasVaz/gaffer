@@ -1,6 +1,8 @@
 import type { MatchSetup, MatchState } from "@gaffer/shared";
 import { useCallback, useEffect, useState } from "react";
 
+import { contextOf, submit } from "./submit";
+
 import type { RecordedEvent } from "../match/useMatch";
 import {
   clearFeedback,
@@ -118,9 +120,33 @@ export function useFeedback({
     [state, log],
   );
 
-  const commit = useCallback((captured: Captured, category: Category, note: string) => {
-    setNotes((current) => [...current, { ...captured, id: nextId(), category, note }]);
-  }, []);
+  const commit = useCallback(
+    (captured: Captured, category: Category, note: string) => {
+      setNotes((current) => [...current, { ...captured, id: nextId(), category, note }]);
+
+      /*
+       * Sent as it is written, rather than waiting for somebody to remember to
+       * export a file and send it. A failure here is not one: `submit` queues
+       * what it cannot send and flushes when the network returns, and the note
+       * is in local storage and in the downloadable report regardless.
+       */
+      void submit({
+        kind: category === "bug" ? "bug" : "note",
+        body: note,
+        meta: {
+          ...contextOf({
+            setup,
+            turn: captured.turn,
+            score: captured.score,
+            actionIndex: captured.actionIndex,
+          }),
+          category,
+          activeTeam: captured.activeTeam,
+        },
+      });
+    },
+    [setup],
+  );
 
   const discard = useCallback((id: string) => {
     setNotes((current) => current.filter((note) => note.id !== id));
