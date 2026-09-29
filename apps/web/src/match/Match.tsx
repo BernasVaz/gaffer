@@ -84,10 +84,25 @@ export interface OnlineMatchBinding {
   sending: boolean;
   /** What went wrong with the last submit. Shown, never swallowed. */
   error: string | null;
-  /** Drawn above the board: whose turn it is. */
-  banner: React.ReactNode;
-  /** The invite, while the second seat is empty. */
+  /**
+   * Whose turn it is, written for the person reading it.
+   *
+   * Shown *in* the scoreboard rather than in a bar above it: a bar would be one
+   * more thing between the header and the pitch, and the pitch is what pays for
+   * it (ADR 0036).
+   */
+  status: { label: string; urgent: boolean };
+  /** Anything online adds to the "More" menu, where a rarely-used control belongs. */
+  more?: React.ReactNode;
+  /**
+   * The invite, while the second seat is empty.
+   *
+   * Drawn **over** the screen rather than in the column, because the pitch is
+   * what pays for anything added to the column (ADR 0036).
+   */
   invite?: React.ReactNode;
+  /** Who they are playing, when we know. Somebody else's text: rendered as text. */
+  opponent?: string | null;
 }
 
 /**
@@ -149,6 +164,23 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay, online }: MatchPr
   const profile = FORMAT_PROFILES[setup.mode];
   const solo = online === undefined && setup.play === "solo";
   const seat: Seat = online !== undefined ? online.side : solo ? setup.side : "both";
+
+  /*
+   * What this match is, to the person in front of it.
+   *
+   * Read from what is actually driving the screen rather than from the stored
+   * setup: an online match is created with `play: "hotseat"`, because the row
+   * records a board rather than a way of sitting at it, and a header that
+   * repeated the field told two people on two phones they were sharing one.
+   */
+  const kind =
+    online !== undefined
+      ? online.opponent != null && online.opponent !== ""
+        ? `online \u00b7 vs ${online.opponent}`
+        : "online"
+      : solo
+        ? `you are ${setup.side}`
+        : "hotseat";
 
   /* No machine opponent in a match against a person. */
   const opponentTeam = solo ? opponentOf(setup.side) : null;
@@ -253,22 +285,33 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay, online }: MatchPr
           <h1 className="text-lg leading-none">
             <Wordmark />
           </h1>
-          <p className="min-w-0 flex-1 truncate text-[0.7rem] text-white/50">
+          {/*
+            `data-testid` rather than a role, deliberately: this is a strip of
+            metadata, not a landmark, and labelling it for a test would hand a
+            screen reader a name in place of the words it actually says.
+          */}
+          <p
+            data-testid="match-meta"
+            className="min-w-0 flex-1 truncate text-[0.7rem] text-white/50"
+          >
             <span className="font-bold text-white/70">{profile.label}</span>
             {profile.status === "alpha" && <AlphaTag className="ml-1.5" />}
             <span className="ml-1.5">
-              {solo ? `you are ${setup.side}` : "hotseat"} &middot; seed {setup.seed}
+              {kind} &middot; seed {setup.seed}
             </span>
           </p>
           <ViewControls className="shrink-0" />
         </header>
 
-        <Scoreboard state={state} scoredBy={moment?.team ?? null} />
+        <Scoreboard
+          state={state}
+          scoredBy={moment?.team ?? null}
+          viewpoint={online?.side ?? null}
+          status={online?.status ?? null}
+        />
 
         {online !== undefined && (
           <>
-            {online.banner}
-            {online.invite}
             {online.stopped !== null && (
               <p
                 role="alert"
@@ -389,6 +432,8 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay, online }: MatchPr
                 />
               )}
 
+              {online?.more}
+
               {onHowToPlay && <HowToPlay onStart={onHowToPlay} className="px-3 py-1.5 text-sm" />}
               <FeedbackArchive />
               <Button
@@ -411,6 +456,14 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay, online }: MatchPr
 
         <InfoPanels state={state} log={log} inspected={inspected} />
       </div>
+
+      {/*
+        Outside the column on purpose. Everything above shares out a fixed
+        height and the pitch takes what is left, so a panel put in there is
+        taken out of the board — see ADR 0036. The invite is drawn over the
+        screen instead, and costs it nothing.
+      */}
+      {online?.invite}
     </main>
   );
 }

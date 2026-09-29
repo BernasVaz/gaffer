@@ -168,11 +168,26 @@ test("reads on a phone", async ({ browser }) => {
   );
   expect(overflow, "the online screen scrolls sideways on a phone").toBeLessThanOrEqual(0);
 
-  /* The turn banner has to be findable without hunting for it. */
+  /*
+   * Whose turn it is has to be findable without hunting for it.
+   *
+   * It used to be a bar of its own and this asked for its height. It is now a
+   * line in the scoreboard, because a bar that repeated what the scoreboard
+   * already said cost the pitch twenty-two pixels on every phone (ADR 0036).
+   * So the question is no longer "is it big" but "is it up there, in the strip
+   * a player already reads" — which is what this asks now.
+   */
   const banner = page.getByTestId("turn-state");
   await expect(banner).toBeVisible();
+  await expect(banner).toHaveText(/\w/);
+
+  const strip = await page.getByLabel("Scoreboard").boundingBox();
   const box = await banner.boundingBox();
-  expect(box!.height).toBeGreaterThan(30);
+  expect(box!.y, "the turn state is not in the scoreboard").toBeGreaterThanOrEqual(strip!.y);
+  expect(box!.y + box!.height, "the turn state is not in the scoreboard").toBeLessThanOrEqual(
+    strip!.y + strip!.height,
+  );
+  expect(strip!.y, "the scoreboard is not near the top of the screen").toBeLessThan(200);
 
   await ctx.close();
 });
