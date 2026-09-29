@@ -1,6 +1,6 @@
 {
   "name": "@gaffer/backup",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "description": "Exports matches and feedback to disk. The free Supabase tier has no automated backups; this is the copy.",
