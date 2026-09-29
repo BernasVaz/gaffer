@@ -3,6 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      Defence in depth, not the defence.
+      React escapes everything it renders and the app has no `innerHTML`
+      anywhere, so a script in a feedback note or a display name is already just
+      text. This is the second wall: if that ever stopped being true, a policy
+      that forbids inline script and unknown origins turns a cross-site scripting
+      bug into a blocked request rather than an executed one.
+
+      A `meta` tag rather than a header because GitHub Pages serves static files
+      and cannot set one. `frame-ancestors` is ignored in a meta tag; the rest
+      applies.
+
+      `connect-src` is filled in at build time with the exact Supabase project
+      this build talks to, plus the websocket Realtime opens to it — so it names
+      one origin rather than a wildcard, and a build pointed at a local stack
+      permits the local stack. A hard-coded `*.supabase.co` worked in production
+      and broke every developer and every end-to-end run, which is a poor way
+      for a security control to behave.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self';
+               base-uri 'self';
+               object-src 'none';
+               form-action 'none';
+               img-src 'self' data:;
+               font-src 'self';
+               style-src 'self' 'unsafe-inline';
+               script-src 'self';
+               connect-src 'self' %SUPABASE_ORIGINS%;"
+    />
     <title>Gaffer</title>
   </head>
   <body>

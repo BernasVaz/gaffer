@@ -63,3 +63,20 @@ docs/api/
 *.mp4
 *.mov
 *.avi
+
+# Tester feedback stays out of the repository.
+#
+# Feedback is attacker-controlled text about this project, and a repository is
+# a place where text gets read as instructions — by a person skimming a diff,
+# and by whatever is reading the codebase to work on it. It lives in the
+# database and in exports (`tools/backup`), and what reaches here is an issue
+# somebody has read and approved, in their own words.
+#
+# Bernardo's own dogfood notes predate this and are his to keep; anything from
+# an outside tester is ignored by default.
+FeedbackLogs/*.md
+!FeedbackLogs/gaffer-feedback-11v11-seed1319726635.md
+
+# Database exports — they contain other people's writing.
+backups/
+*.backup.json

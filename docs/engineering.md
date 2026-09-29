@@ -394,6 +394,27 @@ change to the deploy has to be on `main` before the next freeze is cut. Running 
 (`gh workflow run deploy.yml --ref main -f ref=alpha-freeze-N`) always uses `main`'s copy,
 which is also how a rollback is done.
 
+### Cutting a freeze
+
+In this order, every time:
+
+1. **Back up the database.** `tools/backup` writes `matches` and `feedback` to JSON and
+   CSV. We are on Supabase's free tier, which has **no automated backups at all** — no
+   daily snapshot, no point-in-time recovery — so this file is the only copy of what a
+   wave of testers produced. A freeze is the moment worth having one: it is the last
+   point everything was known-good.
+2. **Purge test rows**, if the cloud end-to-end suite has been run since the last purge
+   (`tools/backup purge`). It only removes rows a test marked when it wrote them.
+3. **Apply any pending migration** (`supabase db push`), so the client a tag ships is not
+   assuming a database shape that does not exist yet.
+4. **Cut versions** (`pnpm changeset version`), commit, merge.
+5. **Tag and push** `alpha-freeze-N`. The deploy runs from the tag.
+6. **Check it on a phone**, in both themes.
+
+Steps 1 to 3 need the service key and are deliberately not automated: each one is either
+irreversible or reaches production, and `.claude/settings.json` denies them to an
+unattended session for that reason.
+
 See [ADR 0009](adr/0009-ship-on-github-pages-and-keep-vercel-one-import-away.md) for why
 Pages rather than Vercel, and how little stands between the two.
 

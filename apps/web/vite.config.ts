@@ -1,6 +1,43 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+import type { IndexHtmlTransformContext, PluginOption } from "vite";
+
+/**
+ * Fill the Content-Security-Policy's `connect-src` with the project this build
+ * actually talks to.
+ *
+ * Written at build time rather than hard-coded, because a policy naming
+ * `*.supabase.co` is correct in production and wrong everywhere else: a local
+ * stack lives on `127.0.0.1`, and the first version of this blocked every
+ * developer and every end-to-end run while looking perfectly fine in the
+ * deployed site. A control that only works in production is a control nobody
+ * can test.
+ *
+ * Naming one origin is also tighter than the wildcard it replaces.
+ */
+function contentSecurityPolicy(): PluginOption {
+  return {
+    name: "gaffer-csp",
+    transformIndexHtml(html: string, context: IndexHtmlTransformContext) {
+      const url =
+        context.server?.config.env?.["VITE_SUPABASE_URL"] ?? process.env["VITE_SUPABASE_URL"] ?? "";
+
+      const origins = (() => {
+        if (url === "") return "";
+        try {
+          const { protocol, host } = new URL(url);
+          const socket = protocol === "https:" ? "wss:" : "ws:";
+          return `${protocol}//${host} ${socket}//${host}`;
+        } catch {
+          return "";
+        }
+      })();
+
+      return html.replace("%SUPABASE_ORIGINS%", origins);
+    },
+  };
+}
 
 export default defineConfig({
   /*
@@ -15,7 +52,7 @@ export default defineConfig({
    */
   base: "./",
 
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), contentSecurityPolicy()],
   test: {
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],

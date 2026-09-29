@@ -205,6 +205,87 @@ count grows past people we know.
 
 ---
 
+## Hardening pass — 2026-09-29
+
+An audit of the shipped feedback feature against the threat it actually faces, rather than
+against the design. **The premise: the anon key is public and anybody can mint a session in
+one request**, so "authenticated" is not a trust boundary — an arbitrary stranger is
+authenticated.
+
+### What the audit found
+
+**Every display name was readable by anyone.** `profiles` had
+`for select to authenticated using (true)`. Demonstrated against the live project: a
+freshly minted anonymous token returned every name every tester had chosen. Nothing needed
+it — a name is shown beside an opponent — so the policy is now **self, or somebody you are
+actually playing**.
+
+**A feedback body could be 4,000 characters** and `meta` had no ceiling at all. Now 2,000
+and 8 KB, as `CHECK` constraints. Client caps remain what they always were: a courtesy.
+
+**Nothing was broadcast, but nothing said so.** `feedback` and `profiles` were absent from
+the Realtime publication by accident rather than by instruction. The migration now removes
+them explicitly and a test asserts they stay out — relying on the absence of a select
+policy to keep a broadcast channel shut is a thin thing to leave implicit.
+
+### What was already right
+
+No `dangerouslySetInnerHTML`, no `innerHTML`, no `document.write` anywhere in the client —
+now asserted by a test that walks the source rather than checking one component. Writes go
+through the Supabase client, parameterised. The captured user agent was already treated as
+opaque text.
+
+### Added
+
+**A Content-Security-Policy**, as a `meta` tag because Pages serves static files and cannot
+set a header. Defence in depth and not the defence: React already escapes everything, and
+this turns a future mistake into a blocked request rather than an executed script.
+`connect-src` names Supabase and its websocket and nothing else.
+
+**`csvCell` / `csvRow`** in `@gaffer/shared`. A cell beginning `=`, `+`, `-`, `@`, tab or
+carriage return is executed as a formula by Excel, Sheets and Numbers, so a tester who
+writes `=HYPERLINK("http://evil","click")` has written a live link into a spreadsheet **we**
+open. Prefixed with an apostrophe; invisible and direction-changing characters removed.
+
+**`tools/backup`**, because the free Supabase tier has **no automated backups** — no daily
+snapshot, no point-in-time recovery. It exports `matches` and `feedback` to JSON and CSV
+and flags rows containing hidden characters rather than silently cleaning them.
+
+### The standing access test
+
+`supabase/tests/hardening.test.sql` reads every table from a token belonging to nobody:
+`feedback` → nothing, `matches` → nothing, `profiles` → only its own. A player sees their
+opponent's name and no further. It is a standing test rather than a one-off audit because
+a policy is one helpful edit away from being open again.
+
+---
+
+## Test data and the real project
+
+**The cloud end-to-end suite writes to production.** That is deliberate — a local stack
+cannot tell you whether the hosted auth service, the real publication and a websocket over
+the internet behave — and it means test identities, matches and feedback land beside real
+ones.
+
+Two things keep them apart:
+
+- **Every row a test creates is marked when it is written.** Display names carry a
+  `gaffer-e2e:` prefix. Marking at write time is the only version of this that is safe to
+  run against production: a purge that _infers_ what is disposable from a name or a date
+  eventually throws away somebody's feedback.
+- **`tools/backup purge` removes only marked rows**, dry-run by default, `--delete`
+  required. Rows without a marker are never touched, so anything written before marking
+  existed is dealt with by hand — which is the right way round.
+
+**The durable fix is a second Supabase project** for tests, so the two never share a
+database at all. Until that exists, the routine is: run the cloud suite when it earns its
+keep, purge afterwards, and never run it during a wave.
+
+**Backups.** The free tier has none. `tools/backup` is the only copy, and taking one is
+step 1 of cutting a freeze.
+
+---
+
 ## Known and accepted
 
 ### Anonymous sign-in is a spam vector

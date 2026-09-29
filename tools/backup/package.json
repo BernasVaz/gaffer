@@ -1,0 +1,20 @@
+{
+  "name": "@gaffer/backup",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Exports matches and feedback to disk. The free Supabase tier has no automated backups; this is the copy.",
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.json",
+    "start": "node src/export.ts",
+    "purge": "node src/purge-test-rows.ts"
+  },
+  "dependencies": {
+    "@gaffer/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "typescript": "6.0.3"
+  }
+}

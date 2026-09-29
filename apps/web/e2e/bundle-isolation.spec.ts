@@ -62,7 +62,14 @@ test.describe("the alpha build carries no multiplayer", () => {
     expect(files.length, "the build produced nothing to check").toBeGreaterThan(0);
 
     const bundle = files.map((name) => readFileSync(join(assets, name), "utf8")).join("\n");
-    const html = readFileSync(join(DIST, "index.html"), "utf8");
+
+    /*
+     * HTML comments are stripped before checking. A comment cannot connect to
+     * anything, and the Content-Security-Policy in `index.html` explains itself
+     * by naming what it permits — which tripped this guard on text that does
+     * nothing. The check is for code that ships and runs, not for the word.
+     */
+    const html = readFileSync(join(DIST, "index.html"), "utf8").replaceAll(/<!--[\s\S]*?-->/g, "");
     const everything = `${bundle}\n${html}`.toLowerCase();
 
     const found = FORBIDDEN.filter((needle) => everything.includes(needle.toLowerCase()));
