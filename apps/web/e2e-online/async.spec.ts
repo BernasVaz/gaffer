@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { testDisplayName } from "@gaffer/shared";
+import { TEST_MARKER, testDisplayName } from "@gaffer/shared";
 
 import { measureContrast } from "../e2e-theme/contrast";
 
@@ -260,6 +260,8 @@ test.describe("light mode, all the way through a match", () => {
  * learn to wave secret scanners through.
  */
 test.describe("feedback is sent, not downloaded", () => {
+  const API = "http://127.0.0.1:54321";
+
   const SERVICE_KEY = (() => {
     try {
       const status: unknown = JSON.parse(
@@ -272,7 +274,27 @@ test.describe("feedback is sent, not downloaded", () => {
     }
   })();
 
-  const API = "http://127.0.0.1:54321";
+  /**
+   * Whether the app under test talks to the local stack.
+   *
+   * Asked of the build rather than assumed from the config. The content-security
+   * policy in `index.html` is filled in at build time with the exact Supabase
+   * origin that bundle is allowed to contact (`vite.config.ts`), so the page
+   * states which project it is pointed at and cannot be wrong about it.
+   *
+   * This matters because the same suite runs against three things: the local
+   * stack, the cloud project, and — for verifying a freeze — the deployed site.
+   * Only the first can be read back. Against the other two the note is written
+   * correctly to that project and then looked for in a local Postgres that never
+   * received it: a red test that says nothing about the feature, which is worse
+   * than no test at all because somebody has to spend an afternoon learning it
+   * means nothing. So it skips, and says why.
+   */
+  const pointedAtLocalStack = async (baseURL: string | undefined): Promise<boolean> => {
+    if (baseURL === undefined) return false;
+    const response = await fetch(new URL("index.html", baseURL));
+    return response.ok && (await response.text()).includes(API);
+  };
 
   const readFeedback = async (body: string) => {
     const response = await fetch(
@@ -287,10 +309,24 @@ test.describe("feedback is sent, not downloaded", () => {
     }>;
   };
 
-  test("a flagged note lands in the table, with the context nobody typed", async ({ page }) => {
-    expect(SERVICE_KEY, "no local Supabase stack to read the table with").not.toBe("");
+  test("a flagged note lands in the table, with the context nobody typed", async ({
+    page,
+    baseURL,
+  }) => {
+    test.skip(
+      !(await pointedAtLocalStack(baseURL)),
+      `this build is not pointed at ${API}, and only the local table can be read back ` +
+        "— run it with `supabase start && pnpm --filter @gaffer/web test:e2e:online`",
+    );
+    test.skip(
+      SERVICE_KEY === "",
+      "no local Supabase stack is running, so there is no service key to read the " +
+        "feedback table with — run `supabase start` first",
+    );
 
-    const body = `flagged at ${Date.now()}`;
+    /* Marked, so a purge can find it. The suite writes to whichever project it
+       is pointed at, and `TEST_MARKER` is how such a row admits as much. */
+    const body = `${TEST_MARKER} flagged at ${Date.now()}`;
 
     await page.goto("./?seed=4242&mode=5v5&play=hotseat&actions=4");
     await page.getByRole("button", { name: /Flag moment/ }).click();
