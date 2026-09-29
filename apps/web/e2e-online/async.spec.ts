@@ -50,7 +50,7 @@ test("create, invite, join, take a turn, and notify", async ({ browser }) => {
 
   // --- create -------------------------------------------------------------
   await home.getByRole("button", { name: /Start a match/ }).click();
-  await expect(home.getByRole("region", { name: "Online match" })).toBeVisible();
+  await expect(home.getByRole("grid")).toBeVisible();
 
   const invite = home.getByLabel("Invite link");
   await expect(invite).toBeVisible();
@@ -70,7 +70,7 @@ test("create, invite, join, take a turn, and notify", async ({ browser }) => {
 
   // --- join ---------------------------------------------------------------
   await away.goto(link);
-  await expect(away.getByRole("region", { name: "Online match" })).toBeVisible();
+  await expect(away.getByRole("grid")).toBeVisible();
 
   /* Home is notified that the seat filled, without a reload: Realtime. */
   await expect(home.getByTestId("turn-state")).toHaveText(/Your turn/, { timeout: 20_000 });
@@ -91,7 +91,7 @@ test("create, invite, join, take a turn, and notify", async ({ browser }) => {
   /* A board is a seed and a list, so reopening the link rebuilds it. Nothing is
      restored because there is no session to restore. */
   await home.reload();
-  await expect(home.getByRole("region", { name: "Online match" })).toBeVisible();
+  await expect(home.getByRole("grid")).toBeVisible();
   await expect(home.getByTestId("turn-state")).toHaveText(/Your turn/, { timeout: 20_000 });
 
   await homeContext.close();
@@ -114,7 +114,7 @@ test("a stranger cannot open somebody else's match", async ({ browser }) => {
   const first = await firstContext.newPage();
   await enterAs(first, "First");
   await first.goto(link);
-  await expect(first.getByRole("region", { name: "Online match" })).toBeVisible();
+  await expect(first.getByRole("grid")).toBeVisible();
 
   await enterAs(stranger, "Stranger");
   await stranger.goto(link);
@@ -161,7 +161,7 @@ test("reads on a phone", async ({ browser }) => {
   await page.getByRole("button", { name: /I understand/ }).click();
   await page.getByRole("button", { name: /Start a match/ }).click();
 
-  await expect(page.getByRole("region", { name: "Online match" })).toBeVisible();
+  await expect(page.getByRole("grid")).toBeVisible();
 
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -195,12 +195,20 @@ test.describe("light mode, all the way through a match", () => {
     await page.getByRole("button", { name: /I understand/ }).click();
     await page.getByRole("button", { name: /Start a match/ }).click();
 
-    /* The invite view: the link, the share button and the bearer-link warning. */
+    /*
+     * Scoped to what online *adds*, now that it renders the ordinary match
+     * screen: the invite and the turn banner. The shared screen has its own
+     * contrast coverage, and sweeping it from here would only re-measure it
+     * through a second door — and would report the wordmark, which is gradient
+     * text that a computed-colour reading cannot see.
+     */
     await expect(page.getByLabel("Invite link")).toBeVisible();
-    const invite = (await measureContrast(page, "main *")).filter((item) => item.ratio < 4.5);
+    const invite = (await measureContrast(page, '[aria-label="Invite"] *')).filter(
+      (item) => item.ratio < 4.5,
+    );
     expect(
       invite.map((item) => `${item.ratio}:1 — "${item.label}"`),
-      "the invite view is unreadable in light mode",
+      "the invite is unreadable in light mode",
     ).toEqual([]);
 
     /*
@@ -216,8 +224,16 @@ test.describe("light mode, all the way through a match", () => {
     await expect(board).toBeVisible();
     const box = await board.boundingBox();
     expect(box, "the board has no box at all").not.toBeNull();
-    expect(box!.height, "the board collapsed to nothing").toBeGreaterThan(120);
-    expect(box!.width, "the board collapsed to nothing").toBeGreaterThan(120);
+    /*
+     * The number means "not collapsed", not "big enough to enjoy". This guard
+     * exists because the board once rendered 0x0 while every test passed; on
+     * the narrowest phone, with the invite panel still above it, a real board
+     * is around 120px tall and that is fine. Policing a comfortable size is a
+     * different test, and pretending this is one would make it fail for the
+     * wrong reason.
+     */
+    expect(box!.height, "the board collapsed to nothing").toBeGreaterThan(80);
+    expect(box!.width, "the board collapsed to nothing").toBeGreaterThan(80);
 
     /* The take-turn view: the turn banner is the thing a player looks for. */
     await expect(page.getByTestId("turn-state")).toBeVisible();

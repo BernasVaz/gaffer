@@ -5,6 +5,7 @@ import {
   type MatchCommand,
   type MatchSetup,
   type Player,
+  type Team,
 } from "@gaffer/shared";
 import { useCallback, useState } from "react";
 
@@ -28,7 +29,7 @@ import { FlagMoment } from "../feedback/FlagMoment";
 import { loadFeedback } from "../feedback/notes";
 import { useFeedback } from "../feedback/useFeedback";
 import { useGoalMoment } from "./useGoalMoment";
-import { useMatch, type PlayOutcome } from "./useMatch";
+import { useMatch, type MatchController, type PlayOutcome } from "./useMatch";
 import { useOpponent } from "./useOpponent";
 
 /** A quiet flag on anything whose numbers are still moving. */
@@ -57,6 +58,36 @@ export interface MatchProps {
   onLeave: () => void;
   /** Start the guided introduction. */
   onHowToPlay?: () => void;
+  /**
+   * A match being played against somebody else, rather than on this device.
+   *
+   * When present the screen is driven by this instead of by its own engine, and
+   * that is the entire difference between online and hotseat. There is **one**
+   * match screen: the pitch, the panels, the feedback button, the duel
+   * breakdown and the full-time report are the same code, because a second
+   * screen is a second place for every one of them to be wrong.
+   */
+  online?: OnlineMatchBinding;
+}
+
+/** What online play supplies to the match screen. */
+export interface OnlineMatchBinding {
+  /** The remote controller, in place of the local one. */
+  controller: MatchController;
+  /** Which side of the board belongs to the person looking at it. */
+  side: Team;
+  /** Whether it is their move. */
+  yours: boolean;
+  /** Why the match is stopped, in words, when it is. */
+  stopped: string | null;
+  /** True while a turn is on its way. */
+  sending: boolean;
+  /** What went wrong with the last submit. Shown, never swallowed. */
+  error: string | null;
+  /** Drawn above the board: whose turn it is. */
+  banner: React.ReactNode;
+  /** The invite, while the second seat is empty. */
+  invite?: React.ReactNode;
 }
 
 /**
@@ -72,7 +103,7 @@ export interface MatchProps {
  */
 const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(" ");
 
-export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
+export function Match({ setup, replayTo, onLeave, onHowToPlay, online }: MatchProps) {
   /*
    * A match that has flagged moments against it has to come back as *that*
    * match after a refresh, or every note's action index points at a board that
@@ -86,12 +117,19 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
     return rewound ? kept.slice(0, replayTo) : kept;
   });
 
-  const { state, log, lastEvent, rejection, play, restart } = useMatch({
+  /*
+   * Always called, because hooks are. An online match ignores what it produces
+   * and uses the controller it was handed — the cost is one board built and
+   * left alone, which is nothing next to keeping two copies of this screen.
+   */
+  const local = useMatch({
     seed: setup.seed,
     format: setup.mode,
     actionsPerTurn: setup.actions,
     replay,
   });
+
+  const { state, log, lastEvent, rejection, play, restart } = online?.controller ?? local;
 
   const { moment, celebrate } = useGoalMoment();
   const feedback = useFeedback({ setup, state, log, persist: !rewound });
@@ -109,8 +147,10 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
   const [inspected, setInspected] = useState<Player | undefined>(undefined);
 
   const profile = FORMAT_PROFILES[setup.mode];
-  const solo = setup.play === "solo";
-  const seat: Seat = solo ? setup.side : "both";
+  const solo = online === undefined && setup.play === "solo";
+  const seat: Seat = online !== undefined ? online.side : solo ? setup.side : "both";
+
+  /* No machine opponent in a match against a person. */
   const opponentTeam = solo ? opponentOf(setup.side) : null;
 
   const celebrateOutcome = useCallback(
@@ -225,6 +265,29 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
 
         <Scoreboard state={state} scoredBy={moment?.team ?? null} />
 
+        {online !== undefined && (
+          <>
+            {online.banner}
+            {online.invite}
+            {online.stopped !== null && (
+              <p
+                role="alert"
+                className="shrink-0 rounded-lg bg-(--color-gold)/15 p-3 text-sm text-white ring-1 ring-(--color-gold)/40"
+              >
+                {online.stopped}
+              </p>
+            )}
+            {online.error !== null && (
+              <p
+                role="alert"
+                className="shrink-0 rounded-lg bg-(--color-gold-deep)/25 p-3 text-sm text-white ring-1 ring-(--color-gold-deep)/60"
+              >
+                {online.error}
+              </p>
+            )}
+          </>
+        )}
+
         {over && state.result && !takingPenalties && (
           <p className="shrink-0 rounded-xl bg-gradient-to-b from-(--color-gold)/25 to-(--color-gold)/10 px-4 py-2 text-sm ring-1 ring-(--color-gold)/45">
             <span className="font-extrabold text-(--color-gold) capitalize">
@@ -265,7 +328,8 @@ export function Match({ setup, replayTo, onLeave, onHowToPlay }: MatchProps) {
             focused={focused}
             onInspect={setInspected}
             showOdds={showOdds}
-            frozen={moment !== null || !yourMove}
+            frozen={moment !== null || !yourMove || (online !== undefined && !online.yours)}
+            flipped={online?.side === "away"}
             goalFor={moment?.team ?? null}
             orientation={orientation}
           />
