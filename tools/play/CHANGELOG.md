@@ -1,5 +1,15 @@
 # @gaffer/play
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [79fa8fb]
+- Updated dependencies [79fa8fb]
+  - @gaffer/shared@0.4.0
+  - @gaffer/ai@0.1.3
+  - @gaffer/engine@0.3.1
+
 ## 0.0.3
 
 ### Patch Changes

@@ -1,5 +1,25 @@
 # @gaffer/web
 
+## 0.4.1
+
+### Patch Changes
+
+- a90fe56: Reconcile every document with the live engine, and add a test so they cannot drift apart
+  again. The GDD's locked table disagreed with the code in three places and with itself in
+  one; the Master Plan still described a Colyseus server and a Vercel deploy; five ADRs were
+  superseded without saying so. No rule moved.
+- 79fa8fb: Harden what the alpha stores about people. A display name was readable by anyone who
+  minted an anonymous session; it is now visible only to its owner and their opponent.
+  Feedback bodies are capped in the database, neither feedback nor names are broadcast, and
+  `csvCell` neutralises spreadsheet formulas and invisible characters on the way into any
+  export. Adds a Content-Security-Policy naming the exact project the build talks to, and a
+  backup export, because the free Supabase tier has none.
+- Updated dependencies [79fa8fb]
+- Updated dependencies [79fa8fb]
+  - @gaffer/shared@0.4.0
+  - @gaffer/ai@0.1.3
+  - @gaffer/engine@0.3.1
+
 ## 0.4.0
 
 ### Minor Changes
