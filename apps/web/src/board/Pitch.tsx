@@ -246,6 +246,16 @@ export interface PitchProps {
    * the same board either way round.
    */
   orientation?: Orientation;
+  /**
+   * Draw the board from the far side.
+   *
+   * For the away player online, so they see their own team along the bottom
+   * attacking up their own screen — the same picture home gets, turned round.
+   * Display only: the engine's coordinates and every cell's accessible name are
+   * unchanged, which is what keeps a match replayable however it was drawn
+   * (ADR 0014).
+   */
+  flipped?: boolean;
 }
 
 /**
@@ -277,6 +287,7 @@ export function Pitch({
   frozen = false,
   goalFor = null,
   orientation = "landscape",
+  flipped = false,
   onInspect,
   showOdds = true,
 }: PitchProps) {
@@ -288,7 +299,10 @@ export function Pitch({
    * out where they go — so the DOM comes out in reading order at either
    * orientation, which is what a screen reader and a keyboard both need.
    */
-  const layout = useMemo(() => layoutFor(state.board, orientation), [state.board, orientation]);
+  const layout = useMemo(
+    () => layoutFor(state.board, orientation, flipped),
+    [state.board, orientation, flipped],
+  );
 
   const byCell = new Map(state.players.map((player) => [cellKey(player.position), player]));
   const selected = state.players.find((player) => player.id === selectedId);

@@ -52,30 +52,51 @@ export interface BoardLayout {
  * on every pointer move and a rotation that is inverted slightly differently in
  * two places is a drag that lands one cell off.
  */
-export function layoutFor(board: Board, orientation: Orientation): BoardLayout {
+export function layoutFor(board: Board, orientation: Orientation, flipped = false): BoardLayout {
+  const lastCol = board.width - 1;
+  const lastRow = board.height - 1;
+
   if (orientation === "landscape") {
-    return {
-      orientation,
-      cols: board.width,
-      rows: board.height,
-      toScreen: ({ x, y }) => ({ col: x, row: y }),
-      toBoard: (col, row) => ({ x: col, y: row }),
-      rotate: (vector) => vector,
-    };
+    return flipped
+      ? {
+          orientation,
+          cols: board.width,
+          rows: board.height,
+          toScreen: ({ x, y }) => ({ col: lastCol - x, row: lastRow - y }),
+          toBoard: (col, row) => ({ x: lastCol - col, y: lastRow - row }),
+          rotate: ({ x, y }) => ({ x: -x, y: -y }),
+        }
+      : {
+          orientation,
+          cols: board.width,
+          rows: board.height,
+          toScreen: ({ x, y }) => ({ col: x, row: y }),
+          toBoard: (col, row) => ({ x: col, y: row }),
+          rotate: (vector) => vector,
+        };
   }
 
-  const lastRow = board.width - 1;
-
-  return {
-    orientation,
-    cols: board.height,
-    rows: board.width,
-    toScreen: ({ x, y }) => ({ col: y, row: lastRow - x }),
-    toBoard: (col, row) => ({ x: lastRow - row, y: col }),
-    // The same quarter turn, applied to a direction: +x (upfield for home)
-    // becomes −y (up the screen).
-    rotate: ({ x, y }) => ({ x: y, y: -x }),
-  };
+  return flipped
+    ? {
+        orientation,
+        cols: board.height,
+        rows: board.width,
+        toScreen: ({ x, y }) => ({ col: lastRow - y, row: x }),
+        toBoard: (col, row) => ({ x: row, y: lastRow - col }),
+        // The opposite quarter turn: −x (upfield for away) becomes −y, so the
+        // away player is also attacking up their own screen.
+        rotate: ({ x, y }) => ({ x: -y, y: x }),
+      }
+    : {
+        orientation,
+        cols: board.height,
+        rows: board.width,
+        toScreen: ({ x, y }) => ({ col: y, row: lastCol - x }),
+        toBoard: (col, row) => ({ x: lastCol - row, y: col }),
+        // The same quarter turn, applied to a direction: +x (upfield for home)
+        // becomes −y (up the screen).
+        rotate: ({ x, y }) => ({ x: y, y: -x }),
+      };
 }
 
 /**

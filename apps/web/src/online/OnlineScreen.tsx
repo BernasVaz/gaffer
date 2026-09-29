@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { currentIdentity, hasBeenWarned, rememberWarned, signIn, type Identity } from "./identity";
 import { createMatch, fetchMatch, joinMatch, type RemoteMatch } from "./matches";
-import { OnlineMatch } from "./OnlineMatch";
+import { OnlineBoard } from "./OnlineBoard";
 
 /** The invite link for a match, in the shape the app already reads. */
 export function inviteLink(matchId: string): string {
@@ -178,21 +178,15 @@ export default function OnlineScreen(): React.JSX.Element {
 
   if (match !== null && identity !== null) {
     return (
-      <main
-        /*
-         * A definite height, not just a minimum. `.pitch-slot` is a size
-         * container and takes its height from this column — given only a
-         * `min-height` it has nothing to measure and collapses to nothing,
-         * which is exactly what the board did here (ADR 0019 covers the same
-         * trap on the match screen).
-         */
-        className="screen mx-auto flex h-dvh max-w-3xl flex-col gap-3 overflow-hidden p-4"
-      >
-        <h1 className="shrink-0 text-lg font-extrabold">Online match</h1>
-        {match.awayUser === null && <Invite matchId={match.id} />}
-
-        <OnlineMatch match={match} userId={identity.id} />
-      </main>
+      <OnlineBoard
+        match={match}
+        userId={identity.id}
+        invite={match.awayUser === null ? <Invite matchId={match.id} /> : undefined}
+        onLeave={() => {
+          window.history.replaceState(null, "", "?online=1");
+          setMatch(null);
+        }}
+      />
     );
   }
 

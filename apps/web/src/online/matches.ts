@@ -1,4 +1,5 @@
-import { buildMatch } from "../match/replay";
+import { buildMatch, type RecordedEvent } from "../match/replay";
+import type { Rng } from "@gaffer/engine";
 import { stateHash } from "@gaffer/engine";
 import {
   FORMAT_PROFILES,
@@ -35,6 +36,19 @@ export type Blocked =
 export interface Reconstructed {
   match: RemoteMatch;
   state: MatchState;
+  /**
+   * The match's own generator, advanced past every command in the log.
+   *
+   * Handed back rather than discarded, and that matters more than it looks: a
+   * match's dice are **one** generator walked through its commands in order, so
+   * the only way to play the next action with the right dice is to carry this
+   * one forward. Building a fresh generator instead — from the seed, from the
+   * seed plus the log length, from anything — produces a different match that
+   * the opponent's replay will disagree with.
+   */
+  rng: Rng;
+  /** The history that produced the board, for the panels that show it. */
+  log: readonly RecordedEvent[];
   /** `null` when the match is sound and playable. */
   blocked: Blocked | null;
 }
@@ -87,28 +101,28 @@ export function reconstruct(match: RemoteMatch): Reconstructed {
     replay: match.commandLog,
   });
 
+  const rebuilt = { match, state: built.state, rng: built.rng, log: built.log };
+
   if (match.engineEdition !== RULES_VERSION) {
     return {
-      match,
-      state: built.state,
+      ...rebuilt,
       blocked: { kind: "edition", stored: match.engineEdition, ours: RULES_VERSION },
     };
   }
 
   if (built.diverged !== null) {
-    return { match, state: built.state, blocked: { kind: "desync", ...built.diverged } };
+    return { ...rebuilt, blocked: { kind: "desync", ...built.diverged } };
   }
 
   const actual = stateHash(built.state);
   if (match.stateHash !== null && match.stateHash !== actual) {
     return {
-      match,
-      state: built.state,
+      ...rebuilt,
       blocked: { kind: "hashMismatch", expected: match.stateHash, actual },
     };
   }
 
-  return { match, state: built.state, blocked: null };
+  return { ...rebuilt, blocked: null };
 }
 
 /** Start a match and take the home seat. */
