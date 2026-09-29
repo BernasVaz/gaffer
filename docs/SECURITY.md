@@ -260,6 +260,32 @@ a policy is one helpful edit away from being open again.
 
 ---
 
+## Test data and the real project
+
+**The cloud end-to-end suite writes to production.** That is deliberate — a local stack
+cannot tell you whether the hosted auth service, the real publication and a websocket over
+the internet behave — and it means test identities, matches and feedback land beside real
+ones.
+
+Two things keep them apart:
+
+- **Every row a test creates is marked when it is written.** Display names carry a
+  `gaffer-e2e:` prefix. Marking at write time is the only version of this that is safe to
+  run against production: a purge that _infers_ what is disposable from a name or a date
+  eventually throws away somebody's feedback.
+- **`tools/backup purge` removes only marked rows**, dry-run by default, `--delete`
+  required. Rows without a marker are never touched, so anything written before marking
+  existed is dealt with by hand — which is the right way round.
+
+**The durable fix is a second Supabase project** for tests, so the two never share a
+database at all. Until that exists, the routine is: run the cloud suite when it earns its
+keep, purge afterwards, and never run it during a wave.
+
+**Backups.** The free tier has none. `tools/backup` is the only copy, and taking one is
+step 1 of cutting a freeze.
+
+---
+
 ## Known and accepted
 
 ### Anonymous sign-in is a spam vector

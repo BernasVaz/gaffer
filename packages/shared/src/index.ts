@@ -29,4 +29,5 @@ export * from "./seed.js";
 export * from "./setup.js";
 export { displayNameProblem, MAX_DISPLAY_NAME, normaliseDisplayName } from "./display-name.js";
 export { csvCell, csvRow, hasHiddenCharacters, withoutHiddenCharacters } from "./untrusted.js";
+export { isTestDisplayName, TEST_MARKER, testDisplayName } from "./test-marker.js";
 export * from "./team.js";
