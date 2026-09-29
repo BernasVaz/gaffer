@@ -44,7 +44,7 @@ Full rules in [`docs/GDD.md`](docs/GDD.md).
 | [`tools/play`](tools/play)           | Dev-only match viewer. Never shipped.                       |
 
 The engine knows nothing about rendering or networking. The web client draws its
-state; the multiplayer server runs the same engine as an authoritative referee. One
+state; multiplayer stores the same engine's command log and replays it. One
 rulebook, two consumers, no drift.
 
 ## Getting started

@@ -15,7 +15,9 @@ honours them.
 1. **The game rules are a pure, deterministic engine.** All game logic lives in
    `@gaffer/engine`, framework-free. Same input → same output, always.
 2. **Engine, rendering, and networking stay separate.** The web client draws the
-   engine; the server runs the _same_ engine as referee. Never mix them.
+   engine; the networking layer moves a command log around and holds no rule of its
+   own. When a referee arrives it runs the _same_ engine (ADR 0028, Phase 2). Never
+   mix them.
 3. **Docs and tests are part of "done."** Code without a test or a doc-comment is
    unfinished.
 4. **Small, reversible steps.** Small commits on a branch, CI-reviewed, merged green.
@@ -159,7 +161,7 @@ Use **pnpm** — never `npm` or `yarn`. Node comes from fnm; the version is pinn
 - Ask one focused question rather than guessing when genuinely unsure — but make
   routine calls independently.
 - Prefer small, reviewable changes over large sweeping ones.
-- Current status: **M2 complete, M3 in progress.** The engine plays a full match and the
+- Current status: **M4 Phase 1 shipped.** The engine plays a full match and the
   client is playable hotseat with motion and a goal moment. `@gaffer/ai` provides the solo
   opponent, and the v1.6 balance (ADR 0007) was settled by self-play through it.
   The client has a setup screen and plays both hotseat and solo, with the whole
@@ -168,5 +170,18 @@ Use **pnpm** — never `npm` or `yarn`. Node comes from fnm; the version is pinn
   M3 is complete, and a multi-format alpha ships on top of it: three game types, chosen
   before kickoff and carried in the link, with 7v7 and 11v11 marked alpha (ADR 0013).
   `pnpm play -- --format 11v11 --matches 50` is the balance run for one.
-  Next is M4: **asynchronous multiplayer on Supabase** (ADR 0028), built behind
-  `ASYNC_MULTIPLAYER = false` so the alpha build is untouched.
+  **Asynchronous multiplayer is live for invited testers** (ADR 0028, 0033): a match is
+  a seed and a command log in one Supabase row, row-level security decides who may
+  append, and a per-turn state hash means a divergence is reported rather than merely
+  suffered. Identity is anonymous plus a name. Feedback is written to the database as
+  it is typed rather than downloaded. Phase 2 — the engine as referee in an edge
+  function — is designed and not built.
+
+  `ASYNC_MULTIPLAYER` is a build-time flag: a release turns it on, every other build
+  leaves it off and the online code is **absent** from that bundle, which
+  `apps/web/e2e/bundle-isolation.spec.ts` enforces on every push.
+
+  **The live site is a pinned tag, not `main`.** Deploys run from `alpha-freeze-*`, so
+  merging never moves the ground under a wave of testers; cutting the next freeze is
+  `git push origin alpha-freeze-N`. An engine-edition bump seals every match in flight,
+  so bumps are batched to wave boundaries (ADR 0033).

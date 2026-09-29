@@ -1,4 +1,4 @@
-# Gaffer — Game Design Document (v1.18 — LOCKED, v1 baseline)
+# Gaffer — Game Design Document (v1.19 — LOCKED, v1 baseline)
 
 _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementable baseline**: the design is complete enough to build with no open questions. Values marked *(tunable)* are locked starting numbers we will refine in playtest — changing them is a data edit, not a redesign. This is the contract the engine (M2) is built and tested against._
 
@@ -12,6 +12,7 @@ _Codename Gaffer · Studio WACAIDO · M1 deliverable. This is the **implementabl
 > - **v1.2 → v1.3:** bounded the win condition (§10, §13) — extra time is 4 turns, then a penalty shootout of 3 kicks plus 10 sudden-death rounds, then most shots, then most duels won, then the side that did not kick off. A tiebreaker cascade was needed because §10 forbids draws and no symmetric shootout terminates on its own.
 > - **v1.3 → v1.4:** made scoring possible. Keeper DEF 5 → 4; the keeper defends a shot only while standing in its own mouth, so drawing it out opens the goal; covering on a shot softened to +1; and only the defending keeper may occupy a goal mouth, which closes the hole where an attacker could stand in the net and shoot at it (§5, §6, §7, §9, §13). See ADR 0004.
 > - **v1.4 → v1.5:** brought feel into v1 scope (§14). Playtesting the first interactive build showed that an instant result reads as a state change rather than as football, which Pillar 1 depends on. Movement, the goal moment and the duel reveal are now in; animation stays presentation-only and may never affect the engine or its determinism. See ADR 0005.
+> - **v1.18 → v1.19:** documentation only — **no rule moved and the rules edition did not step**. A reconciliation pass against the live engine. The locked table (§13) disagreed with the code in three places and with itself in one: it claimed a **3-kick shootout** two rows above a line saying five, described **pass geometry as eight rays** after ADR 0025 made it any clear lane, and carried a duplicate golden-goal row. Those are corrected, and the table gains the rules that had shipped without reaching it — the dribble through a defender, the carry-on, `THROUGH_COVERING_BONUS`, the shootout's takers, and the rules edition. §14 now records that **asynchronous multiplayer is IN** rather than staying silent about the largest thing to ship since the client. A test in `apps/web/tests/gdd-matches-code.test.ts` asserts the document's numbers against `@gaffer/shared`, so this cannot drift quietly again.
 > - **v1.17 → v1.18:** presentation and defaults only; **no rule moved and the rules edition did not step**. A link with no parameters now opens on **11-a-side, solo, casual** — football is eleven a side, and a bare link should open on the game people came for rather than on the one that is easiest to balance (§12). Only the no-parameter default changed: a link that names a game type still gets it, and a link written before game types existed still resolves to 5-a-side, which is what it meant. **Every game type now carries an Alpha badge**, in the pill and in the accessible name: `status` still records which formats have provisional _numbers_, but the badge is about the build, and all of it is alpha. The engine's own `DEFAULT_FORMAT` stays 5-a-side — the smallest board a rule can be expressed on is the right one to express it on. See ADR 0027.
 > - **v1.16 → v1.17:** the shootout is **taken rather than tallied** (§10). The penalties were always real — the same taker-ATK-against-keeper-DEF duel as any other shot — but the engine resolved all of them the instant the match went level and the client printed the aggregate, so the most dramatic thing the game can do arrived as a line of small text, already over, in roughly one match in four. Now the player presses for each kick and sees the odds, the dice and the result, with a running scoreboard and commentary. **Nothing about how a penalty resolves changed**, and no new balance surface was added. The engine still resolves the whole shootout in one deterministic step and the client walks the list: presentation lags the engine, so a shootout replays byte-identically from a seed with no UI attached and self-play takes the same kicks. Best of five rather than three, stopping once it cannot be caught, takers in ATK order rotating through sudden death. The **rules edition steps to 4**, because a level match now draws different dice in a different order and an edition-3 log would replay to a different winner. Folded in: a first-time solo player now meets **`casual`** rather than `pro` — every level stays selectable, this only changes what you get when you ask for nothing. See ADR 0026.
 > - **v1.15 → v1.16:** a **pass finds anyone with a clear lane** (§7). It used to go to the first team-mate standing on one of the carrier's eight rays, so a team-mate two forward and one across — the commonest shape in football — was not a hard pass or a risky pass but **not a pass at all**. A pass is now legal to any team-mate in PAS range whose flight is unblocked, and a launch is the same rule at `launchRange`. Every lane that was legal before still is, with the same blockers: a diagonal clips the corners of its neighbours rather than crossing them. This also re-reads ADR 0015 — the keeper's long ball was rare because **71% of its rays ended in empty grass**, which was a fact about eight lines through 35 cells and not about football. Measured over 600 matches a side at 5-a-side: goals per match **1.41 → 1.44**, passes offered per decision **0.71 → 0.85**, and passing's share of progression flat at 85%. Shots are still measured on rays, deliberately — pointing them at the new geometry doubled goalless matches. The **rules edition steps to 3**, because this changes what is _legal_ and not only what an action produces. See ADR 0025.
@@ -202,37 +203,42 @@ The goal mouth deliberately does **not** scale. A goal in football is a fixed ph
 
 The 5-a-side column below is unchanged from v1.7:
 
-| Parameter                   | v1 value                                                                    |
-| --------------------------- | --------------------------------------------------------------------------- |
-| Actions per turn            | 2 at 5-a-side (§12 for the rest)                                            |
-| Pitch (5-a-side)            | 7 × 5 cells (§12 for the rest)                                              |
-| Squad                       | 1 GK + 4 outfield                                                           |
-| Stats / roles / move ranges | §6 table                                                                    |
-| Mobility stat               | PAS (no separate PACE)                                                      |
-| Movement & pass geometry    | straight lines, 8 directions, blocked by the first occupied cell            |
-| Distance metric             | steps (Chebyshev — a diagonal costs 1)                                      |
-| Adjacency                   | the 8 surrounding cells                                                     |
-| Goal mouth                  | 3 cells, rows 1–3 of each end column                                        |
-| **SHOT_RANGE**              | **2** cells from the goal mouth at 5-a-side                                 |
-| **launchRange**             | **4** cells at 5-a-side (§12 for the rest), goalkeeper only                 |
-| LAUNCH_INTERCEPT_BONUS      | **+1** to the defence on a launch's interception duel                       |
-| Keeper DEF                  | **3** (was 4, was 5)                                                        |
-| Keeper guards               | only while standing in its own mouth                                        |
-| Goal-mouth occupancy        | defending keeper only                                                       |
-| Undefended shot             | no duel — a certain goal                                                    |
-| Dribble trigger             | carrier adjacent to an opponent at origin **or** destination                |
-| Tackle                      | atomic; the defender must already be adjacent                               |
-| Duel die                    | opposed **d4** (was d3)                                                     |
-| Covering-defender modifier  | +2 DEF each in open play, **+1 on a shot**                                  |
-| Turn cap                    | **24** turns (12 per side) at 5-a-side                                      |
-| Extra time                  | **8** turns (4 per side) at 5-a-side, golden goal                           |
-| Shootout                    | 3 kicks each, then sudden death                                             |
-| Shootout sudden-death cap   | 10 rounds                                                                   |
-| Tiebreaker cascade          | shootout (5 kicks, taken by hand) -> shots -> duels won -> non-kickoff side |
-| Tie-breaker                 | golden-goal sudden death                                                    |
-| Per-turn timer              | ≈ 25s _(client-side)_                                                       |
-| Shot resolution             | single duel (ATK vs keeper DEF) — clean striker **81%**                     |
-| Degrees of success          | none in v1                                                                  |
+| Parameter                   | v1 value                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------- |
+| Actions per turn            | 2 at 5-a-side (§12 for the rest)                                                      |
+| Pitch (5-a-side)            | 7 × 5 cells (§12 for the rest)                                                        |
+| Squad                       | 1 GK + 4 outfield                                                                     |
+| Stats / roles / move ranges | §6 table                                                                              |
+| Mobility stat               | PAS (no separate PACE)                                                                |
+| Movement geometry           | straight lines, 8 directions, blocked by the first occupied cell                      |
+| Pass & launch geometry      | **any clear lane** — the ball's flight, blocked by the first body under it (ADR 0025) |
+| Distance metric             | steps (Chebyshev — a diagonal costs 1)                                                |
+| Adjacency                   | the 8 surrounding cells                                                               |
+| Goal mouth                  | 3 cells, rows 1–3 of each end column                                                  |
+| **SHOT_RANGE**              | **2** cells from the goal mouth at 5-a-side                                           |
+| **launchRange**             | **4** cells at 5-a-side (§12 for the rest), goalkeeper only                           |
+| LAUNCH_INTERCEPT_BONUS      | **+1** to the defence on a launch's interception duel                                 |
+| Keeper DEF                  | **3** (was 4, was 5)                                                                  |
+| Keeper guards               | only while standing in its own mouth                                                  |
+| Goal-mouth occupancy        | defending keeper only                                                                 |
+| Undefended shot             | no duel — a certain goal                                                              |
+| Dribble trigger             | carrier adjacent to an opponent at origin **or** destination                          |
+| Tackle                      | atomic; the defender must already be adjacent                                         |
+| Duel die                    | opposed **d4** (was d3)                                                               |
+| Covering-defender modifier  | +2 DEF each in open play, **+1 on a shot**                                            |
+| Turn cap                    | **24** turns (12 per side) at 5-a-side                                                |
+| Extra time                  | **8** turns (4 per side) at 5-a-side, golden goal                                     |
+| Shootout                    | **5** kicks each, stopping once one side cannot be caught, then sudden death          |
+| Shootout sudden-death cap   | 10 rounds                                                                             |
+| Tiebreaker cascade          | golden goal → shootout (taken by hand) → shots → duels won → non-kickoff side         |
+| Shootout takers             | squad in ATK order, one kick each, rotating in sudden death                           |
+| Dribble through a defender  | onto the cell beyond; the duel is with the man being gone through                     |
+| A won dribble               | carries one cell further in the direction of travel, when that cell is free           |
+| THROUGH_COVERING_BONUS      | **+1** DEF each for defenders covering a dribble through the man                      |
+| Rules edition               | **4** — stamped on every stored match (ADR 0022)                                      |
+| Per-turn timer              | ≈ 25s _(client-side)_                                                                 |
+| Shot resolution             | single duel (ATK vs keeper DEF) — clean striker **81%**                               |
+| Degrees of success          | none in v1                                                                            |
 
 ### Balance watch-list (observed, not yet changed)
 
@@ -281,9 +287,11 @@ Recorded so they are not rediscovered from scratch later.
 
 ## 14. Explicitly OUT of v1 scope
 
-No accounts/ladder/trophies, no squad collection or squad-building (both sides field the same fixed squad), no mobile build. All planned — none in v1.
+No ladder, ranking or trophies; no squad collection or squad-building (both sides field the same fixed squad); no mobile build. All planned — none in v1. **No real accounts either** — online play uses an anonymous identity that lives in one browser (see below), which is deliberately not the same thing.
 
-**The other game modes are IN, as alpha.** This line used to read "no medium/full modes shipped", on the assumption that 7-a-side and 11-a-side would each be a project. They were not: the engine was already written against a board and a squad, so they cost a table of data, two formations and one scaling pass — and an alpha session is worth far more with three game types in it than with one. They are marked provisional in the interface, and 5-a-side remains the polished default. See §12, ADR 0012 and ADR 0013.
+**The other game modes are IN, as alpha.** This line used to read "no medium/full modes shipped", on the assumption that 7-a-side and 11-a-side would each be a project. They were not: the engine was already written against a board and a squad, so they cost a table of data, two formations and one scaling pass — and an alpha session is worth far more with three game types in it than with one. Every game type is badged alpha in the interface, and 5-a-side remains the **settled** one — the format whose numbers the balance was measured against. It is no longer the _default_: a bare link opens on 11-a-side (ADR 0027), because football is eleven a side and a newcomer should meet the game they came for. See §12, ADR 0012 and ADR 0013.
+
+**Asynchronous multiplayer is IN, as Phase 1.** Two people, a link, a turn each whenever they like. It is here earlier than planned because it turned out to be **rules-independent**: a match is a seed and a command log, which is what the feedback archive already stored, so the networking layer moves a list around and holds no rule of its own. The server does **not** run the engine — row-level security decides who may append and when, and a per-turn state hash means a divergence is _reported_ rather than silently suffered. That is a Phase 1 simplification, not the architecture: Phase 2 runs the same engine as referee in an edge function, and is designed rather than built. Identity is anonymous plus a display name, which is **not** an account — no email, no password, nothing to recover with. A rules change seals every match in flight rather than migrating it, so edition bumps are batched to wave boundaries. See ADR 0028, 0029, 0030, 0033.
 
 **The solo opponent is IN.** It was listed here as "no AI beyond a basic solo-test opponent", on the assumption that a single-player mode was a nicety. Two things changed that. A shareable link is worthless without one — the first thing anyone does with a link is play it alone — and a competent opponent turned out to be the only honest way to _measure_ the game, which is how v1.6's balance was settled. It ships as three settings and lives in `@gaffer/ai`, holding no rules of its own. See ADR 0006.
 

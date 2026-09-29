@@ -1,6 +1,7 @@
 # 0002 — A local pre-push hook instead of GitHub branch protection
 
 - **Status:** Accepted (interim — see _Revisit if_)
+- **Superseded by:** **In full**, by [ADR 0010](0010-branch-protection-now-the-repo-is-public.md).
 - **Date:** 2026-08-07
 - **Supersedes:** nothing
 - **Deciders:** Bernardo (product), CTO (architecture)

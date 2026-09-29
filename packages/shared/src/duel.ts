@@ -67,10 +67,11 @@ export const THROUGH_COVERING_BONUS = 1;
 /**
  * The exact probability the attacker wins a duel, from the two scores.
  *
- * A "score" is a stat plus any modifiers, before the die. Both sides roll a d3
- * and the higher total wins, with a tie going to the defender.
+ * A "score" is a stat plus any modifiers, before the die. Both sides roll a
+ * {@link DUEL_DIE_SIDES}-sided die and the higher total wins, with a tie going
+ * to the defender.
  *
- * Computed by **enumerating all nine equally likely die pairs**, never by
+ * Computed by **enumerating every equally likely die pair**, never by
  * sampling and never derived from a roll that has already happened. That matters
  * for two reasons: GDD §9 requires the odds to be shown *before* the player
  * commits, and a sampled estimate would make the number drift between clients

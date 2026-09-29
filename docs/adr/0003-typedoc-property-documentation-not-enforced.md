@@ -1,6 +1,7 @@
 # 0003 — TypeDoc no longer enforces documentation on properties
 
 - **Status:** Accepted
+- **Superseded by:** **In part.** The eight-ray passing geometry is superseded by [ADR 0025](0025-a-pass-finds-anyone-with-a-clear-lane.md); the one-step shootout by [ADR 0026](0026-the-shootout-is-taken-not-tallied.md). Everything else stands.
 - **Date:** 2026-08-07
 - **Supersedes:** nothing (narrows a rule introduced with the Phase 3 docs system)
 - **Deciders:** Bernardo (product), CTO (architecture)
