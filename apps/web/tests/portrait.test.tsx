@@ -128,8 +128,8 @@ describe("the board turned round", () => {
     render(match("5v5"));
 
     const board = within(screen.getByLabelText("Scoreboard"));
-    expect(board.getByText("attacks up")).toBeInTheDocument();
-    expect(board.getByText("attacks down")).toBeInTheDocument();
+    expect(board.getByText("home attacks up")).toBeInTheDocument();
+    expect(board.getByText("away attacks down")).toBeInTheDocument();
   });
 
   it("points them left and right again on a wide board", () => {
@@ -137,8 +137,8 @@ describe("the board turned round", () => {
     render(match("5v5"));
 
     const board = within(screen.getByLabelText("Scoreboard"));
-    expect(board.getByText("attacks right")).toBeInTheDocument();
-    expect(board.getByText("attacks left")).toBeInTheDocument();
+    expect(board.getByText("home attacks right")).toBeInTheDocument();
+    expect(board.getByText("away attacks left")).toBeInTheDocument();
   });
 
   it("hangs the nets off the top and bottom of an upright pitch", () => {

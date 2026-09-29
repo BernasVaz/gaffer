@@ -44,6 +44,11 @@ honours them.
 - `apps/web` — Vite + React + Tailwind. Renders engine state via DOM + CSS-grid, not
   canvas. Holds no game rules. Unlike every other package it uses **Bundler** module
   resolution, so relative imports there carry no `.js` extension.
+  **Nothing takes height from the pitch** (ADR 0036): the match screen is a fixed-height
+  column and the board takes what is left, so anything added above it is taken out of the
+  board — and out of one player's board only, if it is drawn for one of them. Extras go in
+  a compact control, a sheet over the screen, or "More". `e2e-online/pitch-parity.spec.ts`
+  measures it.
 - **No `apps/server`.** Multiplayer is **asynchronous on Supabase**, not a Colyseus
   server (ADR 0028). Phase 1 stores a command log per match and lets row-level security
   decide who may append; Phase 2 runs the engine as referee in an edge function. Neither

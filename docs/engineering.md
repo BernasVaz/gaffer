@@ -326,6 +326,29 @@ Practically:
 - **A change to the board is checked in both.** `tests/portrait.test.tsx` and the
   `on a phone, upright` E2E block play all three formats turned round.
 
+## Nothing takes height from the pitch
+
+The match screen is a fixed-height column: everything that is not the board takes the
+height it asks for, and the board takes what is left (ADR 0019). So the pitch pays for
+anything added above it, and the payment is invisible at the point of sale.
+
+> **Nothing is allowed to take height from the pitch, and what is added must cost every
+> player's screen the same.**
+
+The invite panel broke both halves of that and it took a wave of testers to notice: the
+person who created a match played on a board 61 % of the width of their opponent's
+(ADR 0036). Where extras go instead:
+
+- **A compact control in a row that exists anyway** — a word in the scoreboard line, or a
+  button taken out of the flow so the row does not grow around it.
+- **A sheet over the screen**, for something wanted once. The invite matters for fifteen
+  seconds.
+- **The "More" menu**, for something rarely wanted but occasionally needed.
+
+`e2e-online/pitch-parity.spec.ts` measures it on two phone viewports: both players' pitches
+identical to the pixel, before and after the join and in both turn states, and filling at
+least 90 % of the width — because two equally squashed boards satisfy parity on their own.
+
 ## The look is data
 
 Everything visual is a value somewhere, not a decision spread through components:
