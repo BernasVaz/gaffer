@@ -83,7 +83,7 @@ import { createRng } from "./rng.js"; // ← yes, .js, pointing at rng.ts
 
 This looks wrong the first time you see it. It is correct: TypeScript is describing
 the file that will exist after compiling, and it is what lets the same build run
-under plain Node for the multiplayer server.
+under plain Node — which is what a Phase 2 edge function will want (ADR 0028).
 
 ## Validation
 
@@ -379,11 +379,23 @@ doc coverage, each as a named step so a failure identifies itself in the GitHub 
 rather than hiding in one long log. `pnpm install --frozen-lockfile` guarantees CI
 installs exactly what the lockfile pins.
 
-**On merge to `main`** (`.github/workflows/deploy.yml`) — builds the client and publishes
-it to GitHub Pages. There is no manual publish step, because a link that lags `main` by a
-deploy somebody forgot to run is a link that misrepresents the game. See
-[ADR 0009](adr/0009-ship-on-github-pages-and-keep-vercel-one-import-away.md) for why Pages
-rather than Vercel, and how little stands between the two.
+**On a pushed `alpha-freeze-*` tag** (`.github/workflows/deploy.yml`) — checks out that
+tag, builds the client with multiplayer on, and publishes it to GitHub Pages.
+
+It used to run on every merge to `main`, on the reasoning that a link lagging `main` by a
+deploy somebody forgot to run is a link that misrepresents the game. That was right while
+`main` and the tester build were the same thing, and stopped being right the moment an
+alpha was frozen while work continued: a merge must not be able to move the ground under
+a wave of testers mid-match. So `main` advances freely and the deploy moves when somebody
+cuts a tag — still no manual publish step, just a different trigger.
+
+One wrinkle worth knowing: a tag push runs the workflow **as it exists at that tag**, so a
+change to the deploy has to be on `main` before the next freeze is cut. Running it by hand
+(`gh workflow run deploy.yml --ref main -f ref=alpha-freeze-N`) always uses `main`'s copy,
+which is also how a rollback is done.
+
+See [ADR 0009](adr/0009-ship-on-github-pages-and-keep-vercel-one-import-away.md) for why
+Pages rather than Vercel, and how little stands between the two.
 
 The client builds with a **relative base** (`base: "./"` in `vite.config.ts`), which is
 what lets one artifact serve correctly from a project subpath _and_ from a domain root.

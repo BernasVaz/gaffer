@@ -29,7 +29,7 @@ Everything below serves these. When a decision is unclear, choose the option tha
 | Web client | **Vite + React + TypeScript** | Fast dev server, huge ecosystem, easy to deploy and share via a URL. |
 | Board rendering | **DOM + CSS-grid** (not a game engine) | For a turn-based grid game, plain DOM is simpler, lighter, and easier to make accessible than Phaser/canvas. We can add Pixi.js later *only if* the art becomes animation-heavy. |
 | Styling | **Tailwind CSS** | Fast, consistent styling with design tokens. |
-| Multiplayer | **Colyseus** (authoritative Node/TS server) | Purpose-built for authoritative turn/real-time rooms; the pure engine drops in as the referee. Added *after* the single-player prototype. |
+| Multiplayer | **Asynchronous, on Supabase** (ADR 0028) | A turn-based game with perfect information wants a stored command log and a rule about who may append to it, not a live room. Phase 1 trusts the client and checks it with a state hash; Phase 2 runs the engine as referee in an edge function. ~~Colyseus~~ was the plan until M4 and is dropped: it would have given us presence and room state we would never use, and a server to keep up. |
 | Auth / DB / storage | **Supabase** (Postgres, Auth, Storage) | Batteries-included backend; generous free tier; you already know it. |
 | Mobile | **Capacitor** | Wraps the finished web build into iOS/Android from one codebase. Later. |
 | Testing | **Vitest + Testing Library + fast-check + Playwright** | Unit, component, property-based (for engine invariants), and real-browser end-to-end. |
@@ -37,7 +37,7 @@ Everything below serves these. When a decision is unclear, choose the option tha
 | Git hooks | **Husky + lint-staged + commitlint** | Bad code and bad commit messages can't even be committed. |
 | Versioning | **Changesets** | Human-readable changelogs and versioning for the engine package. |
 | Docs | **TypeDoc** (from TSDoc comments) + Markdown `docs/` + ADRs + a living GDD | Documentation generated from the code plus decisions written by hand. |
-| CI/CD | **GitHub Actions** → deploy web to **Vercel** | Every push is type-checked, linted, tested, built; main auto-deploys to a shareable URL. |
+| CI/CD | **GitHub Actions** → deploy web to **GitHub Pages** (ADR 0009) | Every push is type-checked, linted, tested and built. The live site is a **pinned release tag**, not the tip of `main`, so work can land without moving the ground under a wave of testers. ~~Vercel~~ remains one import away and is not needed. |
 | AI pair | **Claude Code CLI**, run inside VS Code | Your day-to-day build partner, reading `CLAUDE.md` as its contract. |
 
 **Why not Godot/Unity:** a native game engine means a second language, a full rewrite to add multiplayer, and no code-sharing between client and server. For a turn-based, web-first, online game, staying in TypeScript with one deterministic engine powering both sides is faster and more robust. We revisit only if we hit a rendering ceiling the web genuinely can't clear.
@@ -111,13 +111,13 @@ Create a free account at github.com. Settings → SSH and GPG keys → New SSH k
 
 Create a new **empty** repository named `gaffer` (private to start). Don't add any files yet — we scaffold locally and push.
 
-### 3.2 Vercel
-Sign up at vercel.com with your GitHub account. We'll connect the repo in Phase 6 for automatic deploys.
+### 3.2 Hosting
+Nothing to sign up for: the site is served by **GitHub Pages** from the repository itself (ADR 0009). ~~Vercel~~ was the original plan and turned out to be an account and a dashboard we did not need — it remains one import away if a server-rendered page is ever wanted.
 
 ### 3.3 Supabase
-Sign up at supabase.com with GitHub. Create a project named `gaffer` when we reach the backend milestone (M5) — no need yet.
+Sign up at supabase.com with GitHub and create a project named `gaffer`. Needed earlier than this plan first assumed: asynchronous multiplayer (M4) is built on it, not on a server of ours, so it arrives with M4 rather than M5.
 
-**Phase 1 exit gate:** GitHub account + empty `gaffer` repo + SSH working; Vercel and Supabase accounts exist.
+**Phase 1 exit gate:** GitHub account + empty `gaffer` repo + SSH working; a Supabase account exists.
 
 ---
 
@@ -130,7 +130,7 @@ Create the monorepo and push the first green commit. (This is the first place yo
 gaffer/
 ├── apps/
 │   ├── web/                 # Vite + React client (added M3)
-│   └── server/              # Colyseus server (added M4)
+│                             # (no server: M4 is Supabase, ADR 0028)
 ├── packages/
 │   ├── engine/              # PURE deterministic rules — the game
 │   │   ├── src/
@@ -181,7 +181,7 @@ This is what you specifically asked for. Three layers, each with a clear job:
 1. **Code-level docs — TSDoc comments + TypeDoc.** Every exported function, type, and module gets a `/** ... */` TSDoc comment explaining *what* and *why*. **TypeDoc** turns those comments into a browsable API reference (`pnpm docs` → HTML site). Rule of thumb: if someone would ask "why does this exist?", the answer lives in the comment.
 2. **Repo-level docs — the `docs/` folder.**
    - **`GDD.md`** — the Game Design Document. The rules of the game in plain language. The engine is built to match this; when they disagree, one of them is a bug.
-   - **`adr/NNNN-title.md`** — Architecture Decision Records. One short file per real decision (e.g. "0001: use Colyseus for multiplayer"), with context, the decision, and consequences. Dated, numbered, never edited after acceptance — superseded by a new one instead.
+   - **`adr/NNNN-title.md`** — Architecture Decision Records. One short file per real decision (e.g. "0028: async multiplayer is Supabase, not Colyseus"), with context, the decision, and consequences. Dated, numbered, never edited after acceptance — superseded by a new one instead.
    - **`engineering.md`** — the conventions (naming, folder rules, test expectations). A distilled `CLAUDE.md`.
 3. **Living project docs — README + CONTRIBUTING + CHANGELOG.**
    - **`README.md`** — what Gaffer is, how to run it, the scripts.
@@ -232,15 +232,20 @@ Build the pure, deterministic rules engine from the GDD: state model, seeded RNG
 **Exit gate:** every GDD rule has a passing test; the determinism replay test is green; coverage floor met.
 
 ### 🟨 M3 — The shareable web prototype ⭐
-Build the React + CSS-grid client against the engine. Setup screen, board, legal-move highlights, dice/goal feedback, hotseat + vs a basic AI. Deploy to a Vercel URL with a seed in the link so matches are reproducible.
+Build the React + CSS-grid client against the engine. Setup screen, board, legal-move highlights, dice/goal feedback, hotseat + vs a basic AI. Deploy to a GitHub Pages URL with a seed in the link so matches are reproducible.
 **Exit gate:** anyone with the link plays a full match, no rule bugs. **Ship it to communities for feedback.**
 
-### 🟧 M4 — Online multiplayer (Colyseus)
-Authoritative server running the engine as referee; clients send intents and reconcile. Lobby + simple matchmaking; reconnect mid-match.
-**Exit gate:** two people on different machines complete a match; disconnect/reconnect recovers cleanly.
+### 🟩 M4 — Asynchronous multiplayer (Supabase) — **Phase 1 shipped**
+Not a live server. A match is a seed and a command log in one row; row-level security decides who may append and when, and a per-turn state hash means a divergence is *reported* rather than merely suffered (ADR 0028, ADR 0029). Anonymous identity, an invite link, "your turn" over Realtime, and a client that rebuilds a board from the row on load.
+
+**Phase 1 is live for invited testers from Wave 1** (ADR 0033). Phase 2 — the engine as referee in an edge function — is designed and not built; it is wanted when play stops being between friends.
+
+**Exit gate:** two people on different machines complete a match; a closed tab or a dead socket recovers cleanly. *(Met in a two-browser cloud run; a real two-device match is part of the phone pass.)*
 
 ### 🟥 M5 — Accounts & persistence (Supabase)
 Real auth (sign-in UI), profiles, saved results, a basic leaderboard — all behind Zod-validated boundaries, service-role key server-only.
+
+Partly begun ahead of schedule, because multiplayer needed an identity: anonymous sign-in, a `profiles` row with a display name, and a `feedback` table are live (ADR 0030). What M5 adds is a *real* account — an email a player can attach to the anonymous identity they already have, keeping their matches.
 **Exit gate:** a new user signs up, plays a ranked online match, sees the result recorded.
 
 ### 🟪 M6 — Mobile & launch (Capacitor)

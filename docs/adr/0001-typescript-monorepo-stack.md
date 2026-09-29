@@ -1,6 +1,7 @@
 # 0001 — TypeScript monorepo with a pure engine, not a native game engine
 
 - **Status:** Accepted
+- **Superseded by:** **In part.** The multiplayer row is superseded by [ADR 0028](0028-async-multiplayer-is-supabase-not-colyseus.md) (Supabase, not Colyseus); the deployment row by [ADR 0009](0009-ship-on-github-pages-and-keep-vercel-one-import-away.md) (GitHub Pages, not Vercel). The rest of the stack stands.
 - **Date:** 2026-08-07
 - **Deciders:** Bernardo (product), CTO (architecture)
 

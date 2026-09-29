@@ -1,6 +1,7 @@
 # 0014 — The pitch turns with the phone, and the engine never finds out
 
 - **Status:** Accepted
+- **Superseded by:** **In part.** How orientation is _decided_ is superseded by [ADR 0019](0019-portrait-by-default-and-a-board-that-always-fits.md); the rotation itself, and orientation-independent cell names, stand.
 - **Date:** 2026-09-22
 - **Supersedes:** nothing
 - **Deciders:** Bernardo (product), CTO (architecture)

@@ -1,6 +1,7 @@
 # 0015 — The keeper gets a long ball, and the measurement says it is rarely on
 
 - **Status:** Accepted
+- **Superseded by:** **In part.** The launch's geometry follows [ADR 0025](0025-a-pass-finds-anyone-with-a-clear-lane.md) — any clear lane, not eight rays — which also re-reads this ADR's central finding: the keeper's long ball was rare because rays rarely found anybody, not because the verb was. The verb, its range and its `LAUNCH_INTERCEPT_BONUS` stand.
 - **Date:** 2026-09-22
 - **Supersedes:** nothing
 - **Deciders:** Bernardo (product), CTO (architecture)
